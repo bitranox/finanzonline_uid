@@ -1,0 +1,339 @@
+# German translations for uid-check-austria.
+# Copyright (C) 2025 uid-check-austria
+# This file is distributed under the same license as the uid-check-austria project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: uid-check-austria 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-18 21:00+0100\n"
+"PO-Revision-Date: 2025-12-18 21:00+0100\n"
+"Last-Translator: \n"
+"Language: de\n"
+"Language-Team: German\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Return codes
+msgid "UID is valid"
+msgstr "UID ist gültig"
+
+msgid "UID is invalid"
+msgstr "UID ist ungültig"
+
+msgid "Session invalid or expired"
+msgstr "Sitzung ungültig oder abgelaufen"
+
+msgid "System maintenance"
+msgstr "Systemwartung"
+
+msgid "Technical error"
+msgstr "Technischer Fehler"
+
+msgid "The access codes are not valid"
+msgstr "Die Zugangscodes sind nicht gültig"
+
+msgid "User locked due to incorrect login attempts"
+msgstr "Benutzer wegen falscher Anmeldeversuche gesperrt"
+
+msgid "User is locked"
+msgstr "Benutzer ist gesperrt"
+
+msgid "User is not a web service user"
+msgstr "Benutzer ist kein Webservice-Benutzer"
+
+msgid "Participant locked or not authorized for web service"
+msgstr "Teilnehmer gesperrt oder nicht für Webservice autorisiert"
+
+msgid "Wrong UID format"
+msgstr "Falsches UID-Format"
+
+msgid "Invalid requester UID"
+msgstr "Ungültige Anfragesteller-UID"
+
+msgid "Member state forbids query"
+msgstr "Mitgliedstaat verbietet Abfrage"
+
+msgid "Not authorized for requester UID"
+msgstr "Nicht autorisiert für Anfragesteller-UID"
+
+msgid "UID not yet queryable"
+msgstr "UID noch nicht abfragbar"
+
+msgid "UID doesn't start with ATU"
+msgstr "UID beginnt nicht mit ATU"
+
+msgid "VAT group (CZ) - special handling required"
+msgstr "Umsatzsteuergruppe (CZ) - Sonderbehandlung erforderlich"
+
+msgid "VAT group (SK) - special handling required"
+msgstr "Umsatzsteuergruppe (SK) - Sonderbehandlung erforderlich"
+
+msgid "Must query via FinanzOnline portal directly"
+msgstr "Muss direkt über FinanzOnline-Portal abgefragt werden"
+
+msgid "Service unavailable"
+msgstr "Dienst nicht verfügbar"
+
+msgid "Too many queries (server load)"
+msgstr "Zu viele Anfragen (Serverauslastung)"
+
+msgid "Rate limit: 2 queries per UID per day exceeded"
+msgstr "Ratenlimit: 2 Abfragen pro UID pro Tag überschritten"
+
+msgid "Rate limit: requester limit exceeded"
+msgstr "Ratenlimit: Anfragesteller-Limit überschritten"
+
+msgid "Unknown return code"
+msgstr "Unbekannter Rückgabecode"
+
+# Status values
+msgid "VALID"
+msgstr "GÜLTIG"
+
+msgid "INVALID"
+msgstr "UNGÜLTIG"
+
+msgid "ERROR"
+msgstr "FEHLER"
+
+# Labels
+msgid "UID Check Result"
+msgstr "UID-Prüfungsergebnis"
+
+msgid "Company Information"
+msgstr "Firmeninformationen"
+
+msgid "Name:"
+msgstr "Name:"
+
+msgid "Address:"
+msgstr "Adresse:"
+
+msgid "UID:"
+msgstr "UID:"
+
+msgid "Status:"
+msgstr "Status:"
+
+msgid "Return Code:"
+msgstr "Rückgabecode:"
+
+msgid "Message:"
+msgstr "Meldung:"
+
+msgid "Severity:"
+msgstr "Schweregrad:"
+
+msgid "Retryable:"
+msgstr "Wiederholbar:"
+
+msgid "Timestamp:"
+msgstr "Zeitstempel:"
+
+msgid "Yes"
+msgstr "Ja"
+
+msgid "No"
+msgstr "Nein"
+
+# Email messages
+msgid "This is an automated message from uid-check-austria."
+msgstr "Dies ist eine automatische Nachricht von uid-check-austria."
+
+msgid "UID Verification Result (Stufe 2)"
+msgstr "UID-Verifizierungsergebnis (Stufe 2)"
+
+msgid "Query Level: Stufe 2 (with name/address verification)"
+msgstr "Abfragestufe: Stufe 2 (mit Name/Adresse-Verifizierung)"
+
+msgid "Stufe 2 (with name/address verification)"
+msgstr "Stufe 2 (mit Name/Adresse-Verifizierung)"
+
+msgid "Query Level:"
+msgstr "Abfragestufe:"
+
+msgid "Cached Result"
+msgstr "Zwischengespeichertes Ergebnis"
+
+msgid "This result was retrieved from cache."
+msgstr "Dieses Ergebnis wurde aus dem Cache abgerufen."
+
+msgid "Originally queried:"
+msgstr "Ursprünglich abgefragt:"
+
+msgid "NOTE: This is a CACHED result"
+msgstr "HINWEIS: Dies ist ein ZWISCHENGESPEICHERTES Ergebnis"
+
+msgid "UID Check ERROR Notification"
+msgstr "UID-Prüfung FEHLER-Benachrichtigung"
+
+msgid "Error Type:"
+msgstr "Fehlertyp:"
+
+msgid "Meaning:"
+msgstr "Bedeutung:"
+
+msgid "Diagnostic Information"
+msgstr "Diagnoseinformationen"
+
+msgid "This is an automated error notification from uid-check-austria."
+msgstr "Dies ist eine automatische Fehlerbenachrichtigung von uid-check-austria."
+
+msgid "UID Check Error"
+msgstr "UID-Prüfungsfehler"
+
+msgid "UID Check ERROR"
+msgstr "UID-Prüfung FEHLER"
+
+msgid "Yes - try again later"
+msgstr "Ja - später erneut versuchen"
+
+msgid "UID Check Austria - Rate Limit Warning"
+msgstr "UID Check Austria - Ratenlimit-Warnung"
+
+msgid "WARNING: Your query rate has exceeded the configured limit."
+msgstr "WARNUNG: Ihre Abfragerate hat das konfigurierte Limit überschritten."
+
+msgid "Current Status"
+msgstr "Aktueller Status"
+
+msgid "Queries in window:"
+msgstr "Abfragen im Zeitfenster:"
+
+msgid "Maximum allowed:"
+msgstr "Maximal erlaubt:"
+
+msgid "Window duration:"
+msgstr "Zeitfensterdauer:"
+
+msgid "hours"
+msgstr "Stunden"
+
+msgid "Fair Use Policy Notice"
+msgstr "Hinweis zur Fair-Use-Richtlinie"
+
+msgid "\"UID verifications should only be requested at the time when intra-Community tax-exempt supplies or other services are provided to customers in other EU member states - not in advance or in bulk.\""
+msgstr "\"UID-Verifizierungen sollten nur zum Zeitpunkt der innergemeinschaftlichen steuerfreien Lieferungen oder sonstigen Leistungen an Kunden in anderen EU-Mitgliedstaaten angefordert werden - nicht im Voraus oder in großen Mengen.\""
+
+msgid "Important"
+msgstr "Wichtig"
+
+msgid "You are probably not using this program in the right way."
+msgstr "Sie verwenden dieses Programm wahrscheinlich nicht richtig."
+
+msgid "UID queries should be made at the time of transaction, not:"
+msgstr "UID-Abfragen sollten zum Zeitpunkt der Transaktion erfolgen, nicht:"
+
+msgid "In advance for potential future transactions"
+msgstr "Im Voraus für mögliche zukünftige Transaktionen"
+
+msgid "In bulk for database validation"
+msgstr "In großen Mengen zur Datenbankvalidierung"
+
+msgid "For speculative or exploratory purposes"
+msgstr "Für spekulative oder explorative Zwecke"
+
+msgid "This warning is logged locally. The actual BMF service may enforce its own rate limits independently."
+msgstr "Diese Warnung wird lokal protokolliert. Der eigentliche BMF-Dienst kann seine eigenen Ratenlimits unabhängig durchsetzen."
+
+msgid "This is an automated warning from uid-check-austria."
+msgstr "Dies ist eine automatische Warnung von uid-check-austria."
+
+msgid "Rate Limit Exceeded"
+msgstr "Ratenlimit überschritten"
+
+msgid "Your query rate has exceeded the configured limit."
+msgstr "Ihre Abfragerate hat das konfigurierte Limit überschritten."
+
+msgid "UID Check Rate Limit Warning"
+msgstr "UID-Prüfung Ratenlimit-Warnung"
+
+msgid "Rate Limit Warning"
+msgstr "Ratenlimit-Warnung"
+
+# CLI messages
+msgid "Show full Python traceback on errors"
+msgstr "Vollständige Python-Fehlerrückverfolgung bei Fehlern anzeigen"
+
+msgid "Load configuration from a named profile (e.g., 'production', 'test')"
+msgstr "Konfiguration aus einem benannten Profil laden (z.B. 'production', 'test')"
+
+msgid "Output format (human-readable or JSON)"
+msgstr "Ausgabeformat (menschenlesbar oder JSON)"
+
+msgid "Show only a specific configuration section (e.g., 'lib_log_rich')"
+msgstr "Nur einen bestimmten Konfigurationsabschnitt anzeigen (z.B. 'lib_log_rich')"
+
+msgid "Override profile from root command (e.g., 'production', 'test')"
+msgstr "Profil vom Hauptbefehl überschreiben (z.B. 'production', 'test')"
+
+msgid "Target configuration layer(s) to deploy to (can specify multiple)"
+msgstr "Ziel-Konfigurationsebene(n) für Bereitstellung (mehrfach möglich)"
+
+msgid "Overwrite existing configuration files"
+msgstr "Vorhandene Konfigurationsdateien überschreiben"
+
+msgid "Interactive mode: prompt for UID to check"
+msgstr "Interaktiver Modus: UID zur Prüfung eingeben"
+
+msgid "Disable email notification (default: email enabled)"
+msgstr "E-Mail-Benachrichtigung deaktivieren (Standard: aktiviert)"
+
+msgid "Output format (default: human)"
+msgstr "Ausgabeformat (Standard: menschenlesbar)"
+
+msgid "Email recipient (can specify multiple, uses config default if not specified)"
+msgstr "E-Mail-Empfänger (mehrfach möglich, Standard aus Konfiguration)"
+
+msgid "profile"
+msgstr "Profil"
+
+msgid "Configuration deployed successfully"
+msgstr "Konfiguration erfolgreich bereitgestellt"
+
+msgid "No files were created (all target files already exist)."
+msgstr "Keine Dateien erstellt (alle Zieldateien existieren bereits)."
+
+msgid "Use --force to overwrite existing configuration files."
+msgstr "Verwenden Sie --force um vorhandene Konfigurationsdateien zu überschreiben."
+
+msgid "Error"
+msgstr "Fehler"
+
+msgid "Permission denied."
+msgstr "Zugriff verweigert."
+
+msgid "Hint: System-wide deployment (--target app/host) may require sudo."
+msgstr "Hinweis: Systemweite Bereitstellung (--target app/host) erfordert möglicherweise sudo."
+
+msgid "Failed to deploy configuration:"
+msgstr "Konfigurationsbereitstellung fehlgeschlagen:"
+
+msgid "Enter EU VAT ID to verify"
+msgstr "EU-Umsatzsteuer-ID zur Prüfung eingeben"
+
+msgid "Error: UID argument is required (or use --interactive)"
+msgstr "Fehler: UID-Argument erforderlich (oder --interactive verwenden)"
+
+msgid "Return code:"
+msgstr "Rückgabecode:"
+
+msgid "This error may be temporary. Try again later."
+msgstr "Dieser Fehler ist möglicherweise vorübergehend. Versuchen Sie es später erneut."
+
+msgid "Configure FinanzOnline credentials in your config file or via environment variables:"
+msgstr "Konfigurieren Sie FinanzOnline-Zugangsdaten in Ihrer Konfigurationsdatei oder über Umgebungsvariablen:"
+
+msgid "8-12 alphanumeric"
+msgstr "8-12 alphanumerisch"
+
+msgid "5-12 chars"
+msgstr "5-12 Zeichen"
+
+msgid "5-128 chars"
+msgstr "5-128 Zeichen"
+
+msgid "10-24 alphanumeric"
+msgstr "10-24 alphanumerisch"

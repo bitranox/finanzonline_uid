@@ -1,0 +1,339 @@
+# Russian translations for uid-check-austria.
+# Copyright (C) 2025 uid-check-austria
+# This file is distributed under the same license as the uid-check-austria project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: uid-check-austria 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-18 21:00+0100\n"
+"PO-Revision-Date: 2025-12-18 21:00+0100\n"
+"Last-Translator: \n"
+"Language: ru\n"
+"Language-Team: Russian\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Return codes
+msgid "UID is valid"
+msgstr "UID действителен"
+
+msgid "UID is invalid"
+msgstr "UID недействителен"
+
+msgid "Session invalid or expired"
+msgstr "Сессия недействительна или истекла"
+
+msgid "System maintenance"
+msgstr "Техническое обслуживание системы"
+
+msgid "Technical error"
+msgstr "Техническая ошибка"
+
+msgid "The access codes are not valid"
+msgstr "Коды доступа недействительны"
+
+msgid "User locked due to incorrect login attempts"
+msgstr "Пользователь заблокирован из-за неправильных попыток входа"
+
+msgid "User is locked"
+msgstr "Пользователь заблокирован"
+
+msgid "User is not a web service user"
+msgstr "Пользователь не является пользователем веб-сервиса"
+
+msgid "Participant locked or not authorized for web service"
+msgstr "Участник заблокирован или не авторизован для веб-сервиса"
+
+msgid "Wrong UID format"
+msgstr "Неправильный формат UID"
+
+msgid "Invalid requester UID"
+msgstr "Недействительный UID запрашивающего"
+
+msgid "Member state forbids query"
+msgstr "Государство-член запрещает запрос"
+
+msgid "Not authorized for requester UID"
+msgstr "Не авторизован для UID запрашивающего"
+
+msgid "UID not yet queryable"
+msgstr "UID ещё не доступен для запроса"
+
+msgid "UID doesn't start with ATU"
+msgstr "UID не начинается с ATU"
+
+msgid "VAT group (CZ) - special handling required"
+msgstr "Группа НДС (CZ) - требуется специальная обработка"
+
+msgid "VAT group (SK) - special handling required"
+msgstr "Группа НДС (SK) - требуется специальная обработка"
+
+msgid "Must query via FinanzOnline portal directly"
+msgstr "Необходимо запрашивать напрямую через портал FinanzOnline"
+
+msgid "Service unavailable"
+msgstr "Сервис недоступен"
+
+msgid "Too many queries (server load)"
+msgstr "Слишком много запросов (нагрузка сервера)"
+
+msgid "Rate limit: 2 queries per UID per day exceeded"
+msgstr "Лимит: превышено 2 запроса на UID в день"
+
+msgid "Rate limit: requester limit exceeded"
+msgstr "Лимит: превышен лимит запрашивающего"
+
+msgid "Unknown return code"
+msgstr "Неизвестный код возврата"
+
+# Status values
+msgid "VALID"
+msgstr "ДЕЙСТВИТЕЛЕН"
+
+msgid "INVALID"
+msgstr "НЕДЕЙСТВИТЕЛЕН"
+
+msgid "ERROR"
+msgstr "ОШИБКА"
+
+# Labels
+msgid "UID Check Result"
+msgstr "Результат проверки UID"
+
+msgid "Company Information"
+msgstr "Информация о компании"
+
+msgid "Name:"
+msgstr "Название:"
+
+msgid "Address:"
+msgstr "Адрес:"
+
+msgid "UID:"
+msgstr "UID:"
+
+msgid "Status:"
+msgstr "Статус:"
+
+msgid "Return Code:"
+msgstr "Код возврата:"
+
+msgid "Message:"
+msgstr "Сообщение:"
+
+msgid "Severity:"
+msgstr "Серьёзность:"
+
+msgid "Retryable:"
+msgstr "Повторяемый:"
+
+msgid "Timestamp:"
+msgstr "Временная метка:"
+
+msgid "Yes"
+msgstr "Да"
+
+msgid "No"
+msgstr "Нет"
+
+# Email messages
+msgid "This is an automated message from uid-check-austria."
+msgstr "Это автоматическое сообщение от uid-check-austria."
+
+msgid "UID Verification Result (Stufe 2)"
+msgstr "Результат проверки UID (Уровень 2)"
+
+msgid "Query Level: Stufe 2 (with name/address verification)"
+msgstr "Уровень запроса: Уровень 2 (с проверкой имени/адреса)"
+
+msgid "Stufe 2 (with name/address verification)"
+msgstr "Уровень 2 (с проверкой имени/адреса)"
+
+msgid "Query Level:"
+msgstr "Уровень запроса:"
+
+msgid "Cached Result"
+msgstr "Кэшированный результат"
+
+msgid "This result was retrieved from cache."
+msgstr "Этот результат был получен из кэша."
+
+msgid "Originally queried:"
+msgstr "Первоначально запрошено:"
+
+msgid "NOTE: This is a CACHED result"
+msgstr "ПРИМЕЧАНИЕ: Это КЭШИРОВАННЫЙ результат"
+
+msgid "UID Check ERROR Notification"
+msgstr "Уведомление об ОШИБКЕ проверки UID"
+
+msgid "Error Type:"
+msgstr "Тип ошибки:"
+
+msgid "Meaning:"
+msgstr "Значение:"
+
+msgid "Diagnostic Information"
+msgstr "Диагностическая информация"
+
+msgid "This is an automated error notification from uid-check-austria."
+msgstr "Это автоматическое уведомление об ошибке от uid-check-austria."
+
+msgid "UID Check Error"
+msgstr "Ошибка проверки UID"
+
+msgid "UID Check ERROR"
+msgstr "ОШИБКА проверки UID"
+
+msgid "Yes - try again later"
+msgstr "Да - повторите попытку позже"
+
+msgid "UID Check Austria - Rate Limit Warning"
+msgstr "UID Check Austria - Предупреждение о лимите запросов"
+
+msgid "WARNING: Your query rate has exceeded the configured limit."
+msgstr "ПРЕДУПРЕЖДЕНИЕ: Ваша частота запросов превысила настроенный лимит."
+
+msgid "Current Status"
+msgstr "Текущий статус"
+
+msgid "Queries in window:"
+msgstr "Запросов в окне:"
+
+msgid "Maximum allowed:"
+msgstr "Максимум разрешено:"
+
+msgid "Window duration:"
+msgstr "Длительность окна:"
+
+msgid "hours"
+msgstr "часов"
+
+msgid "Fair Use Policy Notice"
+msgstr "Уведомление о политике добросовестного использования"
+
+msgid "\"UID verifications should only be requested at the time when intra-Community tax-exempt supplies or other services are provided to customers in other EU member states - not in advance or in bulk.\""
+msgstr "\"Проверки UID следует запрашивать только в момент, когда внутриобщинные освобождённые от налогов поставки или другие услуги предоставляются клиентам в других государствах-членах ЕС - не заранее и не массово.\""
+
+msgid "Important"
+msgstr "Важно"
+
+msgid "You are probably not using this program in the right way."
+msgstr "Вероятно, вы используете эту программу неправильно."
+
+msgid "UID queries should be made at the time of transaction, not:"
+msgstr "Запросы UID должны выполняться в момент транзакции, а не:"
+
+msgid "In advance for potential future transactions"
+msgstr "Заранее для возможных будущих транзакций"
+
+msgid "In bulk for database validation"
+msgstr "Массово для проверки базы данных"
+
+msgid "For speculative or exploratory purposes"
+msgstr "Для спекулятивных или исследовательских целей"
+
+msgid "This warning is logged locally. The actual BMF service may enforce its own rate limits independently."
+msgstr "Это предупреждение регистрируется локально. Фактический сервис BMF может применять свои собственные лимиты независимо."
+
+msgid "This is an automated warning from uid-check-austria."
+msgstr "Это автоматическое предупреждение от uid-check-austria."
+
+msgid "Rate Limit Exceeded"
+msgstr "Лимит запросов превышен"
+
+msgid "Your query rate has exceeded the configured limit."
+msgstr "Ваша частота запросов превысила настроенный лимит."
+
+msgid "UID Check Rate Limit Warning"
+msgstr "Предупреждение о лимите запросов UID Check"
+
+msgid "Rate Limit Warning"
+msgstr "Предупреждение о лимите запросов"
+
+# CLI messages
+msgid "Show full Python traceback on errors"
+msgstr "Показывать полную трассировку Python при ошибках"
+
+msgid "Load configuration from a named profile (e.g., 'production', 'test')"
+msgstr "Загрузить конфигурацию из именованного профиля (напр., 'production', 'test')"
+
+msgid "Output format (human-readable or JSON)"
+msgstr "Формат вывода (читаемый или JSON)"
+
+msgid "Show only a specific configuration section (e.g., 'lib_log_rich')"
+msgstr "Показать только определённый раздел конфигурации (напр., 'lib_log_rich')"
+
+msgid "Override profile from root command (e.g., 'production', 'test')"
+msgstr "Переопределить профиль из корневой команды (напр., 'production', 'test')"
+
+msgid "Target configuration layer(s) to deploy to (can specify multiple)"
+msgstr "Целевой уровень(и) конфигурации для развёртывания (можно указать несколько)"
+
+msgid "Overwrite existing configuration files"
+msgstr "Перезаписать существующие файлы конфигурации"
+
+msgid "Interactive mode: prompt for UID to check"
+msgstr "Интерактивный режим: запросить UID для проверки"
+
+msgid "Disable email notification (default: email enabled)"
+msgstr "Отключить уведомление по электронной почте (по умолчанию: включено)"
+
+msgid "Output format (default: human)"
+msgstr "Формат вывода (по умолчанию: читаемый)"
+
+msgid "Email recipient (can specify multiple, uses config default if not specified)"
+msgstr "Получатель электронной почты (можно указать несколько, использует значение по умолчанию)"
+
+msgid "profile"
+msgstr "профиль"
+
+msgid "Configuration deployed successfully"
+msgstr "Конфигурация успешно развёрнута"
+
+msgid "No files were created (all target files already exist)."
+msgstr "Файлы не созданы (все целевые файлы уже существуют)."
+
+msgid "Use --force to overwrite existing configuration files."
+msgstr "Используйте --force для перезаписи существующих файлов конфигурации."
+
+msgid "Error"
+msgstr "Ошибка"
+
+msgid "Permission denied."
+msgstr "Доступ запрещён."
+
+msgid "Hint: System-wide deployment (--target app/host) may require sudo."
+msgstr "Подсказка: Системное развёртывание (--target app/host) может потребовать sudo."
+
+msgid "Failed to deploy configuration:"
+msgstr "Не удалось развернуть конфигурацию:"
+
+msgid "Enter EU VAT ID to verify"
+msgstr "Введите ID НДС ЕС для проверки"
+
+msgid "Error: UID argument is required (or use --interactive)"
+msgstr "Ошибка: Требуется аргумент UID (или используйте --interactive)"
+
+msgid "Return code:"
+msgstr "Код возврата:"
+
+msgid "This error may be temporary. Try again later."
+msgstr "Эта ошибка может быть временной. Повторите попытку позже."
+
+msgid "Configure FinanzOnline credentials in your config file or via environment variables:"
+msgstr "Настройте учётные данные FinanzOnline в файле конфигурации или через переменные окружения:"
+
+msgid "8-12 alphanumeric"
+msgstr "8-12 буквенно-цифровых"
+
+msgid "5-12 chars"
+msgstr "5-12 символов"
+
+msgid "5-128 chars"
+msgstr "5-128 символов"
+
+msgid "10-24 alphanumeric"
+msgstr "10-24 буквенно-цифровых"

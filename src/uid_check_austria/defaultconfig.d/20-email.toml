@@ -1,0 +1,95 @@
+# ==============================================================================
+# Email Configuration - SMTP settings for sending notifications
+# ==============================================================================
+#
+# Documentation: Uses btx_lib_mail for SMTP functionality
+# Settings can be overridden via lib_layered_config precedence chain
+# Environment variables: UID_CHECK_AUSTRIA___EMAIL__*
+#
+# .env file examples (no prefix needed):
+#   EMAIL__SMTP_HOSTS=["smtp.example.com:587"]
+#   EMAIL__FROM_ADDRESS=alerts@example.com
+#   EMAIL__SMTP_USERNAME=myuser
+#   EMAIL__SMTP_PASSWORD=secret
+#
+# Sensible defaults are applied by the email wrapper.
+# Uncomment and modify any setting below to override the defaults.
+#
+[email]
+
+# smtp_hosts = ["smtp.example.com:587"]
+# Purpose: SMTP servers to use for email delivery (tried in order)
+# Type: array of strings in "host[:port]" format
+# Default: [] (empty, must be configured to send email)
+# Environment: UID_CHECK_AUSTRIA___EMAIL__SMTP_HOSTS
+# .env: EMAIL__SMTP_HOSTS=["smtp.example.com:587"]
+# Note: Port 587 is standard for STARTTLS, 465 for implicit TLS, 25 for plain
+# Example: smtp_hosts = ["smtp.gmail.com:587", "smtp.backup.com:587"]
+
+# from_address = "noreply@localhost"
+# Purpose: Default sender address for outgoing emails
+# Type: string (valid email address)
+# Default: "noreply@localhost"
+# Environment: UID_CHECK_AUSTRIA___EMAIL__FROM_ADDRESS
+# .env: EMAIL__FROM_ADDRESS=alerts@example.com
+# Example: from_address = "alerts@example.com"
+
+# smtp_username = ""
+# Purpose: SMTP authentication username
+# Type: string or None
+# Default: None (no authentication)
+# Environment: UID_CHECK_AUSTRIA___EMAIL__SMTP_USERNAME
+# .env: EMAIL__SMTP_USERNAME=user@example.com
+# Note: Both username and password must be set to enable authentication
+# Example: smtp_username = "user@example.com"
+
+# smtp_password = ""
+# Purpose: SMTP authentication password
+# Type: string or None
+# Default: None (no authentication)
+# Environment: UID_CHECK_AUSTRIA___EMAIL__SMTP_PASSWORD
+# .env: EMAIL__SMTP_PASSWORD=secret
+# Security: Store in environment variable or user config, not in defaults
+# Example: Set via environment variable for security
+
+# use_starttls = true
+# Purpose: Enable STARTTLS negotiation before authentication
+# Type: boolean
+# Default: true
+# Environment: UID_CHECK_AUSTRIA___EMAIL__USE_STARTTLS
+# .env: EMAIL__USE_STARTTLS=true
+# Note: Standard for port 587; disable for implicit TLS (port 465)
+# Example: use_starttls = false
+
+# timeout = 30.0
+# Purpose: Socket timeout in seconds for SMTP operations
+# Type: float
+# Default: 30.0
+# Environment: UID_CHECK_AUSTRIA___EMAIL__TIMEOUT
+# .env: EMAIL__TIMEOUT=60.0
+# Example: timeout = 60.0
+
+# raise_on_missing_attachments = true
+# Purpose: Behavior when attachment files are missing
+# Type: boolean
+# Default: true (raise FileNotFoundError)
+# Environment: UID_CHECK_AUSTRIA___EMAIL__RAISE_ON_MISSING_ATTACHMENTS
+# Note: When false, logs warning and continues without attachment
+# Example: raise_on_missing_attachments = false
+
+# raise_on_invalid_recipient = true
+# Purpose: Behavior when recipient email addresses are invalid
+# Type: boolean
+# Default: true (raise ValueError)
+# Environment: UID_CHECK_AUSTRIA___EMAIL__RAISE_ON_INVALID_RECIPIENT
+# Note: When false, logs warning and skips invalid addresses
+# Example: raise_on_invalid_recipient = true
+
+# default_recipients = []
+# Purpose: Default email recipients for error and result notifications
+# Type: array of strings (valid email addresses)
+# Default: [] (empty, must be configured for notifications)
+# Environment: UID_CHECK_AUSTRIA___EMAIL__DEFAULT_RECIPIENTS
+# .env: EMAIL__DEFAULT_RECIPIENTS=["admin@example.com"]
+# Note: Used when no explicit recipients are provided to commands
+# Example: default_recipients = ["admin@example.com", "ops@example.com"]

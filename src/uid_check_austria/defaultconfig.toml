@@ -1,0 +1,192 @@
+# Default configuration for uid_check_austria
+#
+# This file contains the default configuration that ships with the application.
+# settings can be also set in defaultconfig.d
+
+# Settings can be overridden via:
+#   - Application-level config (LINUX):
+#        - /etc/xdg/uid-check-austria/config.[toml|yaml|json]
+#        - /etc/xdg/uid-check-austria/config.d/*.[toml|yaml|json]
+#   - Host-level config: (macOS)
+#        - /Library/Application Support/bitranox/Uid Check Austria/config.[toml|yaml|json]
+#        - /Library/Application Support/bitranox/Uid Check Austria/config.d/*.[toml|yaml|json]
+#   - User-level config: (Linux)
+#        - ~/.config/uid-check-austria/config.[toml|yaml|json]
+#        - ~/.config/uid-check-austria/config.d/*.[toml|yaml|json]
+#   - .env files: .env in current directory or parent directories
+#   - Environment variables: Prefix with UID_CHECK_AUSTRIA___
+#
+# Precedence (lowest to highest): defaults → app → host → user → dotenv → env
+#
+# IMPORTANT: Naming Conventions for .env Files vs Environment Variables
+# ----------------------------------------------------------------------
+#
+# .env FILES (no prefix needed):
+#   Format: SECTION__KEY=value
+#   Uses double underscore (__) to create nested structures.
+#
+#   Examples in .env file:
+#     FINANZONLINE__TID=123456789
+#     FINANZONLINE__BENID=MYUSER
+#     FINANZONLINE__PIN=secret
+#     FINANZONLINE__UID_TN=ATU12345678
+#     FINANZONLINE__SESSION_TIMEOUT=60.0
+#
+# ENVIRONMENT VARIABLES (require prefix):
+#   Format: PREFIX___SECTION__KEY=value
+#   Uses triple underscore (___) to separate PREFIX from SECTION,
+#   and double underscore (__) to separate SECTION from KEY.
+#
+#   Examples as environment variables:
+#     UID_CHECK_AUSTRIA___FINANZONLINE__TID=123456789
+#     UID_CHECK_AUSTRIA___FINANZONLINE__PIN=secret
+#
+# Value coercion: "true"/"false" → bool, "null"/"none" → None, numbers → int/float
+
+
+# ==============================================================================
+# Application Settings - General application behavior
+# ==============================================================================
+
+[app]
+
+# language = "en"
+# Purpose: Language for user-facing messages and email notifications
+# Type: string (language code)
+# Default: "en" (English)
+# Environment: UID_CHECK_AUSTRIA___APP__LANGUAGE
+# Supported: "en" (English), "de" (German), "es" (Spanish), "fr" (French), "ru" (Russian)
+# Note: Affects CLI output, help text, error messages, and email content.
+# Example: language = "de"
+
+
+# ==============================================================================
+# FinanzOnline Configuration - BMF UID verification service credentials
+# ==============================================================================
+#
+# Documentation: See docs/prd/prd.md for detailed API specification
+# Settings can be overridden via lib_layered_config precedence chain
+# Environment variables: UID_CHECK_AUSTRIA___FINANZONLINE__*
+#
+# IMPORTANT: Never commit credentials to version control!
+# Use environment variables or user config (~/.config/uid-check-austria/config.toml)
+#
+[finanzonline]
+
+# tid = ""
+# Purpose: Participant ID (Teilnehmer-ID) for FinanzOnline authentication
+# Type: string
+# Default: "" (REQUIRED - must be configured)
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__TID
+# Example: tid = "123456789"
+
+# benid = ""
+# Purpose: User ID (Benutzer-ID) for FinanzOnline authentication
+# Type: string
+# Default: "" (REQUIRED - must be configured)
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__BENID
+# Example: benid = "MYUSER"
+
+# pin = ""
+# Purpose: Password/PIN for FinanzOnline authentication
+# Type: string
+# Default: "" (REQUIRED - must be configured)
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__PIN
+# Security: Store in environment variable, not config file!
+# Example: Set via environment variable for security
+
+# uid_tn = ""
+# Purpose: Own Austrian UID (must start with "ATU")
+# Type: string
+# Default: "" (REQUIRED - must be configured)
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__UID_TN
+# Example: uid_tn = "ATU12345678"
+
+# herstellerid = ""
+# Purpose: VAT-ID of software producer (required by BMF for session login)
+# Type: string
+# Default: "" (REQUIRED - must be configured)
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__HERSTELLERID
+# Note: This is YOUR company's Austrian UID (ATU number) as the software developer
+# Example: herstellerid = "ATU12345678"
+
+# session_timeout = 30.0
+# Purpose: Timeout in seconds for session operations (login/logout)
+# Type: float
+# Default: 30.0
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__SESSION_TIMEOUT
+# Example: session_timeout = 60.0
+
+# query_timeout = 30.0
+# Purpose: Timeout in seconds for UID query operations
+# Type: float
+# Default: 30.0
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__QUERY_TIMEOUT
+# Example: query_timeout = 60.0
+
+# default_recipients = []
+# Purpose: Default email recipients for UID check result notifications
+# Type: array of strings (email addresses)
+# Default: [] (empty - no email notifications unless specified)
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__DEFAULT_RECIPIENTS
+# Note: Can be overridden with --recipient CLI option
+# Example: default_recipients = ["admin@example.com", "accounting@example.com"]
+
+# email_format = "both"
+# Purpose: Email body format for notifications
+# Type: string (one of: "html", "plain", "both")
+# Default: "both" (sends multipart/alternative with both formats)
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__EMAIL_FORMAT
+# Options:
+#   - "html":  Send HTML-only emails (rich formatting)
+#   - "plain": Send plain text-only emails
+#   - "both":  Send multipart/alternative with both formats
+# Example: email_format = "html"
+
+# cache_results_hours = 48.0
+# Purpose: Hours to cache valid UID query results (0 = disabled)
+# Type: float
+# Default: 48.0 (caching enabled, results cached for 48 hours)
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__CACHE_RESULTS_HOURS
+# Note: Only valid results (return_code=0) are cached. Cached results include
+#       a note in email notifications showing the original query timestamp.
+# Example: cache_results_hours = 24.0
+
+# cache_file = ""
+# Purpose: Path to the JSON cache file
+# Type: string (file path)
+# Default: Platform-specific cache directory:
+#   - Linux: ~/.cache/uid-check-austria/uid_cache.json
+#   - macOS: ~/Library/Caches/uid-check-austria/uid_cache.json
+#   - Windows: %LOCALAPPDATA%/uid-check-austria/uid_cache.json
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__CACHE_FILE
+# Note: Uses file locking for safe concurrent access on network drives.
+#       Parent directories are created automatically if needed.
+# Example: cache_file = "/shared/network/uid_cache.json"
+
+# ratelimit_queries = 50
+# Purpose: Maximum number of API queries allowed within the rate limit window
+# Type: integer
+# Default: 50 (0 = disabled)
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__RATELIMIT_QUERIES
+# Note: Cache hits don't count; only actual BMF API calls are tracked.
+#       When exceeded, a warning email is sent but queries still proceed.
+# Example: ratelimit_queries = 100
+
+# ratelimit_hours = 24.0
+# Purpose: Sliding window duration in hours for rate limit tracking
+# Type: float
+# Default: 24.0 (daily limit)
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__RATELIMIT_HOURS
+# Example: ratelimit_hours = 12.0
+
+# ratelimit_file = ""
+# Purpose: Path to the JSON rate limit tracking file
+# Type: string (file path)
+# Default: Platform-specific cache directory:
+#   - Linux: ~/.cache/uid-check-austria/rate_limits.json
+#   - macOS: ~/Library/Caches/uid-check-austria/rate_limits.json
+#   - Windows: %LOCALAPPDATA%/uid-check-austria/rate_limits.json
+# Environment: UID_CHECK_AUSTRIA___FINANZONLINE__RATELIMIT_FILE
+# Note: Uses file locking for safe concurrent access.
+# Example: ratelimit_file = "/shared/network/rate_limits.json"

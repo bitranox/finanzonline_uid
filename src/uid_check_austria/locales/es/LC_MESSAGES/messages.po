@@ -1,0 +1,339 @@
+# Spanish translations for uid-check-austria.
+# Copyright (C) 2025 uid-check-austria
+# This file is distributed under the same license as the uid-check-austria project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: uid-check-austria 1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-18 21:00+0100\n"
+"PO-Revision-Date: 2025-12-18 21:00+0100\n"
+"Last-Translator: \n"
+"Language: es\n"
+"Language-Team: Spanish\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Return codes
+msgid "UID is valid"
+msgstr "UID es válido"
+
+msgid "UID is invalid"
+msgstr "UID no es válido"
+
+msgid "Session invalid or expired"
+msgstr "Sesión inválida o expirada"
+
+msgid "System maintenance"
+msgstr "Mantenimiento del sistema"
+
+msgid "Technical error"
+msgstr "Error técnico"
+
+msgid "The access codes are not valid"
+msgstr "Los códigos de acceso no son válidos"
+
+msgid "User locked due to incorrect login attempts"
+msgstr "Usuario bloqueado por intentos de inicio de sesión incorrectos"
+
+msgid "User is locked"
+msgstr "Usuario está bloqueado"
+
+msgid "User is not a web service user"
+msgstr "El usuario no es un usuario del servicio web"
+
+msgid "Participant locked or not authorized for web service"
+msgstr "Participante bloqueado o no autorizado para el servicio web"
+
+msgid "Wrong UID format"
+msgstr "Formato de UID incorrecto"
+
+msgid "Invalid requester UID"
+msgstr "UID del solicitante inválido"
+
+msgid "Member state forbids query"
+msgstr "El estado miembro prohíbe la consulta"
+
+msgid "Not authorized for requester UID"
+msgstr "No autorizado para el UID del solicitante"
+
+msgid "UID not yet queryable"
+msgstr "UID aún no consultable"
+
+msgid "UID doesn't start with ATU"
+msgstr "UID no comienza con ATU"
+
+msgid "VAT group (CZ) - special handling required"
+msgstr "Grupo de IVA (CZ) - se requiere tratamiento especial"
+
+msgid "VAT group (SK) - special handling required"
+msgstr "Grupo de IVA (SK) - se requiere tratamiento especial"
+
+msgid "Must query via FinanzOnline portal directly"
+msgstr "Debe consultar directamente a través del portal FinanzOnline"
+
+msgid "Service unavailable"
+msgstr "Servicio no disponible"
+
+msgid "Too many queries (server load)"
+msgstr "Demasiadas consultas (carga del servidor)"
+
+msgid "Rate limit: 2 queries per UID per day exceeded"
+msgstr "Límite de velocidad: 2 consultas por UID por día excedido"
+
+msgid "Rate limit: requester limit exceeded"
+msgstr "Límite de velocidad: límite del solicitante excedido"
+
+msgid "Unknown return code"
+msgstr "Código de retorno desconocido"
+
+# Status values
+msgid "VALID"
+msgstr "VÁLIDO"
+
+msgid "INVALID"
+msgstr "INVÁLIDO"
+
+msgid "ERROR"
+msgstr "ERROR"
+
+# Labels
+msgid "UID Check Result"
+msgstr "Resultado de verificación de UID"
+
+msgid "Company Information"
+msgstr "Información de la empresa"
+
+msgid "Name:"
+msgstr "Nombre:"
+
+msgid "Address:"
+msgstr "Dirección:"
+
+msgid "UID:"
+msgstr "UID:"
+
+msgid "Status:"
+msgstr "Estado:"
+
+msgid "Return Code:"
+msgstr "Código de retorno:"
+
+msgid "Message:"
+msgstr "Mensaje:"
+
+msgid "Severity:"
+msgstr "Gravedad:"
+
+msgid "Retryable:"
+msgstr "Reintentable:"
+
+msgid "Timestamp:"
+msgstr "Marca de tiempo:"
+
+msgid "Yes"
+msgstr "Sí"
+
+msgid "No"
+msgstr "No"
+
+# Email messages
+msgid "This is an automated message from uid-check-austria."
+msgstr "Este es un mensaje automático de uid-check-austria."
+
+msgid "UID Verification Result (Stufe 2)"
+msgstr "Resultado de verificación de UID (Nivel 2)"
+
+msgid "Query Level: Stufe 2 (with name/address verification)"
+msgstr "Nivel de consulta: Nivel 2 (con verificación de nombre/dirección)"
+
+msgid "Stufe 2 (with name/address verification)"
+msgstr "Nivel 2 (con verificación de nombre/dirección)"
+
+msgid "Query Level:"
+msgstr "Nivel de consulta:"
+
+msgid "Cached Result"
+msgstr "Resultado en caché"
+
+msgid "This result was retrieved from cache."
+msgstr "Este resultado fue recuperado del caché."
+
+msgid "Originally queried:"
+msgstr "Consultado originalmente:"
+
+msgid "NOTE: This is a CACHED result"
+msgstr "NOTA: Este es un resultado EN CACHÉ"
+
+msgid "UID Check ERROR Notification"
+msgstr "Notificación de ERROR de verificación de UID"
+
+msgid "Error Type:"
+msgstr "Tipo de error:"
+
+msgid "Meaning:"
+msgstr "Significado:"
+
+msgid "Diagnostic Information"
+msgstr "Información de diagnóstico"
+
+msgid "This is an automated error notification from uid-check-austria."
+msgstr "Esta es una notificación de error automática de uid-check-austria."
+
+msgid "UID Check Error"
+msgstr "Error de verificación de UID"
+
+msgid "UID Check ERROR"
+msgstr "ERROR de verificación de UID"
+
+msgid "Yes - try again later"
+msgstr "Sí - intente de nuevo más tarde"
+
+msgid "UID Check Austria - Rate Limit Warning"
+msgstr "UID Check Austria - Advertencia de límite de velocidad"
+
+msgid "WARNING: Your query rate has exceeded the configured limit."
+msgstr "ADVERTENCIA: Su tasa de consultas ha excedido el límite configurado."
+
+msgid "Current Status"
+msgstr "Estado actual"
+
+msgid "Queries in window:"
+msgstr "Consultas en ventana:"
+
+msgid "Maximum allowed:"
+msgstr "Máximo permitido:"
+
+msgid "Window duration:"
+msgstr "Duración de ventana:"
+
+msgid "hours"
+msgstr "horas"
+
+msgid "Fair Use Policy Notice"
+msgstr "Aviso de política de uso justo"
+
+msgid "\"UID verifications should only be requested at the time when intra-Community tax-exempt supplies or other services are provided to customers in other EU member states - not in advance or in bulk.\""
+msgstr "\"Las verificaciones de UID solo deben solicitarse en el momento en que se proporcionan suministros exentos de impuestos intracomunitarios u otros servicios a clientes en otros estados miembros de la UE, no por adelantado ni en masa.\""
+
+msgid "Important"
+msgstr "Importante"
+
+msgid "You are probably not using this program in the right way."
+msgstr "Probablemente no está usando este programa de la manera correcta."
+
+msgid "UID queries should be made at the time of transaction, not:"
+msgstr "Las consultas de UID deben realizarse en el momento de la transacción, no:"
+
+msgid "In advance for potential future transactions"
+msgstr "Por adelantado para posibles transacciones futuras"
+
+msgid "In bulk for database validation"
+msgstr "En masa para validación de base de datos"
+
+msgid "For speculative or exploratory purposes"
+msgstr "Para propósitos especulativos o exploratorios"
+
+msgid "This warning is logged locally. The actual BMF service may enforce its own rate limits independently."
+msgstr "Esta advertencia se registra localmente. El servicio BMF real puede aplicar sus propios límites de velocidad de forma independiente."
+
+msgid "This is an automated warning from uid-check-austria."
+msgstr "Esta es una advertencia automática de uid-check-austria."
+
+msgid "Rate Limit Exceeded"
+msgstr "Límite de velocidad excedido"
+
+msgid "Your query rate has exceeded the configured limit."
+msgstr "Su tasa de consultas ha excedido el límite configurado."
+
+msgid "UID Check Rate Limit Warning"
+msgstr "Advertencia de límite de velocidad de UID Check"
+
+msgid "Rate Limit Warning"
+msgstr "Advertencia de límite de velocidad"
+
+# CLI messages
+msgid "Show full Python traceback on errors"
+msgstr "Mostrar rastreo completo de Python en errores"
+
+msgid "Load configuration from a named profile (e.g., 'production', 'test')"
+msgstr "Cargar configuración desde un perfil nombrado (ej., 'production', 'test')"
+
+msgid "Output format (human-readable or JSON)"
+msgstr "Formato de salida (legible o JSON)"
+
+msgid "Show only a specific configuration section (e.g., 'lib_log_rich')"
+msgstr "Mostrar solo una sección de configuración específica (ej., 'lib_log_rich')"
+
+msgid "Override profile from root command (e.g., 'production', 'test')"
+msgstr "Sobrescribir perfil del comando raíz (ej., 'production', 'test')"
+
+msgid "Target configuration layer(s) to deploy to (can specify multiple)"
+msgstr "Capa(s) de configuración de destino para desplegar (puede especificar múltiples)"
+
+msgid "Overwrite existing configuration files"
+msgstr "Sobrescribir archivos de configuración existentes"
+
+msgid "Interactive mode: prompt for UID to check"
+msgstr "Modo interactivo: solicitar UID para verificar"
+
+msgid "Disable email notification (default: email enabled)"
+msgstr "Deshabilitar notificación por correo (predeterminado: habilitado)"
+
+msgid "Output format (default: human)"
+msgstr "Formato de salida (predeterminado: legible)"
+
+msgid "Email recipient (can specify multiple, uses config default if not specified)"
+msgstr "Destinatario de correo (puede especificar múltiples, usa predeterminado si no se especifica)"
+
+msgid "profile"
+msgstr "perfil"
+
+msgid "Configuration deployed successfully"
+msgstr "Configuración desplegada exitosamente"
+
+msgid "No files were created (all target files already exist)."
+msgstr "No se crearon archivos (todos los archivos de destino ya existen)."
+
+msgid "Use --force to overwrite existing configuration files."
+msgstr "Use --force para sobrescribir archivos de configuración existentes."
+
+msgid "Error"
+msgstr "Error"
+
+msgid "Permission denied."
+msgstr "Permiso denegado."
+
+msgid "Hint: System-wide deployment (--target app/host) may require sudo."
+msgstr "Sugerencia: El despliegue a nivel de sistema (--target app/host) puede requerir sudo."
+
+msgid "Failed to deploy configuration:"
+msgstr "Error al desplegar configuración:"
+
+msgid "Enter EU VAT ID to verify"
+msgstr "Ingrese ID de IVA de la UE para verificar"
+
+msgid "Error: UID argument is required (or use --interactive)"
+msgstr "Error: El argumento UID es requerido (o use --interactive)"
+
+msgid "Return code:"
+msgstr "Código de retorno:"
+
+msgid "This error may be temporary. Try again later."
+msgstr "Este error puede ser temporal. Intente de nuevo más tarde."
+
+msgid "Configure FinanzOnline credentials in your config file or via environment variables:"
+msgstr "Configure las credenciales de FinanzOnline en su archivo de configuración o mediante variables de entorno:"
+
+msgid "8-12 alphanumeric"
+msgstr "8-12 alfanumérico"
+
+msgid "5-12 chars"
+msgstr "5-12 caracteres"
+
+msgid "5-128 chars"
+msgstr "5-128 caracteres"
+
+msgid "10-24 alphanumeric"
+msgstr "10-24 alfanumérico"
