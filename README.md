@@ -43,7 +43,9 @@ Die Verifizierung von UID-Nummern über das FinanzOnline-Webportal erfordert Anm
 
 **Zukünftige Entwicklung:**
 - Automatischer Download von Bestätigungsdokumenten aus Ihrer **FinanzOnline Databox**. Dies **MÜSSEN** Sie derzeit manuell erledigen - siehe **Aufbewahrungspflichten**
+- benötigen Sie weitere Funktionalität, zögern Sie nicht uns zu kontaktieren.
 
+**Beispiel:**
 ```bash
 # Beispiel: eine UID verifizieren
 uid_check_austria check DE123456789
@@ -139,7 +141,7 @@ default_recipients = ["buchhaltung@ihre-firma.at"]
 
 [email]
 smtp_hosts = ["smtp.beispiel.at:587"]
-from_address = "alerts@ihrfirma.at"
+from_address = "uidcheck@ihre-firma.at"
 ```
 
 ```bash
