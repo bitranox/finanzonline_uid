@@ -135,7 +135,7 @@ benid = "WEBUSER"           # Benutzer-ID - muss Webservice-Benutzer sein!
 pin = "yourpassword"        # Passwort/PIN
 uid_tn = "ATU12345678"      # Ihre österreichische UID (muss mit "ATU" beginnen)
 herstellerid = "ATU12345678" # Software-Hersteller UID (Ihre österreichische UID eintragen)
-default_recipients = ["buchhaltung@ihrfirma.at"]
+default_recipients = ["buchhaltung@ihre-firma.at"]
 
 [email]
 smtp_hosts = ["smtp.beispiel.at:587"]
