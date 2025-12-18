@@ -42,7 +42,8 @@ Verifying VAT IDs through the FinanzOnline web portal requires logging in, navig
 - Exit-code and messaging helpers powered by lib_cli_exit_tools
 
 **Future Development:**
-- automatic download of confirmation documents from your **FinanzOnline Databox**. This You **MUST** to do manually at the moment - see **Aufbewahrungspflichten**
+- coming soon: Automatic download of confirmation documents from your **FinanzOnline Databox**. This you **MUST** do manually at the moment - see **Aufbewahrungspflichten**
+- Need additional functionality? Don't hesitate to contact us.
 
 ```bash
 # Example: verify a VAT ID
@@ -80,7 +81,7 @@ Configure via `finanzonline.ratelimit_queries` and `finanzonline.ratelimit_hours
 > Common errors:
 > - `-4` = Invalid credentials
 > - `-7` = User is not a web service user
-> - `-8` = Participant not authorized for web service
+> - `-8` = Participant locked or not authorized for web service
 
 ### Confirmation Documents (Aufbewahrungspflichten)
 

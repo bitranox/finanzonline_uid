@@ -42,7 +42,7 @@ Die Verifizierung von UID-Nummern über das FinanzOnline-Webportal erfordert Anm
 - Exit-Code- und Meldungshelfer durch lib_cli_exit_tools
 
 **Zukünftige Entwicklung:**
-- Automatischer Download von Bestätigungsdokumenten aus Ihrer **FinanzOnline Databox**. Dies **MÜSSEN** Sie derzeit manuell erledigen - siehe **Aufbewahrungspflichten**
+- in Kürze: Automatischer Download von Bestätigungsdokumenten aus Ihrer **FinanzOnline Databox**. Dies **MÜSSEN** Sie derzeit manuell erledigen - siehe **Aufbewahrungspflichten**
 - benötigen Sie weitere Funktionalität, zögern Sie nicht uns zu kontaktieren.
 
 **Beispiel:**
@@ -82,7 +82,7 @@ Konfiguration über `finanzonline.ratelimit_queries` und `finanzonline.ratelimit
 > Häufige Fehler:
 > - `-4` = Ungültige Zugangsdaten
 > - `-7` = Benutzer ist kein Webservice-Benutzer
-> - `-8` = Teilnehmer nicht für Webservice autorisiert
+> - `-8` = Teilnehmer gesperrt oder nicht für Webservice autorisiert
 
 ### Bestätigungsdokumente (Aufbewahrungspflichten)
 
