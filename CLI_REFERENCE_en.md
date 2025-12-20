@@ -1,6 +1,6 @@
 # CLI Reference
 
-This document describes all CLI commands and options for `uid_check_austria`.
+This document describes all CLI commands and options for `finanzonline_uid`.
 
 ## Global Options
 
@@ -15,14 +15,14 @@ These options apply to all commands:
 
 ## Commands
 
-The CLI command is registered under `uid-check-austria` and `uid_check_austria` - so you can use both.
+The CLI command is registered under `finanzonline-uid` and `finanzonline_uid` - so you can use both.
 
 ---
 
 ### `check` - Verify a VAT ID
 
 ```bash
-uid-check-austria check [OPTIONS] [UID]
+finanzonline-uid check [OPTIONS] [UID]
 ```
 
 **Arguments:**
@@ -54,22 +54,22 @@ uid-check-austria check [OPTIONS] [UID]
 
 ```bash
 # Basic usage
-uid-check-austria check DE123456789
+finanzonline-uid check DE123456789
 
 # JSON output
-uid-check-austria check DE123456789 --format json
+finanzonline-uid check DE123456789 --format json
 
 # Without email notification
-uid-check-austria check DE123456789 --no-email
+finanzonline-uid check DE123456789 --no-email
 
 # Custom recipients
-uid-check-austria check DE123456789 --recipient admin@example.com --recipient finance@example.com
+finanzonline-uid check DE123456789 --recipient admin@example.com --recipient finance@example.com
 
 # Interactive mode
-uid-check-austria check --interactive
+finanzonline-uid check --interactive
 
 # With profile
-uid-check-austria --profile production check DE123456789
+finanzonline-uid --profile production check DE123456789
 ```
 
 ---
@@ -77,7 +77,7 @@ uid-check-austria --profile production check DE123456789
 ### `config` - Display Configuration
 
 ```bash
-uid-check-austria config [OPTIONS]
+finanzonline-uid config [OPTIONS]
 ```
 
 **Options:**
@@ -92,16 +92,16 @@ uid-check-austria config [OPTIONS]
 
 ```bash
 # Show all configuration
-uid-check-austria config
+finanzonline-uid config
 
 # JSON output for scripting
-uid-check-austria config --format json
+finanzonline-uid config --format json
 
 # Show only email section
-uid-check-austria config --section email
+finanzonline-uid config --section email
 
 # Show production profile
-uid-check-austria config --profile production
+finanzonline-uid config --profile production
 ```
 
 ---
@@ -109,7 +109,7 @@ uid-check-austria config --profile production
 ### `config-deploy` - Deploy Configuration Files
 
 ```bash
-uid-check-austria config-deploy [OPTIONS]
+finanzonline-uid config-deploy [OPTIONS]
 ```
 
 **Options:**
@@ -124,19 +124,19 @@ uid-check-austria config-deploy [OPTIONS]
 
 ```bash
 # Deploy user configuration
-uid-check-austria config-deploy --target user
+finanzonline-uid config-deploy --target user
 
 # Deploy system-wide (requires privileges)
-sudo uid-check-austria config-deploy --target app
+sudo finanzonline-uid config-deploy --target app
 
 # Deploy multiple targets
-uid-check-austria config-deploy --target user --target host
+finanzonline-uid config-deploy --target user --target host
 
 # Overwrite existing
-uid-check-austria config-deploy --target user --force
+finanzonline-uid config-deploy --target user --force
 
 # Deploy to production profile
-uid-check-austria config-deploy --target user --profile production
+finanzonline-uid config-deploy --target user --profile production
 ```
 
 ---
@@ -144,7 +144,7 @@ uid-check-austria config-deploy --target user --profile production
 ### `info` - Display Package Information
 
 ```bash
-uid-check-austria info
+finanzonline-uid info
 ```
 
 Shows package name, version, homepage, author, and other metadata.
@@ -154,7 +154,7 @@ Shows package name, version, homepage, author, and other metadata.
 ### `hello` - Test Success Path
 
 ```bash
-uid-check-austria hello
+finanzonline-uid hello
 ```
 
 Emits a greeting message to verify the CLI is working.
@@ -164,8 +164,8 @@ Emits a greeting message to verify the CLI is working.
 ### `fail` - Test Error Handling
 
 ```bash
-uid-check-austria fail
-uid-check-austria --traceback fail  # With full traceback
+finanzonline-uid fail
+finanzonline-uid --traceback fail  # With full traceback
 ```
 
 Triggers an intentional error to test error handling.

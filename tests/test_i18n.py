@@ -19,7 +19,7 @@ from collections.abc import Generator
 
 import pytest
 
-from uid_check_austria.i18n import (
+from finanzonline_uid.i18n import (
     DEFAULT_LANGUAGE,
     N_,
     SUPPORTED_LANGUAGES,
@@ -147,7 +147,7 @@ class TestReturnCodeTranslations:
 
     def test_return_code_info_translated(self) -> None:
         """Return code info should be translated at runtime."""
-        from uid_check_austria.domain.return_codes import get_return_code_info
+        from finanzonline_uid.domain.return_codes import get_return_code_info
 
         # First in English
         setup_locale("en")
@@ -172,8 +172,8 @@ class TestFormatterTranslations:
         """Status labels in formatters should be translated."""
         from datetime import datetime, timezone
 
-        from uid_check_austria.adapters.output.formatters import format_human
-        from uid_check_austria.domain.models import UidCheckResult
+        from finanzonline_uid.adapters.output.formatters import format_human
+        from finanzonline_uid.domain.models import UidCheckResult
 
         result = UidCheckResult(
             uid="ATU12345678",

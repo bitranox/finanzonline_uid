@@ -14,11 +14,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from zeep.exceptions import Fault, TransportError
 
-from uid_check_austria.adapters.finanzonline.session_client import (
+from finanzonline_uid.adapters.finanzonline.session_client import (
     SESSION_SERVICE_WSDL,
     FinanzOnlineSessionClient,
 )
-from uid_check_austria.domain.errors import AuthenticationError, SessionError
+from finanzonline_uid.domain.errors import AuthenticationError, SessionError
 
 
 # ============================================================================
@@ -58,7 +58,7 @@ class TestLazyClientCreation:
     def test_first_call_creates_zeep_client(self) -> None:
         """Calling _get_client creates the zeep Client."""
         client = FinanzOnlineSessionClient()
-        with patch("uid_check_austria.adapters.finanzonline.session_client.Client") as mock_class:
+        with patch("finanzonline_uid.adapters.finanzonline.session_client.Client") as mock_class:
             mock_instance = MagicMock()
             mock_class.return_value = mock_instance
 
@@ -70,7 +70,7 @@ class TestLazyClientCreation:
     def test_subsequent_calls_reuse_existing_client(self) -> None:
         """Multiple calls return the same client instance."""
         client = FinanzOnlineSessionClient()
-        with patch("uid_check_austria.adapters.finanzonline.session_client.Client") as mock_class:
+        with patch("finanzonline_uid.adapters.finanzonline.session_client.Client") as mock_class:
             mock_instance = MagicMock()
             mock_class.return_value = mock_instance
 

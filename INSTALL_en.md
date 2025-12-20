@@ -2,7 +2,7 @@
 
 > The CLI stack uses `rich-click`, which bundles `rich` styling on top of click-style ergonomics.
 
-This guide collects every supported method to install `uid_check_austria`, including
+This guide collects every supported method to install `finanzonline_uid`, including
 isolated environments and system package managers. Pick the option that matches your workflow.
 
 
@@ -90,9 +90,9 @@ source .venv/bin/activate
 .venv\Scripts\Activate.ps1
 
 # install via uv from PyPI
-uv pip install uid_check_austria
+uv pip install finanzonline_uid
 # optional install from GitHub
-uv pip install "git+https://github.com/bitranox/uid_check_austria"
+uv pip install "git+https://github.com/bitranox/finanzonline_uid"
 # upgrade
 uv tool upgrade --all
 ```
@@ -104,9 +104,9 @@ Multiple projects with different tool versions stay isolated so each can use "it
 
 ```bash
 # run from PyPI
-uvx uid_check_austria
+uvx finanzonline_uid
 # run from GitHub
-uvx --from git+https://github.com/bitranox/uid_check_austria.git uid_check_austria
+uvx --from git+https://github.com/bitranox/finanzonline_uid.git finanzonline_uid
 
 ```
 
@@ -119,9 +119,9 @@ uvx --from git+https://github.com/bitranox/uid_check_austria.git uid_check_austr
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 # install from PyPI
-pip install uid_check_austria 
+pip install finanzonline_uid 
 # optional install from GitHub
-pip install "git+https://github.com/bitranox/uid_check_austria"
+pip install "git+https://github.com/bitranox/finanzonline_uid"
 # optional development install from local
 pip install -e .[dev]
 # optional install from local runtime only:
@@ -132,9 +132,9 @@ pip install .
 
 ```bash
 # install from PyPI
-pip install --user uid_check_austria 
+pip install --user finanzonline_uid 
 # optional install from GitHub
-pip install --user "git+https://github.com/bitranox/uid_check_austria"
+pip install --user "git+https://github.com/bitranox/finanzonline_uid"
 # optional install from local
 pip install --user .
 ```
@@ -150,12 +150,12 @@ python -m pip install pipx
 # optional install pipx via apt
 sudo apt install python-pipx
 # install via pipx from PyPI
-pipx install uid_check_austria
+pipx install finanzonline_uid
 # optional install via pipx from GitHub
-pipx install "git+https://github.com/bitranox/uid_check_austria"
+pipx install "git+https://github.com/bitranox/finanzonline_uid"
 # optional install from local
 pipx install .
-pipx upgrade uid_check_austria
+pipx upgrade finanzonline_uid
 # From Git tag/commit:
 ```
 
@@ -163,34 +163,34 @@ pipx upgrade uid_check_austria
 
 ```bash
 python -m build
-pip install dist/uid_check_austria-*.whl
-pip install dist/uid_check_austria-*.tar.gz   # sdist
+pip install dist/finanzonline_uid-*.whl
+pip install dist/finanzonline_uid-*.tar.gz   # sdist
 ```
 
 ## 7. Poetry or PDM Managed Environments
 
 ```bash
 # Poetry
-poetry add uid_check_austria     # as dependency
+poetry add finanzonline_uid     # as dependency
 poetry install                          # for local dev
 
 # PDM
-pdm add uid_check_austria
+pdm add finanzonline_uid
 pdm install
 ```
 
 ## 8. Install Directly from Git
 
 ```bash
-pip install "git+https://github.com/bitranox/uid_check_austria#egg=uid_check_austria"
+pip install "git+https://github.com/bitranox/finanzonline_uid#egg=finanzonline_uid"
 ```
 
 ## 9. System Package Managers (Optional Distribution Channels)
 
 - Deb/RPM: Package with `fpm` for OS-native delivery
 
-All methods register both the `uid_check_austria` and
-`uid-check-austria` commands on your PATH.
+All methods register both the `finanzonline_uid` and
+`finanzonline-uid` commands on your PATH.
 
 ---
 
@@ -204,24 +204,24 @@ Deploy a user-specific configuration file with all settings documented:
 
 ```bash
 # Deploy user configuration template
-uid-check-austria config-deploy --target user
+finanzonline-uid config-deploy --target user
 
 # Edit the generated config file
-# Linux:   ~/.config/uid-check-austria/config.toml
-# macOS:   ~/Library/Application Support/bitranox/Uid Check Austria/config.toml
-# Windows: %APPDATA%\bitranox\Uid Check Austria\config.toml
+# Linux:   ~/.config/finanzonline-uid/config.toml
+# macOS:   ~/Library/Application Support/bitranox/FinanzOnline UID/config.toml
+# Windows: %APPDATA%\bitranox\FinanzOnline UID\config.toml
 ```
 
 For system-wide configuration (requires privileges):
 
 ```bash
 # Deploy system-wide configuration template
-sudo uid-check-austria config-deploy --target app
+sudo finanzonline-uid config-deploy --target app
 
 # Edit the generated config file
-# Linux:   /etc/xdg/uid-check-austria/config.toml
-# macOS:   /Library/Application Support/bitranox/Uid Check Austria/config.toml
-# Windows: %PROGRAMDATA%\bitranox\Uid Check Austria\config.toml
+# Linux:   /etc/xdg/finanzonline-uid/config.toml
+# macOS:   /Library/Application Support/bitranox/FinanzOnline UID/config.toml
+# Windows: %PROGRAMDATA%\bitranox\FinanzOnline UID\config.toml
 ```
 
 ### Option B: Use a .env file (Optional)
@@ -247,20 +247,20 @@ EMAIL__FROM_ADDRESS=alerts@example.com
 Set environment variables directly (with app prefix):
 
 ```bash
-export UID_CHECK_AUSTRIA___FINANZONLINE__TID=123456789
-export UID_CHECK_AUSTRIA___FINANZONLINE__BENID=WEBUSER
-export UID_CHECK_AUSTRIA___FINANZONLINE__PIN=yourpassword
-export UID_CHECK_AUSTRIA___FINANZONLINE__UID_TN=ATU12345678
-export UID_CHECK_AUSTRIA___FINANZONLINE__HERSTELLERID=ATU12345678
+export FINANZONLINE_UID___FINANZONLINE__TID=123456789
+export FINANZONLINE_UID___FINANZONLINE__BENID=WEBUSER
+export FINANZONLINE_UID___FINANZONLINE__PIN=yourpassword
+export FINANZONLINE_UID___FINANZONLINE__UID_TN=ATU12345678
+export FINANZONLINE_UID___FINANZONLINE__HERSTELLERID=ATU12345678
 ```
 
 ### Verify Installation
 
 ```bash
 # when installed
-uid-check-austria check DE123456789
+finanzonline-uid check DE123456789
 # using uvx, run the latest version without installing
-uvx uid-check-austria@latest check DE123456789
+uvx finanzonline-uid@latest check DE123456789
 ```
 
 For detailed configuration options, see [CONFIGURATION_en.md](CONFIGURATION_en.md).

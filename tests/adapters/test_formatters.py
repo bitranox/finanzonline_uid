@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from uid_check_austria.adapters.output.formatters import format_human, format_json
-from uid_check_austria.domain.models import Address, UidCheckResult
+from finanzonline_uid.adapters.output.formatters import format_human, format_json
+from finanzonline_uid.domain.models import Address, UidCheckResult
 
 
 @pytest.fixture

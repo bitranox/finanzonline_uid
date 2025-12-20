@@ -11,9 +11,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from uid_check_austria.application.use_cases import CheckUidUseCase
-from uid_check_austria.domain.errors import QueryError, SessionError
-from uid_check_austria.domain.models import (
+from finanzonline_uid.application.use_cases import CheckUidUseCase
+from finanzonline_uid.domain.errors import QueryError, SessionError
+from finanzonline_uid.domain.models import (
     Address,
     FinanzOnlineCredentials,
     SessionInfo,

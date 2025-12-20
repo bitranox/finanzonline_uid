@@ -1,6 +1,6 @@
 # Konfiguration
 
-Dieses Dokument beschreibt alle Konfigurationsoptionen für `uid_check_austria`.
+Dieses Dokument beschreibt alle Konfigurationsoptionen für `finanzonline_uid`.
 
 ## Konfigurationsmethoden
 
@@ -22,23 +22,23 @@ Die Konfiguration kann über mehrere Quellen bereitgestellt werden. Spätere Que
 SECTION__KEY=value
 
 # Shell-Umgebungsvariablenformat (erfordert Präfix)
-UID_CHECK_AUSTRIA___SECTION__KEY=value
+FINANZONLINE_UID___SECTION__KEY=value
 ```
 
 **Speicherorte der Konfigurationsdateien:**
 
 | Ziel   | Linux                                          | macOS                                                       | Windows                                     |
 |--------|------------------------------------------------|-------------------------------------------------------------|---------------------------------------------|
-| `user` | `~/.config/uid-check-austria/`                 | `~/Library/Application Support/bitranox/Uid Check Austria/` | `%APPDATA%\bitranox\Uid Check Austria\`     |
-| `app`  | `/etc/xdg/uid-check-austria/`                  | `/Library/Application Support/bitranox/Uid Check Austria/`  | `%PROGRAMDATA%\bitranox\Uid Check Austria\` |
-| `host` | `/etc/uid-check-austria/hosts/{hostname}.toml` | Wie app                                                     | Wie app                                     |
+| `user` | `~/.config/finanzonline-uid/`                 | `~/Library/Application Support/bitranox/FinanzOnline UID/` | `%APPDATA%\bitranox\FinanzOnline UID\`     |
+| `app`  | `/etc/xdg/finanzonline-uid/`                  | `/Library/Application Support/bitranox/FinanzOnline UID/`  | `%PROGRAMDATA%\bitranox\FinanzOnline UID\` |
+| `host` | `/etc/finanzonline-uid/hosts/{hostname}.toml` | Wie app                                                     | Wie app                                     |
 
 **Konfigurationsverzeichnisstruktur:**
 
 Jedes Konfigurationsverzeichnis unterstützt ein `config.d/`-Unterverzeichnis für modulare Konfigurationsfragmente:
 
 ```
-~/.config/uid-check-austria/           # Benutzerkonfigurationsverzeichnis (Linux)
+~/.config/finanzonline-uid/           # Benutzerkonfigurationsverzeichnis (Linux)
 ├── config.toml                        # Hauptkonfigurationsdatei
 └── config.d/                          # Fragment-Verzeichnis (in Sortierreihenfolge geladen)
     ├── 20-email.toml                  # E-Mail-Einstellungen
@@ -155,9 +155,9 @@ Ergebnis-Caching reduziert redundante API-Aufrufe, indem gültige UID-Verifizier
 | `finanzonline.cache_file`          | `str`   | Plattformspezifisch | Pfad zur Cache-JSON-Datei                               |
 
 **Standard-Cache-Dateispeicherorte:**
-- Linux: `~/.cache/uid-check-austria/uid_cache.json`
-- macOS: `~/Library/Caches/uid-check-austria/uid_cache.json`
-- Windows: `%LOCALAPPDATA%/uid-check-austria/uid_cache.json`
+- Linux: `~/.cache/finanzonline-uid/uid_cache.json`
+- macOS: `~/Library/Caches/finanzonline-uid/uid_cache.json`
+- Windows: `%LOCALAPPDATA%/finanzonline-uid/uid_cache.json`
 
 **Hinweise:**
 - Nur gültige Ergebnisse (return_code=0) werden gecacht
@@ -184,9 +184,9 @@ Integriertes Ratenlimit-Tracking warnt, wenn die API-Nutzung sich den Limits nä
 | `finanzonline.ratelimit_file`    | `str`   | Plattformspezifisch| Pfad zur Ratenlimit-Tracking-JSON-Datei                  |
 
 **Standard-Ratenlimit-Dateispeicherorte:**
-- Linux: `~/.cache/uid-check-austria/rate_limits.json`
-- macOS: `~/Library/Caches/uid-check-austria/rate_limits.json`
-- Windows: `%LOCALAPPDATA%/uid-check-austria/rate_limits.json`
+- Linux: `~/.cache/finanzonline-uid/rate_limits.json`
+- macOS: `~/Library/Caches/finanzonline-uid/rate_limits.json`
+- Windows: `%LOCALAPPDATA%/finanzonline-uid/rate_limits.json`
 
 **Verhalten bei Limit-Überschreitung:**
 - Protokolliert eine Warnmeldung

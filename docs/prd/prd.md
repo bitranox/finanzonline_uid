@@ -1,4 +1,4 @@
-# PRD: uid_check_austria - FinanzOnline Level 2 UID Verification
+# PRD: finanzonline_uid - FinanzOnline Level 2 UID Verification
 
 ## 1. Overview
 
@@ -77,9 +77,9 @@ Enable Austrian businesses to programmatically verify EU VAT identification numb
 
 ## 3. Functional Requirements
 
-### 3.1 CLI Command: `uid-check-austria check`
+### 3.1 CLI Command: `finanzonline-uid check`
 ```bash
-uid-check-austria check <uid> [OPTIONS]
+finanzonline-uid check <uid> [OPTIONS]
 
 Arguments:
   uid                    EU VAT ID to verify (e.g., DE123456789)
@@ -118,7 +118,7 @@ Options:
 
 ### 4.1 Module Structure
 ```
-src/uid_check_austria/
+src/finanzonline_uid/
 ├── domain/                      # Pure domain layer (no I/O)
 │   ├── __init__.py
 │   ├── models.py               # Immutable dataclasses
@@ -241,10 +241,10 @@ default_recipients = []
 
 ### 5.2 Environment Variable Format
 ```bash
-UID_CHECK_AUSTRIA___FINANZONLINE__TID=123456789
-UID_CHECK_AUSTRIA___FINANZONLINE__BENID=MYUSER
-UID_CHECK_AUSTRIA___FINANZONLINE__PIN=secret
-UID_CHECK_AUSTRIA___FINANZONLINE__UID_TN=ATU12345678
+FINANZONLINE_UID___FINANZONLINE__TID=123456789
+FINANZONLINE_UID___FINANZONLINE__BENID=MYUSER
+FINANZONLINE_UID___FINANZONLINE__PIN=secret
+FINANZONLINE_UID___FINANZONLINE__UID_TN=ATU12345678
 ```
 
 ---
@@ -263,21 +263,21 @@ UID_CHECK_AUSTRIA___FINANZONLINE__UID_TN=ATU12345678
 ### New Files
 | File | Purpose |
 |------|---------|
-| `src/uid_check_austria/domain/__init__.py` | Domain package |
-| `src/uid_check_austria/domain/models.py` | Immutable dataclasses |
-| `src/uid_check_austria/domain/errors.py` | Domain exceptions |
-| `src/uid_check_austria/domain/return_codes.py` | Return code enum |
-| `src/uid_check_austria/application/__init__.py` | Application package |
-| `src/uid_check_austria/application/ports.py` | Protocol definitions |
-| `src/uid_check_austria/application/use_cases.py` | CheckUidUseCase |
-| `src/uid_check_austria/adapters/__init__.py` | Adapters package |
-| `src/uid_check_austria/adapters/finanzonline/__init__.py` | FO package |
-| `src/uid_check_austria/adapters/finanzonline/session_client.py` | Session SOAP |
-| `src/uid_check_austria/adapters/finanzonline/uid_query_client.py` | Query SOAP |
-| `src/uid_check_austria/adapters/notification/__init__.py` | Notification pkg |
-| `src/uid_check_austria/adapters/notification/email_adapter.py` | Email adapter |
-| `src/uid_check_austria/adapters/output/__init__.py` | Output package |
-| `src/uid_check_austria/adapters/output/formatters.py` | Output formatters |
+| `src/finanzonline_uid/domain/__init__.py` | Domain package |
+| `src/finanzonline_uid/domain/models.py` | Immutable dataclasses |
+| `src/finanzonline_uid/domain/errors.py` | Domain exceptions |
+| `src/finanzonline_uid/domain/return_codes.py` | Return code enum |
+| `src/finanzonline_uid/application/__init__.py` | Application package |
+| `src/finanzonline_uid/application/ports.py` | Protocol definitions |
+| `src/finanzonline_uid/application/use_cases.py` | CheckUidUseCase |
+| `src/finanzonline_uid/adapters/__init__.py` | Adapters package |
+| `src/finanzonline_uid/adapters/finanzonline/__init__.py` | FO package |
+| `src/finanzonline_uid/adapters/finanzonline/session_client.py` | Session SOAP |
+| `src/finanzonline_uid/adapters/finanzonline/uid_query_client.py` | Query SOAP |
+| `src/finanzonline_uid/adapters/notification/__init__.py` | Notification pkg |
+| `src/finanzonline_uid/adapters/notification/email_adapter.py` | Email adapter |
+| `src/finanzonline_uid/adapters/output/__init__.py` | Output package |
+| `src/finanzonline_uid/adapters/output/formatters.py` | Output formatters |
 | `tests/domain/test_models.py` | Domain model tests |
 | `tests/domain/test_return_codes.py` | Return code tests |
 | `tests/application/test_use_cases.py` | Use case tests |
@@ -290,10 +290,10 @@ UID_CHECK_AUSTRIA___FINANZONLINE__UID_TN=ATU12345678
 ### Modified Files
 | File | Changes |
 |------|---------|
-| `src/uid_check_austria/cli.py` | Add `check` command |
-| `src/uid_check_austria/config.py` | Add `load_finanzonline_config()` |
-| `src/uid_check_austria/defaultconfig.toml` | Add `[finanzonline]` section |
-| `src/uid_check_austria/__init__.py` | Export new public API |
+| `src/finanzonline_uid/cli.py` | Add `check` command |
+| `src/finanzonline_uid/config.py` | Add `load_finanzonline_config()` |
+| `src/finanzonline_uid/defaultconfig.toml` | Add `[finanzonline]` section |
+| `src/finanzonline_uid/__init__.py` | Export new public API |
 | `pyproject.toml` | Add zeep dependency, update import-linter |
 | `tests/conftest.py` | Add FinanzOnline fixtures |
 

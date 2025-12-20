@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from uid_check_austria.domain.return_codes import (
+from finanzonline_uid.domain.return_codes import (
     ReturnCode,
     ReturnCodeInfo,
     Severity,

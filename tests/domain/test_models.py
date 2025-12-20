@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from uid_check_austria.domain.models import (
+from finanzonline_uid.domain.models import (
     Address,
     FinanzOnlineCredentials,
     SessionInfo,

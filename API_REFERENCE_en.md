@@ -1,17 +1,17 @@
 # Python API Reference
 
-This document describes the Python API for `uid_check_austria`.
+This document describes the Python API for `finanzonline_uid`.
 
 ## Public Exports
 
 ```python
-import uid_check_austria
+import finanzonline_uid
 
 # Package metadata
-uid_check_austria.__version__    # "0.0.1"
-uid_check_austria.__title__      # "Python library and CLI..."
-uid_check_austria.__author__     # "bitranox"
-uid_check_austria.__url__        # "https://github.com/bitranox/uid_check_austria"
+finanzonline_uid.__version__    # "0.0.1"
+finanzonline_uid.__title__      # "Python library and CLI..."
+finanzonline_uid.__author__     # "bitranox"
+finanzonline_uid.__url__        # "https://github.com/bitranox/finanzonline_uid"
 ```
 
 ---
@@ -23,7 +23,7 @@ uid_check_austria.__url__        # "https://github.com/bitranox/uid_check_austri
 Load layered configuration from all sources.
 
 ```python
-from uid_check_austria.config import get_config
+from finanzonline_uid.config import get_config
 
 config = get_config()
 # or with profile
@@ -48,7 +48,7 @@ config = get_config(start_dir="/path/to/project")
 Configuration for FinanzOnline connection.
 
 ```python
-from uid_check_austria.config import FinanzOnlineConfig, load_finanzonline_config
+from finanzonline_uid.config import FinanzOnlineConfig, load_finanzonline_config
 
 # Load from layered config
 config = get_config()
@@ -80,7 +80,7 @@ fo_config = load_finanzonline_config(config)
 Authentication credentials for FinanzOnline web services.
 
 ```python
-from uid_check_austria.domain.models import FinanzOnlineCredentials
+from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
 credentials = FinanzOnlineCredentials(
     tid="123456789",      # Participant ID (8-12 alphanumeric)
@@ -106,7 +106,7 @@ credentials = FinanzOnlineCredentials(
 Request parameters for Level 2 UID verification.
 
 ```python
-from uid_check_austria.domain.models import UidCheckRequest
+from finanzonline_uid.domain.models import UidCheckRequest
 
 request = UidCheckRequest(
     uid_tn="ATU12345678",    # Own Austrian UID
@@ -130,7 +130,7 @@ request = UidCheckRequest(
 Complete result from Level 2 UID verification.
 
 ```python
-from uid_check_austria.domain.models import UidCheckResult
+from finanzonline_uid.domain.models import UidCheckResult
 
 # Example result
 result.uid           # "DE987654321"
@@ -168,7 +168,7 @@ result.has_company_info  # True if name or address present
 Company address from Level 2 UID verification.
 
 ```python
-from uid_check_austria.domain.models import Address
+from finanzonline_uid.domain.models import Address
 
 address = Address(
     line1="Example GmbH",
@@ -201,12 +201,12 @@ address.is_empty    # False
 Main use case for executing Level 2 UID verification.
 
 ```python
-from uid_check_austria.application.use_cases import CheckUidUseCase
-from uid_check_austria.adapters.finanzonline import (
+from finanzonline_uid.application.use_cases import CheckUidUseCase
+from finanzonline_uid.adapters.finanzonline import (
     FinanzOnlineSessionClient,
     FinanzOnlineQueryClient
 )
-from uid_check_austria.domain.models import FinanzOnlineCredentials
+from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
 # Create clients
 session_client = FinanzOnlineSessionClient(timeout=30.0)
@@ -257,7 +257,7 @@ print(f"Company: {result.name}")
 Email configuration container.
 
 ```python
-from uid_check_austria.mail import EmailConfig
+from finanzonline_uid.mail import EmailConfig
 
 config = EmailConfig(
     smtp_hosts=["smtp.example.com:587"],
@@ -293,7 +293,7 @@ config = EmailConfig(
 Send an email using configured SMTP settings.
 
 ```python
-from uid_check_austria.mail import EmailConfig, send_email
+from finanzonline_uid.mail import EmailConfig, send_email
 from pathlib import Path
 
 config = EmailConfig(
@@ -338,7 +338,7 @@ send_email(
 Send a simple plain-text notification email.
 
 ```python
-from uid_check_austria.mail import EmailConfig, send_notification
+from finanzonline_uid.mail import EmailConfig, send_notification
 
 config = EmailConfig(
     smtp_hosts=["smtp.example.com:587"],
@@ -371,8 +371,8 @@ send_notification(
 Load EmailConfig from a configuration dictionary.
 
 ```python
-from uid_check_austria.mail import load_email_config_from_dict
-from uid_check_austria.config import get_config
+from finanzonline_uid.mail import load_email_config_from_dict
+from finanzonline_uid.config import get_config
 
 config = get_config()
 email_config = load_email_config_from_dict(config.as_dict())
@@ -385,7 +385,7 @@ email_config = load_email_config_from_dict(config.as_dict())
 All domain exceptions inherit from `UidCheckError`:
 
 ```python
-from uid_check_austria.domain.errors import (
+from finanzonline_uid.domain.errors import (
     UidCheckError,           # Base exception
     ConfigurationError,      # Missing or invalid configuration
     AuthenticationError,     # Login/credentials failure
@@ -407,7 +407,7 @@ from uid_check_austria.domain.errors import (
 ## Return Code Utilities
 
 ```python
-from uid_check_austria.domain.return_codes import (
+from finanzonline_uid.domain.return_codes import (
     get_return_code_info,
     is_success,
     is_retryable,

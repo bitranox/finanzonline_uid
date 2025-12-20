@@ -1,8 +1,8 @@
-# Claude Code Guidelines for uid_check_austria
+# Claude Code Guidelines for finanzonline_uid
 
 ## Project Overview
 
-`uid_check_austria` is a Python library and CLI for querying **Level 2 UID checks** (VAT number verification) via the Austrian FinanzOnline web service. It follows Clean Architecture principles with clear separation between domain, application, and adapter layers.
+`finanzonline_uid` is a Python library and CLI for querying **Level 2 UID checks** (VAT number verification) via the Austrian FinanzOnline web service. It follows Clean Architecture principles with clear separation between domain, application, and adapter layers.
 
 ## Session Initialization
 
@@ -37,7 +37,7 @@ When working with Python code:
 ## Project Structure
 
 ```
-uid_check_austria/
+finanzonline_uid/
 ├── .github/workflows/          # GitHub Actions CI/CD workflows
 ├── .devcontainer/              # Dev container configuration
 ├── docs/
@@ -53,7 +53,7 @@ uid_check_austria/
 │   ├── release.py             # Create releases
 │   ├── menu.py                # Interactive TUI menu
 │   └── _utils.py              # Shared utilities
-├── src/uid_check_austria/      # Main Python package
+├── src/finanzonline_uid/      # Main Python package
 │   ├── adapters/              # Infrastructure adapters (Clean Architecture)
 │   │   ├── cache/             # Result caching with file locking
 │   │   ├── finanzonline/      # FinanzOnline SOAP clients
@@ -93,7 +93,7 @@ uid_check_austria/
 
 - **Single Source of Truth**: Package version is in `pyproject.toml` (`[project].version`)
 - **Version Bumps**: update `pyproject.toml` , `CHANGELOG.md` and update the constants in `src/../__init__conf__.py` according to `pyproject.toml`  
-    - Automation rewrites `src/uid_check_austria/__init__conf__.py` from `pyproject.toml`, so runtime code imports generated constants instead of querying `importlib.metadata`.
+    - Automation rewrites `src/finanzonline_uid/__init__conf__.py` from `pyproject.toml`, so runtime code imports generated constants instead of querying `importlib.metadata`.
     - After updating project metadata (version, summary, URLs, authors) run `make test` (or `python -m scripts.test`) to regenerate the metadata module before committing.
 - **Release Tags**: Format is `vX.Y.Z` (push tags for CI to build and publish)
 

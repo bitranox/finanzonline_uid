@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from uid_check_austria.domain.errors import (
+from finanzonline_uid.domain.errors import (
     AuthenticationError,
     ConfigurationError,
     QueryError,

@@ -61,8 +61,8 @@ menu:
 
 i18n-compile:  ## Compile .po files to .mo files for all languages
 	@for lang in de es fr ru; do \
-		msgfmt -o src/uid_check_austria/locales/$$lang/LC_MESSAGES/messages.mo \
-		       src/uid_check_austria/locales/$$lang/LC_MESSAGES/messages.po 2>/dev/null || \
-		$(PYTHON) -c "from tools.msgfmt import make; make('src/uid_check_austria/locales/$$lang/LC_MESSAGES/messages.po', 'src/uid_check_austria/locales/$$lang/LC_MESSAGES/messages.mo')" 2>/dev/null || \
+		msgfmt -o src/finanzonline_uid/locales/$$lang/LC_MESSAGES/messages.mo \
+		       src/finanzonline_uid/locales/$$lang/LC_MESSAGES/messages.po 2>/dev/null || \
+		$(PYTHON) -c "from tools.msgfmt import make; make('src/finanzonline_uid/locales/$$lang/LC_MESSAGES/messages.po', 'src/finanzonline_uid/locales/$$lang/LC_MESSAGES/messages.mo')" 2>/dev/null || \
 		echo "Compiled $$lang"; \
 	done

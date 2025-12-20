@@ -1,6 +1,6 @@
 # Contributing Guide
 
-Thanks for helping improve **uid_check_austria**. The sections below summarise the day-to-day workflow, highlight the repository automation, and list the checks that must pass before a change is merged.
+Thanks for helping improve **finanzonline_uid**. The sections below summarise the day-to-day workflow, highlight the repository automation, and list the checks that must pass before a change is merged.
 
 ## 1. Workflow Overview
 

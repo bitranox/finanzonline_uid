@@ -1,17 +1,17 @@
 # Python-API-Referenz
 
-Dieses Dokument beschreibt die Python-API für `uid_check_austria`.
+Dieses Dokument beschreibt die Python-API für `finanzonline_uid`.
 
 ## Öffentliche Exporte
 
 ```python
-import uid_check_austria
+import finanzonline_uid
 
 # Paket-Metadaten
-uid_check_austria.__version__    # "0.0.1"
-uid_check_austria.__title__      # "Python library and CLI..."
-uid_check_austria.__author__     # "bitranox"
-uid_check_austria.__url__        # "https://github.com/bitranox/uid_check_austria"
+finanzonline_uid.__version__    # "0.0.1"
+finanzonline_uid.__title__      # "Python library and CLI..."
+finanzonline_uid.__author__     # "bitranox"
+finanzonline_uid.__url__        # "https://github.com/bitranox/finanzonline_uid"
 ```
 
 ---
@@ -23,7 +23,7 @@ uid_check_austria.__url__        # "https://github.com/bitranox/uid_check_austri
 Lädt die mehrschichtige Konfiguration aus allen Quellen.
 
 ```python
-from uid_check_austria.config import get_config
+from finanzonline_uid.config import get_config
 
 config = get_config()
 # oder mit Profil
@@ -48,7 +48,7 @@ config = get_config(start_dir="/path/to/project")
 Konfiguration für die FinanzOnline-Verbindung.
 
 ```python
-from uid_check_austria.config import FinanzOnlineConfig, load_finanzonline_config
+from finanzonline_uid.config import FinanzOnlineConfig, load_finanzonline_config
 
 # Aus mehrschichtiger Konfiguration laden
 config = get_config()
@@ -80,7 +80,7 @@ fo_config = load_finanzonline_config(config)
 Authentifizierungsdaten für FinanzOnline-Webservices.
 
 ```python
-from uid_check_austria.domain.models import FinanzOnlineCredentials
+from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
 credentials = FinanzOnlineCredentials(
     tid="123456789",      # Teilnehmer-ID (8-12 alphanumerisch)
@@ -106,7 +106,7 @@ credentials = FinanzOnlineCredentials(
 Anfrageparameter für Stufe-2-UID-Verifizierung.
 
 ```python
-from uid_check_austria.domain.models import UidCheckRequest
+from finanzonline_uid.domain.models import UidCheckRequest
 
 request = UidCheckRequest(
     uid_tn="ATU12345678",    # Eigene österreichische UID
@@ -130,7 +130,7 @@ request = UidCheckRequest(
 Vollständiges Ergebnis der Stufe-2-UID-Verifizierung.
 
 ```python
-from uid_check_austria.domain.models import UidCheckResult
+from finanzonline_uid.domain.models import UidCheckResult
 
 # Beispiel-Ergebnis
 result.uid           # "DE987654321"
@@ -168,7 +168,7 @@ result.has_company_info  # True wenn Name oder Adresse vorhanden
 Firmenadresse aus der Stufe-2-UID-Verifizierung.
 
 ```python
-from uid_check_austria.domain.models import Address
+from finanzonline_uid.domain.models import Address
 
 address = Address(
     line1="Beispiel GmbH",
@@ -201,12 +201,12 @@ address.is_empty    # False
 Haupt-Use-Case für die Ausführung der Stufe-2-UID-Verifizierung.
 
 ```python
-from uid_check_austria.application.use_cases import CheckUidUseCase
-from uid_check_austria.adapters.finanzonline import (
+from finanzonline_uid.application.use_cases import CheckUidUseCase
+from finanzonline_uid.adapters.finanzonline import (
     FinanzOnlineSessionClient,
     FinanzOnlineQueryClient
 )
-from uid_check_austria.domain.models import FinanzOnlineCredentials
+from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
 # Clients erstellen
 session_client = FinanzOnlineSessionClient(timeout=30.0)
@@ -257,7 +257,7 @@ print(f"Firma: {result.name}")
 E-Mail-Konfigurationscontainer.
 
 ```python
-from uid_check_austria.mail import EmailConfig
+from finanzonline_uid.mail import EmailConfig
 
 config = EmailConfig(
     smtp_hosts=["smtp.beispiel.at:587"],
@@ -293,7 +293,7 @@ config = EmailConfig(
 Sendet eine E-Mail mit konfigurierten SMTP-Einstellungen.
 
 ```python
-from uid_check_austria.mail import EmailConfig, send_email
+from finanzonline_uid.mail import EmailConfig, send_email
 from pathlib import Path
 
 config = EmailConfig(
@@ -338,7 +338,7 @@ send_email(
 Sendet eine einfache Klartext-Benachrichtigungs-E-Mail.
 
 ```python
-from uid_check_austria.mail import EmailConfig, send_notification
+from finanzonline_uid.mail import EmailConfig, send_notification
 
 config = EmailConfig(
     smtp_hosts=["smtp.beispiel.at:587"],
@@ -371,8 +371,8 @@ send_notification(
 Lädt EmailConfig aus einem Konfigurations-Dictionary.
 
 ```python
-from uid_check_austria.mail import load_email_config_from_dict
-from uid_check_austria.config import get_config
+from finanzonline_uid.mail import load_email_config_from_dict
+from finanzonline_uid.config import get_config
 
 config = get_config()
 email_config = load_email_config_from_dict(config.as_dict())
@@ -385,7 +385,7 @@ email_config = load_email_config_from_dict(config.as_dict())
 Alle Domain-Exceptions erben von `UidCheckError`:
 
 ```python
-from uid_check_austria.domain.errors import (
+from finanzonline_uid.domain.errors import (
     UidCheckError,           # Basis-Exception
     ConfigurationError,      # Fehlende oder ungültige Konfiguration
     AuthenticationError,     # Login/Zugangsdaten-Fehler
@@ -407,7 +407,7 @@ from uid_check_austria.domain.errors import (
 ## Rückgabecode-Hilfsfunktionen
 
 ```python
-from uid_check_austria.domain.return_codes import (
+from finanzonline_uid.domain.return_codes import (
     get_return_code_info,
     is_success,
     is_retryable,

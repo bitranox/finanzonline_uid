@@ -7,7 +7,7 @@ from io import StringIO
 
 import pytest
 
-from uid_check_austria import behaviors
+from finanzonline_uid import behaviors
 
 
 @pytest.mark.os_agnostic

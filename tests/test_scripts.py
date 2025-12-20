@@ -155,15 +155,15 @@ def _capture_sync(record: list[ProjectMetadata]) -> Callable[[ProjectMetadata], 
 def test_get_project_metadata_fields() -> None:
     """Verify get_project_metadata returns expected fields."""
     meta = _utils.get_project_metadata()
-    assert meta.name == "uid_check_austria"
-    assert meta.slug == "uid-check-austria"
-    assert meta.import_package == "uid_check_austria"
-    assert meta.coverage_source == "src/uid_check_austria"
-    assert meta.github_tarball_url("1.2.3").endswith("/bitranox/uid_check_austria/archive/refs/tags/v1.2.3.tar.gz")
+    assert meta.name == "finanzonline_uid"
+    assert meta.slug == "finanzonline-uid"
+    assert meta.import_package == "finanzonline_uid"
+    assert meta.coverage_source == "src/finanzonline_uid"
+    assert meta.github_tarball_url("1.2.3").endswith("/bitranox/finanzonline_uid/archive/refs/tags/v1.2.3.tar.gz")
     assert meta.version
     assert meta.summary
     assert meta.author_name
-    assert meta.metadata_module.as_posix().endswith("src/uid_check_austria/__init__conf__.py")
+    assert meta.metadata_module.as_posix().endswith("src/finanzonline_uid/__init__conf__.py")
 
 
 @pytest.mark.os_agnostic

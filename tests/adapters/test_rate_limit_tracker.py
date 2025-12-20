@@ -18,7 +18,7 @@ from typing import Any
 import orjson
 import pytest
 
-from uid_check_austria.adapters.ratelimit import RateLimitStatus, RateLimitTracker
+from finanzonline_uid.adapters.ratelimit import RateLimitStatus, RateLimitTracker
 
 
 # ============================================================================

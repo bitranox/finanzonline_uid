@@ -10,16 +10,16 @@ from unittest.mock import patch
 
 import pytest
 
-from uid_check_austria.adapters.notification.email_adapter import (
+from finanzonline_uid.adapters.notification.email_adapter import (
     EmailNotificationAdapter,
     format_error_html,
     format_error_plain,
     format_result_html,
     format_result_plain,
 )
-from uid_check_austria.domain.models import Address, UidCheckResult
-from uid_check_austria.enums import EmailFormat
-from uid_check_austria.mail import EmailConfig
+from finanzonline_uid.domain.models import Address, UidCheckResult
+from finanzonline_uid.enums import EmailFormat
+from finanzonline_uid.mail import EmailConfig
 
 
 @pytest.fixture
@@ -180,7 +180,7 @@ class TestEmailNotificationAdapter:
         """Should send email successfully."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
 
             result = adapter.send_result(valid_result, ["recipient@example.com"])
@@ -200,7 +200,7 @@ class TestEmailNotificationAdapter:
         """Should include INVALID in subject for invalid UIDs."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
 
             adapter.send_result(invalid_result, ["recipient@example.com"])
@@ -216,7 +216,7 @@ class TestEmailNotificationAdapter:
         """Should return False when no recipients."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             result = adapter.send_result(valid_result, [])
 
             assert result is False
@@ -230,7 +230,7 @@ class TestEmailNotificationAdapter:
         """Should return False on send failure."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.side_effect = RuntimeError("SMTP error")
 
             result = adapter.send_result(valid_result, ["recipient@example.com"])
@@ -245,7 +245,7 @@ class TestEmailNotificationAdapter:
         """Should include HTML body."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
 
             adapter.send_result(valid_result, ["recipient@example.com"])
@@ -359,7 +359,7 @@ class TestSendError:
         """Should send error email successfully."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
 
             result = adapter.send_error(
@@ -381,7 +381,7 @@ class TestSendError:
         """Should return False when no recipients."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             result = adapter.send_error(
                 error_type="Test Error",
                 error_message="Test",
@@ -396,7 +396,7 @@ class TestSendError:
         """Should return False on send failure."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.side_effect = RuntimeError("SMTP error")
 
             result = adapter.send_error(
@@ -412,7 +412,7 @@ class TestSendError:
         """Should include return code in email."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
 
             adapter.send_error(
@@ -430,7 +430,7 @@ class TestSendError:
         """Should include retryable info in email."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
 
             adapter.send_error(
@@ -507,7 +507,7 @@ class TestEmailFormat:
         """Should send both formats when using default."""
         adapter = EmailNotificationAdapter(email_config)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
             adapter.send_result(valid_result, ["test@example.com"])
 
@@ -519,7 +519,7 @@ class TestEmailFormat:
         """Should send only plain text when format is PLAIN."""
         adapter = EmailNotificationAdapter(email_config, email_format=EmailFormat.PLAIN)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
             adapter.send_result(valid_result, ["test@example.com"])
 
@@ -531,7 +531,7 @@ class TestEmailFormat:
         """Should send only HTML when format is HTML."""
         adapter = EmailNotificationAdapter(email_config, email_format=EmailFormat.HTML)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
             adapter.send_result(valid_result, ["test@example.com"])
 
@@ -543,7 +543,7 @@ class TestEmailFormat:
         """Should send both formats when format is BOTH."""
         adapter = EmailNotificationAdapter(email_config, email_format=EmailFormat.BOTH)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
             adapter.send_result(valid_result, ["test@example.com"])
 
@@ -555,7 +555,7 @@ class TestEmailFormat:
         """Should send only plain text for errors when format is PLAIN."""
         adapter = EmailNotificationAdapter(email_config, email_format=EmailFormat.PLAIN)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
             adapter.send_error(
                 error_type="Test Error",
@@ -572,7 +572,7 @@ class TestEmailFormat:
         """Should send only HTML for errors when format is HTML."""
         adapter = EmailNotificationAdapter(email_config, email_format=EmailFormat.HTML)
 
-        with patch("uid_check_austria.adapters.notification.email_adapter.send_email") as mock_send:
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
             adapter.send_error(
                 error_type="Test Error",

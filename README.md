@@ -1,25 +1,25 @@
-# uid_check_austria
+# finanzonline_uid
 
 <!-- Badges -->
-[![CI](https://github.com/bitranox/uid_check_austria/actions/workflows/ci.yml/badge.svg)](https://github.com/bitranox/uid_check_austria/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/bitranox/uid_check_austria/actions/workflows/codeql.yml/badge.svg)](https://github.com/bitranox/uid_check_austria/actions/workflows/codeql.yml)
+[![CI](https://github.com/bitranox/finanzonline_uid/actions/workflows/ci.yml/badge.svg)](https://github.com/bitranox/finanzonline_uid/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/bitranox/finanzonline_uid/actions/workflows/codeql.yml/badge.svg)](https://github.com/bitranox/finanzonline_uid/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Open in Codespaces](https://img.shields.io/badge/Codespaces-Open-blue?logo=github&logoColor=white&style=flat-square)](https://codespaces.new/bitranox/uid_check_austria?quickstart=1)
-[![PyPI](https://img.shields.io/pypi/v/uid_check_austria.svg)](https://pypi.org/project/uid_check_austria/)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/uid_check_austria.svg)](https://pypi.org/project/uid_check_austria/)
+[![Open in Codespaces](https://img.shields.io/badge/Codespaces-Open-blue?logo=github&logoColor=white&style=flat-square)](https://codespaces.new/bitranox/finanzonline_uid?quickstart=1)
+[![PyPI](https://img.shields.io/pypi/v/finanzonline_uid.svg)](https://pypi.org/project/finanzonline_uid/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/finanzonline_uid.svg)](https://pypi.org/project/finanzonline_uid/)
 [![Code Style: Ruff](https://img.shields.io/badge/Code%20Style-Ruff-46A3FF?logo=ruff&labelColor=000)](https://docs.astral.sh/ruff/)
-[![codecov](https://codecov.io/gh/bitranox/uid_check_austria/graph/badge.svg?token=UFBaUDIgRk)](https://codecov.io/gh/bitranox/uid_check_austria)
-[![Maintainability](https://qlty.sh/badges/041ba2c1-37d6-40bb-85a0-ec5a8a0aca0c/maintainability.svg)](https://qlty.sh/gh/bitranox/projects/uid_check_austria)
-[![Known Vulnerabilities](https://snyk.io/test/github/bitranox/uid_check_austria/badge.svg)](https://snyk.io/test/github/bitranox/uid_check_austria)
+[![codecov](https://codecov.io/gh/bitranox/finanzonline_uid/graph/badge.svg?token=UFBaUDIgRk)](https://codecov.io/gh/bitranox/finanzonline_uid)
+[![Maintainability](https://qlty.sh/badges/041ba2c1-37d6-40bb-85a0-ec5a8a0aca0c/maintainability.svg)](https://qlty.sh/gh/bitranox/projects/finanzonline_uid)
+[![Known Vulnerabilities](https://snyk.io/test/github/bitranox/finanzonline_uid/badge.svg)](https://snyk.io/test/github/bitranox/finanzonline_uid)
 [![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 
 > 🇬🇧 **[English version available (README_en.md)](README_en.md)**
 
-`uid_check_austria` ist eine Python-Bibliothek und CLI zur Abfrage von **Stufe 2 UID-Prüfungen** (Umsatzsteuer-Identifikationsnummer-Verifizierung) über den österreichischen FinanzOnline-Webservice. Stufe-2-Abfragen liefern detaillierte Bestätigungen von EU-Umsatzsteuer-Identifikationsnummern einschließlich des registrierten Firmennamens und der Adresse.
+`finanzonline_uid` ist eine Python-Bibliothek und CLI zur Abfrage von **Stufe 2 UID-Prüfungen** (Umsatzsteuer-Identifikationsnummer-Verifizierung) über den österreichischen FinanzOnline-Webservice. Stufe-2-Abfragen liefern detaillierte Bestätigungen von EU-Umsatzsteuer-Identifikationsnummern einschließlich des registrierten Firmennamens und der Adresse.
 
-## Warum uid_check_austria?
+## Warum finanzonline_uid?
 
-Die Verifizierung von UID-Nummern über das FinanzOnline-Webportal erfordert Anmeldung, Navigation durch Menüs und manuelle Dateneingabe - mühsam und nicht automatisierbar. Mit `uid_check_austria`:
+Die Verifizierung von UID-Nummern über das FinanzOnline-Webportal erfordert Anmeldung, Navigation durch Menüs und manuelle Dateneingabe - mühsam und nicht automatisierbar. Mit `finanzonline_uid`:
 
 - **Kein Browser erforderlich** - läuft vollständig über die Kommandozeile oder per Windows-Icon.
 - **Vollständig skriptfähig** - Integration in Fakturierungssysteme, Batch-Prozesse oder CI-Pipelines.
@@ -48,7 +48,7 @@ Die Verifizierung von UID-Nummern über das FinanzOnline-Webportal erfordert Anm
 **Beispiel:**
 ```bash
 # Beispiel: eine UID verifizieren
-uid_check_austria check DE123456789
+finanzonline_uid check DE123456789
 ```
 
 ---
@@ -118,15 +118,15 @@ UV - der ultraschnelle Installer - geschrieben in Rust (10-20x schneller als pip
 # UV installieren
 pip install --upgrade uv
 # Konfigurationsdateien erstellen
-uvx uid_check_austria@latest config-deploy --target user
+uvx finanzonline_uid@latest config-deploy --target user
 ```
 
 Erstellen Sie Ihre persönliche Konfigurationsdatei im `config.d/`-Verzeichnis (Einstellungen werden tief zusammengeführt, sodass Updates der Standardkonfigurationen Ihre Einstellungen nicht beeinflussen):
 
 ```bash
-# Linux:   ~/.config/uid-check-austria/config.d/99-myconfig.toml
-# macOS:   ~/Library/Application Support/bitranox/Uid Check Austria/config.d/99-myconfig.toml
-# Windows: %APPDATA%\bitranox\Uid Check Austria\config.d\99-myconfig.toml
+# Linux:   ~/.config/finanzonline-uid/config.d/99-myconfig.toml
+# macOS:   ~/Library/Application Support/bitranox/FinanzOnline UID/config.d/99-myconfig.toml
+# Windows: %APPDATA%\bitranox\FinanzOnline UID\config.d\99-myconfig.toml
 ```
 
 ```toml
@@ -146,7 +146,7 @@ from_address = "uidcheck@ihre-firma.at"
 
 ```bash
 # Neueste Version ohne weitere Installation starten
-uvx uid_check_austria@latest check DE123456789
+uvx finanzonline_uid@latest check DE123456789
 ```
 
 Für alternative Installationswege (pip, pipx, uvx, Source-Builds) siehe [INSTALL_de.md](INSTALL_de.md).
@@ -157,10 +157,10 @@ Für alternative Installationswege (pip, pipx, uvx, Source-Builds) siehe [INSTAL
 
 ```bash
 # Prüfung per Kommandozeile
-uvx uid_check_austria@latest check NL123456789
+uvx finanzonline_uid@latest check NL123456789
 
 # Interaktive Prüfung (fragt nach der zu prüfenden UID):
-uvx uid_check_austria@latest check --interactive
+uvx finanzonline_uid@latest check --interactive
 ```
 
 Die Ergebnisse werden angezeigt und eine E-Mail mit den Ergebnissen wird an die konfigurierten E-Mail-Adressen gesendet.

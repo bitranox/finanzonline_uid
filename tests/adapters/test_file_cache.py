@@ -17,8 +17,8 @@ from pathlib import Path
 import orjson
 import pytest
 
-from uid_check_austria.adapters.cache import UidResultCache
-from uid_check_austria.domain.models import Address, UidCheckResult
+from finanzonline_uid.adapters.cache import UidResultCache
+from finanzonline_uid.domain.models import Address, UidCheckResult
 
 
 # ============================================================================

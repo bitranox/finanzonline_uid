@@ -10,9 +10,9 @@ from typing import Any
 
 import pytest
 
-from uid_check_austria.config import FinanzOnlineConfig, load_finanzonline_config
-from uid_check_austria.domain.errors import ConfigurationError
-from uid_check_austria.enums import EmailFormat
+from finanzonline_uid.config import FinanzOnlineConfig, load_finanzonline_config
+from finanzonline_uid.domain.errors import ConfigurationError
+from finanzonline_uid.enums import EmailFormat
 
 from conftest import MockConfig
 

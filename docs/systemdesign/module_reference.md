@@ -10,11 +10,11 @@ Complete
 **Pull Requests:** Pending current refactor
 **Related Files:**
 
-* src/uid_check_austria/behaviors.py
-* src/uid_check_austria/cli.py
-* src/uid_check_austria/__main__.py
-* src/uid_check_austria/__init__.py
-* src/uid_check_austria/__init__conf__.py
+* src/finanzonline_uid/behaviors.py
+* src/finanzonline_uid/cli.py
+* src/finanzonline_uid/__main__.py
+* src/finanzonline_uid/__init__.py
+* src/finanzonline_uid/__init__conf__.py
 * tests/test_cli.py
 * tests/test_module_entry.py
 * tests/test_behaviors.py
@@ -74,21 +74,21 @@ stand-in domain.
   documentation.
 * **Input:** Optional text stream (defaults to ``sys.stdout``).
 * **Output:** Writes ``"Hello World\n"`` to the stream and flushes if possible.
-* **Location:** src/uid_check_austria/behaviors.py
+* **Location:** src/finanzonline_uid/behaviors.py
 
 ### behaviors.raise_intentional_failure
 
 * **Purpose:** Provide a deterministic failure hook for error-handling tests.
 * **Input:** None.
 * **Output:** Raises ``RuntimeError('I should fail')``.
-* **Location:** src/uid_check_austria/behaviors.py
+* **Location:** src/finanzonline_uid/behaviors.py
 
 ### behaviors.noop_main
 
 * **Purpose:** Placeholder entry for transports expecting a ``main`` callable.
 * **Input:** None.
 * **Output:** Returns ``None``.
-* **Location:** src/uid_check_austria/behaviors.py
+* **Location:** src/finanzonline_uid/behaviors.py
 
 ### cli.apply_traceback_preferences
 
@@ -96,14 +96,14 @@ stand-in domain.
 * **Input:** Boolean flag enabling rich tracebacks.
 * **Output:** Updates ``lib_cli_exit_tools.config.traceback`` and
   ``traceback_force_color``.
-* **Location:** src/uid_check_austria/cli.py
+* **Location:** src/finanzonline_uid/cli.py
 
 ### cli.main
 
 * **Purpose:** Execute the click command group with shared exit handling.
 * **Input:** Optional argv, restore flag, summary and verbose limits.
 * **Output:** Integer exit code (0 on success, mapped error codes otherwise).
-* **Location:** src/uid_check_austria/cli.py
+* **Location:** src/finanzonline_uid/cli.py
 
 ### cli._record_traceback_choice / cli._announce_traceback_choice / cli._traceback_option_requested
 
@@ -113,7 +113,7 @@ stand-in domain.
 * **Input:** Click context plus the boolean flag derived from CLI options.
 * **Output:** None (mutates context and ``lib_cli_exit_tools.config``) and a
   boolean value from ``_traceback_option_requested``.
-* **Location:** src/uid_check_austria/cli.py
+* **Location:** src/finanzonline_uid/cli.py
 
 ### cli._invoke_cli / cli._current_traceback_mode / cli._traceback_limit / cli._print_exception / cli._run_cli_via_exit_tools / cli._show_help
 
@@ -123,14 +123,14 @@ stand-in domain.
   argv, and the Click context used for help rendering.
 * **Output:** Either a boolean flag, an integer limit, a rendered help screen,
   or the exit code produced by ``lib_cli_exit_tools``.
-* **Location:** src/uid_check_austria/cli.py
+* **Location:** src/finanzonline_uid/cli.py
 
 ### __main__._module_main
 
 * **Purpose:** Provide ``python -m`` entry point mirroring the console script.
 * **Input:** None.
 * **Output:** Exit code from ``cli.main`` after restoring traceback state.
-* **Location:** src/uid_check_austria/__main__.py
+* **Location:** src/finanzonline_uid/__main__.py
 
 ### __main__._open_cli_session / _command_to_run / _command_name
 
@@ -139,14 +139,14 @@ stand-in domain.
   composition.
 * **Output:** Context manager yielding the command runner, the Click command
   itself, and the shell-facing name.
-* **Location:** src/uid_check_austria/__main__.py
+* **Location:** src/finanzonline_uid/__main__.py
 
 ### __init__conf__.print_info
 
 * **Purpose:** Render the statically-defined project metadata for the CLI ``info`` command.
 * **Input:** None.
 * **Output:** Writes the hard-coded metadata block to ``stdout``.
-* **Location:** src/uid_check_austria/__init__conf__.py
+* **Location:** src/finanzonline_uid/__init__conf__.py
 
 ### Package Exports
 
@@ -184,11 +184,11 @@ stand-in domain.
 
 **Manual Testing Steps:**
 
-1. ``uid_check_austria`` → prints CLI help (no default action).
-2. ``uid_check_austria hello`` → prints greeting.
-3. ``uid_check_austria fail`` → prints truncated traceback.
-4. ``uid_check_austria --traceback fail`` → prints full rich traceback.
-5. ``python -m uid_check_austria --traceback fail`` → matches console output.
+1. ``finanzonline_uid`` → prints CLI help (no default action).
+2. ``finanzonline_uid hello`` → prints greeting.
+3. ``finanzonline_uid fail`` → prints truncated traceback.
+4. ``finanzonline_uid --traceback fail`` → prints full rich traceback.
+5. ``python -m finanzonline_uid --traceback fail`` → matches console output.
 
 **Automated Tests:**
 

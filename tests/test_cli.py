@@ -11,8 +11,8 @@ from click.testing import CliRunner, Result
 
 import lib_cli_exit_tools
 
-from uid_check_austria import cli as cli_mod
-from uid_check_austria import __init__conf__
+from finanzonline_uid import cli as cli_mod
+from finanzonline_uid import __init__conf__
 
 
 @dataclass(slots=True)
@@ -535,7 +535,7 @@ def test_when_config_deploy_supports_multiple_targets(
 ) -> None:
     """Verify config-deploy accepts multiple --target options."""
     from pathlib import Path
-    from uid_check_austria.enums import DeployTarget
+    from finanzonline_uid.enums import DeployTarget
 
     path1 = tmp_path / "config1.toml"
     path2 = tmp_path / "config2.toml"
@@ -690,7 +690,7 @@ def test_when_restore_is_disabled_the_traceback_choice_remains(
 def mock_fo_config(monkeypatch: pytest.MonkeyPatch) -> Any:
     """Mock FinanzOnline configuration."""
     from unittest.mock import MagicMock
-    from uid_check_austria.domain.models import FinanzOnlineCredentials
+    from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
     mock_config = MagicMock()
     mock_config.uid_tn = "ATU12345678"
@@ -715,7 +715,7 @@ def mock_fo_config(monkeypatch: pytest.MonkeyPatch) -> Any:
 def mock_uid_result_valid() -> Any:
     """Mock valid UID check result."""
     from datetime import datetime, timezone
-    from uid_check_austria.domain.models import UidCheckResult, Address
+    from finanzonline_uid.domain.models import UidCheckResult, Address
 
     return UidCheckResult(
         uid="DE123456789",
@@ -731,7 +731,7 @@ def mock_uid_result_valid() -> Any:
 def mock_uid_result_invalid() -> Any:
     """Mock invalid UID check result."""
     from datetime import datetime, timezone
-    from uid_check_austria.domain.models import UidCheckResult
+    from finanzonline_uid.domain.models import UidCheckResult
 
     return UidCheckResult(
         uid="XX123456789",
@@ -754,13 +754,13 @@ def test_when_check_succeeds_with_valid_uid_it_exits_zero(
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.return_value = mock_uid_result_valid
                 mock_use_case_class.return_value = mock_use_case
@@ -788,13 +788,13 @@ def test_when_check_succeeds_with_invalid_uid_it_exits_one(
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.return_value = mock_uid_result_invalid
                 mock_use_case_class.return_value = mock_use_case
@@ -822,13 +822,13 @@ def test_when_check_uses_json_format_it_outputs_json(
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.return_value = mock_uid_result_valid
                 mock_use_case_class.return_value = mock_use_case
@@ -851,15 +851,15 @@ def test_when_check_has_config_error_it_exits_two(
 ) -> None:
     """Verify check command exits 2 for ConfigurationError."""
     from unittest.mock import MagicMock, patch
-    from uid_check_austria.domain.errors import ConfigurationError
+    from finanzonline_uid.domain.errors import ConfigurationError
 
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.side_effect = ConfigurationError("Missing TID")
 
             result: Result = cli_runner.invoke(
@@ -879,18 +879,18 @@ def test_when_check_has_auth_error_it_exits_three(
 ) -> None:
     """Verify check command exits 3 for AuthenticationError."""
     from unittest.mock import MagicMock, patch
-    from uid_check_austria.domain.errors import AuthenticationError
+    from finanzonline_uid.domain.errors import AuthenticationError
 
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.side_effect = AuthenticationError("Not authorized", return_code=-4)
                 mock_use_case_class.return_value = mock_use_case
@@ -913,18 +913,18 @@ def test_when_check_has_session_error_it_exits_four(
 ) -> None:
     """Verify check command exits 4 for SessionError."""
     from unittest.mock import MagicMock, patch
-    from uid_check_austria.domain.errors import SessionError
+    from finanzonline_uid.domain.errors import SessionError
 
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.side_effect = SessionError("Session expired", return_code=-1)
                 mock_use_case_class.return_value = mock_use_case
@@ -946,18 +946,18 @@ def test_when_check_has_query_error_it_exits_four(
 ) -> None:
     """Verify check command exits 4 for QueryError."""
     from unittest.mock import MagicMock, patch
-    from uid_check_austria.domain.errors import QueryError
+    from finanzonline_uid.domain.errors import QueryError
 
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.side_effect = QueryError("Rate limit exceeded", return_code=1513, retryable=True)
                 mock_use_case_class.return_value = mock_use_case
@@ -990,19 +990,19 @@ def test_when_check_sends_email_on_success(
         }
     }
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_fo_config.default_recipients = ["admin@example.com"]
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.return_value = mock_uid_result_valid
                 mock_use_case_class.return_value = mock_use_case
 
-                with patch("uid_check_austria.cli.EmailNotificationAdapter") as mock_adapter_class:
+                with patch("finanzonline_uid.cli.EmailNotificationAdapter") as mock_adapter_class:
                     mock_adapter = MagicMock()
                     mock_adapter.send_result.return_value = True
                     mock_adapter_class.return_value = mock_adapter
@@ -1024,7 +1024,7 @@ def test_when_check_sends_error_email_on_failure(
 ) -> None:
     """Verify check command sends error email notification on failure."""
     from unittest.mock import MagicMock, patch
-    from uid_check_austria.domain.errors import SessionError
+    from finanzonline_uid.domain.errors import SessionError
 
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {
@@ -1034,19 +1034,19 @@ def test_when_check_sends_error_email_on_failure(
         }
     }
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_fo_config.default_recipients = ["admin@example.com"]
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.side_effect = SessionError("Connection failed", return_code=-3)
                 mock_use_case_class.return_value = mock_use_case
 
-                with patch("uid_check_austria.cli.EmailNotificationAdapter") as mock_adapter_class:
+                with patch("finanzonline_uid.cli.EmailNotificationAdapter") as mock_adapter_class:
                     mock_adapter = MagicMock()
                     mock_adapter.send_error.return_value = True
                     mock_adapter_class.return_value = mock_adapter
@@ -1072,13 +1072,13 @@ def test_when_check_has_value_error_it_exits_two(
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.side_effect = ValueError("Invalid UID format")
                 mock_use_case_class.return_value = mock_use_case
@@ -1110,18 +1110,18 @@ def test_when_check_specifies_recipients_it_uses_them(
         }
     }
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.return_value = mock_uid_result_valid
                 mock_use_case_class.return_value = mock_use_case
 
-                with patch("uid_check_austria.cli.EmailNotificationAdapter") as mock_adapter_class:
+                with patch("finanzonline_uid.cli.EmailNotificationAdapter") as mock_adapter_class:
                     mock_adapter = MagicMock()
                     mock_adapter.send_result.return_value = True
                     mock_adapter_class.return_value = mock_adapter
@@ -1167,13 +1167,13 @@ def test_when_check_with_interactive_prompts_for_uid(
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.return_value = mock_uid_result_valid
                 mock_use_case_class.return_value = mock_use_case
@@ -1202,13 +1202,13 @@ def test_when_check_with_interactive_short_flag_prompts_for_uid(
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
 
-    with patch("uid_check_austria.cli.get_config") as mock_get_config:
+    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
 
-        with patch("uid_check_austria.cli.load_finanzonline_config") as mock_load_fo:
+        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
             mock_load_fo.return_value = mock_fo_config
 
-            with patch("uid_check_austria.cli.CheckUidUseCase") as mock_use_case_class:
+            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
                 mock_use_case = MagicMock()
                 mock_use_case.execute.return_value = mock_uid_result_valid
                 mock_use_case_class.return_value = mock_use_case

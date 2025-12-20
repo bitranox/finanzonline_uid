@@ -78,7 +78,7 @@ def ensure_english_locale() -> None:
     Many tests expect English strings (e.g., 'VALID', 'Timestamp:').
     This ensures the i18n system starts in English before any tests run.
     """
-    from uid_check_austria.i18n import setup_locale
+    from finanzonline_uid.i18n import setup_locale
 
     setup_locale("en")
 
@@ -218,7 +218,7 @@ def clear_config_cache() -> Iterator[None]:
     Note: Only clears before, not after, to avoid errors when the function
     has been monkeypatched during the test (losing cache_clear method).
     """
-    from uid_check_austria import config as config_mod
+    from finanzonline_uid import config as config_mod
 
     config_mod.get_config.cache_clear()
     yield
@@ -232,7 +232,7 @@ def clear_config_cache() -> Iterator[None]:
 @pytest.fixture
 def valid_credentials() -> Any:
     """Provide valid FinanzOnline credentials for tests."""
-    from uid_check_austria.domain.models import FinanzOnlineCredentials
+    from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
     return FinanzOnlineCredentials(
         tid="123456789",
@@ -245,7 +245,7 @@ def valid_credentials() -> Any:
 @pytest.fixture
 def valid_uid_request() -> Any:
     """Provide a valid UID check request for tests."""
-    from uid_check_austria.domain.models import UidCheckRequest
+    from finanzonline_uid.domain.models import UidCheckRequest
 
     return UidCheckRequest(
         uid_tn="ATU12345678",
@@ -257,7 +257,7 @@ def valid_uid_request() -> Any:
 @pytest.fixture
 def valid_session_info() -> Any:
     """Provide a valid session info for tests."""
-    from uid_check_austria.domain.models import SessionInfo
+    from finanzonline_uid.domain.models import SessionInfo
 
     return SessionInfo(
         session_id="TEST_SESSION_123",
@@ -269,7 +269,7 @@ def valid_session_info() -> Any:
 @pytest.fixture
 def valid_uid_result() -> Any:
     """Provide a valid UID check result for tests."""
-    from uid_check_austria.domain.models import Address, UidCheckResult
+    from finanzonline_uid.domain.models import Address, UidCheckResult
 
     return UidCheckResult(
         uid="DE123456789",
@@ -288,7 +288,7 @@ def valid_uid_result() -> Any:
 @pytest.fixture
 def invalid_uid_result() -> Any:
     """Provide an invalid UID check result for tests."""
-    from uid_check_austria.domain.models import UidCheckResult
+    from finanzonline_uid.domain.models import UidCheckResult
 
     return UidCheckResult(
         uid="XX123456789",
@@ -301,7 +301,7 @@ def invalid_uid_result() -> Any:
 @pytest.fixture
 def valid_email_config() -> Any:
     """Provide a valid email configuration for tests."""
-    from uid_check_austria.mail import EmailConfig
+    from finanzonline_uid.mail import EmailConfig
 
     return EmailConfig(
         smtp_hosts=["smtp.test.com:587"],
@@ -403,7 +403,7 @@ def smtp_config_from_env() -> Any:
     """
     import os
 
-    from uid_check_austria.mail import EmailConfig
+    from finanzonline_uid.mail import EmailConfig
 
     smtp_server = os.getenv("TEST_SMTP_SERVER")
     email_address = os.getenv("TEST_EMAIL_ADDRESS")
@@ -426,7 +426,7 @@ def smtp_config_from_env() -> Any:
 @pytest.fixture
 def make_uid_result() -> Callable[..., Any]:
     """Factory for creating UidCheckResult with custom parameters."""
-    from uid_check_austria.domain.models import Address, UidCheckResult
+    from finanzonline_uid.domain.models import Address, UidCheckResult
 
     def _factory(
         uid: str = "DE123456789",

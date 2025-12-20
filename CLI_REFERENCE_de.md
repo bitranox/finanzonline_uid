@@ -1,6 +1,6 @@
 # CLI-Referenz
 
-Dieses Dokument beschreibt alle CLI-Befehle und Optionen für `uid_check_austria`.
+Dieses Dokument beschreibt alle CLI-Befehle und Optionen für `finanzonline_uid`.
 
 ## Globale Optionen
 
@@ -15,14 +15,14 @@ Diese Optionen gelten für alle Befehle:
 
 ## Befehle
 
-Der CLI-Befehl ist unter `uid-check-austria` und `uid_check_austria` registriert - Sie können beide verwenden.
+Der CLI-Befehl ist unter `finanzonline-uid` und `finanzonline_uid` registriert - Sie können beide verwenden.
 
 ---
 
 ### `check` - Eine UID verifizieren
 
 ```bash
-uid-check-austria check [OPTIONEN] [UID]
+finanzonline-uid check [OPTIONEN] [UID]
 ```
 
 **Argumente:**
@@ -54,22 +54,22 @@ uid-check-austria check [OPTIONEN] [UID]
 
 ```bash
 # Grundlegende Verwendung
-uid-check-austria check DE123456789
+finanzonline-uid check DE123456789
 
 # JSON-Ausgabe
-uid-check-austria check DE123456789 --format json
+finanzonline-uid check DE123456789 --format json
 
 # Ohne E-Mail-Benachrichtigung
-uid-check-austria check DE123456789 --no-email
+finanzonline-uid check DE123456789 --no-email
 
 # Benutzerdefinierte Empfänger
-uid-check-austria check DE123456789 --recipient admin@beispiel.at --recipient finanzen@beispiel.at
+finanzonline-uid check DE123456789 --recipient admin@beispiel.at --recipient finanzen@beispiel.at
 
 # Interaktiver Modus
-uid-check-austria check --interactive
+finanzonline-uid check --interactive
 
 # Mit Profil
-uid-check-austria --profile production check DE123456789
+finanzonline-uid --profile production check DE123456789
 ```
 
 ---
@@ -77,7 +77,7 @@ uid-check-austria --profile production check DE123456789
 ### `config` - Konfiguration anzeigen
 
 ```bash
-uid-check-austria config [OPTIONEN]
+finanzonline-uid config [OPTIONEN]
 ```
 
 **Optionen:**
@@ -92,16 +92,16 @@ uid-check-austria config [OPTIONEN]
 
 ```bash
 # Alle Konfigurationen anzeigen
-uid-check-austria config
+finanzonline-uid config
 
 # JSON-Ausgabe für Skripte
-uid-check-austria config --format json
+finanzonline-uid config --format json
 
 # Nur E-Mail-Abschnitt anzeigen
-uid-check-austria config --section email
+finanzonline-uid config --section email
 
 # Produktionsprofil anzeigen
-uid-check-austria config --profile production
+finanzonline-uid config --profile production
 ```
 
 ---
@@ -109,7 +109,7 @@ uid-check-austria config --profile production
 ### `config-deploy` - Konfigurationsdateien bereitstellen
 
 ```bash
-uid-check-austria config-deploy [OPTIONEN]
+finanzonline-uid config-deploy [OPTIONEN]
 ```
 
 **Optionen:**
@@ -124,19 +124,19 @@ uid-check-austria config-deploy [OPTIONEN]
 
 ```bash
 # Benutzerkonfiguration bereitstellen
-uid-check-austria config-deploy --target user
+finanzonline-uid config-deploy --target user
 
 # Systemweit bereitstellen (erfordert Berechtigungen)
-sudo uid-check-austria config-deploy --target app
+sudo finanzonline-uid config-deploy --target app
 
 # Mehrere Ziele bereitstellen
-uid-check-austria config-deploy --target user --target host
+finanzonline-uid config-deploy --target user --target host
 
 # Bestehende überschreiben
-uid-check-austria config-deploy --target user --force
+finanzonline-uid config-deploy --target user --force
 
 # In Produktionsprofil bereitstellen
-uid-check-austria config-deploy --target user --profile production
+finanzonline-uid config-deploy --target user --profile production
 ```
 
 ---
@@ -144,7 +144,7 @@ uid-check-austria config-deploy --target user --profile production
 ### `info` - Paketinformationen anzeigen
 
 ```bash
-uid-check-austria info
+finanzonline-uid info
 ```
 
 Zeigt Paketname, Version, Homepage, Autor und andere Metadaten an.
@@ -154,7 +154,7 @@ Zeigt Paketname, Version, Homepage, Autor und andere Metadaten an.
 ### `hello` - Erfolgspfad testen
 
 ```bash
-uid-check-austria hello
+finanzonline-uid hello
 ```
 
 Gibt eine Begrüßungsmeldung aus, um zu verifizieren, dass die CLI funktioniert.
@@ -164,8 +164,8 @@ Gibt eine Begrüßungsmeldung aus, um zu verifizieren, dass die CLI funktioniert
 ### `fail` - Fehlerbehandlung testen
 
 ```bash
-uid-check-austria fail
-uid-check-austria --traceback fail  # Mit vollständigem Traceback
+finanzonline-uid fail
+finanzonline-uid --traceback fail  # Mit vollständigem Traceback
 ```
 
 Löst absichtlich einen Fehler aus, um die Fehlerbehandlung zu testen.

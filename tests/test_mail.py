@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from uid_check_austria.mail import (
+from finanzonline_uid.mail import (
     EmailConfig,
     load_email_config_from_dict,
     send_email,
@@ -533,7 +533,7 @@ class TestRealSmtpIntegration:
         result = send_email(
             config=smtp_config_from_env,
             recipients=smtp_config_from_env.from_address,
-            subject="Test Email from uid_check_austria",
+            subject="Test Email from finanzonline_uid",
             body="Integration test email.\n\nEmail functionality is working.",
         )
         assert result is True
@@ -543,7 +543,7 @@ class TestRealSmtpIntegration:
         result = send_email(
             config=smtp_config_from_env,
             recipients=smtp_config_from_env.from_address,
-            subject="Test HTML Email from uid_check_austria",
+            subject="Test HTML Email from finanzonline_uid",
             body="This is the plain text version.",
             body_html="<html><body><h1>Test</h1><p><strong>HTML</strong> email.</p></body></html>",
         )
@@ -554,7 +554,7 @@ class TestRealSmtpIntegration:
         result = send_notification(
             config=smtp_config_from_env,
             recipients=smtp_config_from_env.from_address,
-            subject="Test Notification from uid_check_austria",
+            subject="Test Notification from finanzonline_uid",
             message="This is a test notification.\n\nAll tests passing!",
         )
         assert result is True

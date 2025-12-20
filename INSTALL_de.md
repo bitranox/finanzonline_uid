@@ -2,7 +2,7 @@
 
 > Der CLI-Stack verwendet `rich-click`, das `rich`-Styling auf click-Ergonomie aufbaut.
 
-Diese Anleitung beschreibt alle unterstützten Methoden zur Installation von `uid_check_austria`,
+Diese Anleitung beschreibt alle unterstützten Methoden zur Installation von `finanzonline_uid`,
 einschließlich isolierter Umgebungen und System-Paketmanager. Wählen Sie die Option, die zu Ihrem Workflow passt.
 
 
@@ -90,9 +90,9 @@ source .venv/bin/activate
 .venv\Scripts\Activate.ps1
 
 # Installation via uv von PyPI
-uv pip install uid_check_austria
+uv pip install finanzonline_uid
 # optionale Installation von GitHub
-uv pip install "git+https://github.com/bitranox/uid_check_austria"
+uv pip install "git+https://github.com/bitranox/finanzonline_uid"
 # Upgrade
 uv tool upgrade --all
 ```
@@ -104,9 +104,9 @@ Mehrere Projekte mit unterschiedlichen Tool-Versionen bleiben isoliert, sodass j
 
 ```bash
 # Ausführung von PyPI
-uvx uid_check_austria
+uvx finanzonline_uid
 # Ausführung von GitHub
-uvx --from git+https://github.com/bitranox/uid_check_austria.git uid_check_austria
+uvx --from git+https://github.com/bitranox/finanzonline_uid.git finanzonline_uid
 
 ```
 
@@ -119,9 +119,9 @@ uvx --from git+https://github.com/bitranox/uid_check_austria.git uid_check_austr
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 # Installation von PyPI
-pip install uid_check_austria
+pip install finanzonline_uid
 # optionale Installation von GitHub
-pip install "git+https://github.com/bitranox/uid_check_austria"
+pip install "git+https://github.com/bitranox/finanzonline_uid"
 # optionale Entwicklungsinstallation von lokal
 pip install -e .[dev]
 # optionale Installation von lokal (nur Runtime):
@@ -132,9 +132,9 @@ pip install .
 
 ```bash
 # Installation von PyPI
-pip install --user uid_check_austria
+pip install --user finanzonline_uid
 # optionale Installation von GitHub
-pip install --user "git+https://github.com/bitranox/uid_check_austria"
+pip install --user "git+https://github.com/bitranox/finanzonline_uid"
 # optionale Installation von lokal
 pip install --user .
 ```
@@ -151,46 +151,46 @@ python -m pip install pipx
 # optional pipx via apt installieren
 sudo apt install python-pipx
 # Installation via pipx von PyPI
-pipx install uid_check_austria
+pipx install finanzonline_uid
 # optionale Installation via pipx von GitHub
-pipx install "git+https://github.com/bitranox/uid_check_austria"
+pipx install "git+https://github.com/bitranox/finanzonline_uid"
 # optionale Installation von lokal
 pipx install .
-pipx upgrade uid_check_austria
+pipx upgrade finanzonline_uid
 ```
 
 ## 6. Aus Build-Artefakten
 
 ```bash
 python -m build
-pip install dist/uid_check_austria-*.whl
-pip install dist/uid_check_austria-*.tar.gz   # sdist
+pip install dist/finanzonline_uid-*.whl
+pip install dist/finanzonline_uid-*.tar.gz   # sdist
 ```
 
 ## 7. Poetry oder PDM verwaltete Umgebungen
 
 ```bash
 # Poetry
-poetry add uid_check_austria     # als Abhängigkeit
+poetry add finanzonline_uid     # als Abhängigkeit
 poetry install                   # für lokale Entwicklung
 
 # PDM
-pdm add uid_check_austria
+pdm add finanzonline_uid
 pdm install
 ```
 
 ## 8. Direkte Installation von Git
 
 ```bash
-pip install "git+https://github.com/bitranox/uid_check_austria#egg=uid_check_austria"
+pip install "git+https://github.com/bitranox/finanzonline_uid#egg=finanzonline_uid"
 ```
 
 ## 9. System-Paketmanager (optionale Vertriebskanäle)
 
 - Deb/RPM: Paketierung mit `fpm` für OS-native Bereitstellung
 
-Alle Methoden registrieren sowohl den Befehl `uid_check_austria` als auch
-`uid-check-austria` in Ihrem PATH.
+Alle Methoden registrieren sowohl den Befehl `finanzonline_uid` als auch
+`finanzonline-uid` in Ihrem PATH.
 
 ---
 
@@ -204,24 +204,24 @@ Stellen Sie eine benutzerspezifische Konfigurationsdatei mit allen dokumentierte
 
 ```bash
 # Benutzerkonfigurationsvorlage bereitstellen
-uid-check-austria config-deploy --target user
+finanzonline-uid config-deploy --target user
 
 # Die generierte Konfigurationsdatei bearbeiten
-# Linux:   ~/.config/uid-check-austria/config.toml
-# macOS:   ~/Library/Application Support/bitranox/Uid Check Austria/config.toml
-# Windows: %APPDATA%\bitranox\Uid Check Austria\config.toml
+# Linux:   ~/.config/finanzonline-uid/config.toml
+# macOS:   ~/Library/Application Support/bitranox/FinanzOnline UID/config.toml
+# Windows: %APPDATA%\bitranox\FinanzOnline UID\config.toml
 ```
 
 Für systemweite Konfiguration (erfordert Berechtigungen):
 
 ```bash
 # Systemweite Konfigurationsvorlage bereitstellen
-sudo uid-check-austria config-deploy --target app
+sudo finanzonline-uid config-deploy --target app
 
 # Die generierte Konfigurationsdatei bearbeiten
-# Linux:   /etc/xdg/uid-check-austria/config.toml
-# macOS:   /Library/Application Support/bitranox/Uid Check Austria/config.toml
-# Windows: %PROGRAMDATA%\bitranox\Uid Check Austria\config.toml
+# Linux:   /etc/xdg/finanzonline-uid/config.toml
+# macOS:   /Library/Application Support/bitranox/FinanzOnline UID/config.toml
+# Windows: %PROGRAMDATA%\bitranox\FinanzOnline UID\config.toml
 ```
 
 ### Option B: Eine .env-Datei verwenden (Optional)
@@ -247,20 +247,20 @@ EMAIL__FROM_ADDRESS=alerts@beispiel.at
 Umgebungsvariablen direkt setzen (mit App-Präfix):
 
 ```bash
-export UID_CHECK_AUSTRIA___FINANZONLINE__TID=123456789
-export UID_CHECK_AUSTRIA___FINANZONLINE__BENID=WEBUSER
-export UID_CHECK_AUSTRIA___FINANZONLINE__PIN=yourpassword
-export UID_CHECK_AUSTRIA___FINANZONLINE__UID_TN=ATU12345678
-export UID_CHECK_AUSTRIA___FINANZONLINE__HERSTELLERID=ATU12345678
+export FINANZONLINE_UID___FINANZONLINE__TID=123456789
+export FINANZONLINE_UID___FINANZONLINE__BENID=WEBUSER
+export FINANZONLINE_UID___FINANZONLINE__PIN=yourpassword
+export FINANZONLINE_UID___FINANZONLINE__UID_TN=ATU12345678
+export FINANZONLINE_UID___FINANZONLINE__HERSTELLERID=ATU12345678
 ```
 
 ### Installation überprüfen
 
 ```bash
 # wenn installiert
-uid-check-austria check DE123456789
+finanzonline-uid check DE123456789
 # mit uvx, neueste Version ohne Installation ausführen
-uvx uid-check-austria@latest check DE123456789
+uvx finanzonline-uid@latest check DE123456789
 ```
 
 Für detaillierte Konfigurationsoptionen siehe [CONFIGURATION_de.md](CONFIGURATION_de.md).

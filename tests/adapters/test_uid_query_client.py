@@ -11,12 +11,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from zeep.exceptions import Fault, TransportError
 
-from uid_check_austria.adapters.finanzonline.uid_query_client import (
+from finanzonline_uid.adapters.finanzonline.uid_query_client import (
     FinanzOnlineQueryClient,
     UID_QUERY_SERVICE_WSDL,
 )
-from uid_check_austria.domain.errors import QueryError, SessionError
-from uid_check_austria.domain.models import FinanzOnlineCredentials, UidCheckRequest
+from finanzonline_uid.domain.errors import QueryError, SessionError
+from finanzonline_uid.domain.models import FinanzOnlineCredentials, UidCheckRequest
 
 
 @pytest.fixture
@@ -70,7 +70,7 @@ class TestGetClient:
 
     def test_creates_client_on_first_call(self, query_client: FinanzOnlineQueryClient) -> None:
         """Should create zeep Client on first call."""
-        with patch("uid_check_austria.adapters.finanzonline.uid_query_client.Client") as mock_client_class:
+        with patch("finanzonline_uid.adapters.finanzonline.uid_query_client.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
 
@@ -81,7 +81,7 @@ class TestGetClient:
 
     def test_reuses_client_on_subsequent_calls(self, query_client: FinanzOnlineQueryClient) -> None:
         """Should reuse existing client."""
-        with patch("uid_check_austria.adapters.finanzonline.uid_query_client.Client") as mock_client_class:
+        with patch("finanzonline_uid.adapters.finanzonline.uid_query_client.Client") as mock_client_class:
             mock_client = MagicMock()
             mock_client_class.return_value = mock_client
 

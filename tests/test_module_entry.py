@@ -12,7 +12,7 @@ import pytest
 
 import lib_cli_exit_tools
 
-from uid_check_austria import __init__conf__, cli as cli_mod
+from finanzonline_uid import __init__conf__, cli as cli_mod
 
 
 @dataclass(slots=True)
@@ -66,7 +66,7 @@ def test_when_module_entry_returns_zero_the_story_matches_cli(monkeypatch: pytes
     """Verify python -m invocation delegates to CLI with correct args."""
     ledger: dict[str, object] = {}
 
-    monkeypatch.setattr(sys, "argv", ["uid_check_austria"], raising=False)
+    monkeypatch.setattr(sys, "argv", ["finanzonline_uid"], raising=False)
 
     def fake_run_cli(
         command: object,
@@ -84,7 +84,7 @@ def test_when_module_entry_returns_zero_the_story_matches_cli(monkeypatch: pytes
     monkeypatch.setattr("lib_cli_exit_tools.application.runner.run_cli", fake_run_cli)
 
     with pytest.raises(SystemExit) as exc:
-        runpy.run_module("uid_check_austria.__main__", run_name="__main__")
+        runpy.run_module("finanzonline_uid.__main__", run_name="__main__")
 
     assert exc.value.code == 0
     assert ledger["command"] is cli_mod.cli
@@ -96,7 +96,7 @@ def test_when_module_entry_raises_the_exit_helpers_format_the_song(monkeypatch: 
     """Verify exceptions are formatted by lib_cli_exit_tools helpers."""
     printed: list[PrintedTraceback] = []
     codes: list[str] = []
-    monkeypatch.setattr(sys, "argv", ["uid_check_austria"], raising=False)
+    monkeypatch.setattr(sys, "argv", ["finanzonline_uid"], raising=False)
     monkeypatch.setattr(lib_cli_exit_tools.config, "traceback", False, raising=False)
     monkeypatch.setattr(lib_cli_exit_tools.config, "traceback_force_color", False, raising=False)
 
@@ -124,7 +124,7 @@ def test_when_module_entry_raises_the_exit_helpers_format_the_song(monkeypatch: 
     monkeypatch.setattr("lib_cli_exit_tools.application.runner.run_cli", exploding_run_cli)
 
     with pytest.raises(SystemExit) as exc:
-        runpy.run_module("uid_check_austria.__main__", run_name="__main__")
+        runpy.run_module("finanzonline_uid.__main__", run_name="__main__")
 
     assert exc.value.code == 88
     assert printed == [PrintedTraceback(trace_back=False, length_limit=500, stream_present=False)]
@@ -143,7 +143,7 @@ def test_when_traceback_flag_is_used_via_module_entry_the_full_poem_is_printed(
     monkeypatch.setattr(lib_cli_exit_tools.config, "traceback_force_color", False, raising=False)
 
     with pytest.raises(SystemExit) as exc:
-        runpy.run_module("uid_check_austria.__main__", run_name="__main__")
+        runpy.run_module("finanzonline_uid.__main__", run_name="__main__")
 
     plain_err = strip_ansi(capsys.readouterr().err)
 

@@ -1,25 +1,25 @@
-# uid_check_austria
+# finanzonline_uid
 
 <!-- Badges -->
-[![CI](https://github.com/bitranox/uid_check_austria/actions/workflows/ci.yml/badge.svg)](https://github.com/bitranox/uid_check_austria/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/bitranox/uid_check_austria/actions/workflows/codeql.yml/badge.svg)](https://github.com/bitranox/uid_check_austria/actions/workflows/codeql.yml)
+[![CI](https://github.com/bitranox/finanzonline_uid/actions/workflows/ci.yml/badge.svg)](https://github.com/bitranox/finanzonline_uid/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/bitranox/finanzonline_uid/actions/workflows/codeql.yml/badge.svg)](https://github.com/bitranox/finanzonline_uid/actions/workflows/codeql.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Open in Codespaces](https://img.shields.io/badge/Codespaces-Open-blue?logo=github&logoColor=white&style=flat-square)](https://codespaces.new/bitranox/uid_check_austria?quickstart=1)
-[![PyPI](https://img.shields.io/pypi/v/uid_check_austria.svg)](https://pypi.org/project/uid_check_austria/)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/uid_check_austria.svg)](https://pypi.org/project/uid_check_austria/)
+[![Open in Codespaces](https://img.shields.io/badge/Codespaces-Open-blue?logo=github&logoColor=white&style=flat-square)](https://codespaces.new/bitranox/finanzonline_uid?quickstart=1)
+[![PyPI](https://img.shields.io/pypi/v/finanzonline_uid.svg)](https://pypi.org/project/finanzonline_uid/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/finanzonline_uid.svg)](https://pypi.org/project/finanzonline_uid/)
 [![Code Style: Ruff](https://img.shields.io/badge/Code%20Style-Ruff-46A3FF?logo=ruff&labelColor=000)](https://docs.astral.sh/ruff/)
-[![codecov](https://codecov.io/gh/bitranox/uid_check_austria/graph/badge.svg?token=UFBaUDIgRk)](https://codecov.io/gh/bitranox/uid_check_austria)
-[![Maintainability](https://qlty.sh/badges/041ba2c1-37d6-40bb-85a0-ec5a8a0aca0c/maintainability.svg)](https://qlty.sh/gh/bitranox/projects/uid_check_austria)
-[![Known Vulnerabilities](https://snyk.io/test/github/bitranox/uid_check_austria/badge.svg)](https://snyk.io/test/github/bitranox/uid_check_austria)
+[![codecov](https://codecov.io/gh/bitranox/finanzonline_uid/graph/badge.svg?token=UFBaUDIgRk)](https://codecov.io/gh/bitranox/finanzonline_uid)
+[![Maintainability](https://qlty.sh/badges/041ba2c1-37d6-40bb-85a0-ec5a8a0aca0c/maintainability.svg)](https://qlty.sh/gh/bitranox/projects/finanzonline_uid)
+[![Known Vulnerabilities](https://snyk.io/test/github/bitranox/finanzonline_uid/badge.svg)](https://snyk.io/test/github/bitranox/finanzonline_uid)
 [![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 
 > 🇩🇪 **[Deutsche Version verfügbar (README.md)](README.md)**
 
-`uid_check_austria` is a Python library and CLI for querying **Level 2 UID checks** (VAT number verification) via the Austrian FinanzOnline web service. Level 2 checks provide detailed confirmation of EU VAT identification numbers including the registered company name and address.
+`finanzonline_uid` is a Python library and CLI for querying **Level 2 UID checks** (VAT number verification) via the Austrian FinanzOnline web service. Level 2 checks provide detailed confirmation of EU VAT identification numbers including the registered company name and address.
 
-## Why uid_check_austria?
+## Why finanzonline_uid?
 
-Verifying VAT IDs through the FinanzOnline web portal requires logging in, navigating menus, and manually entering data - tedious and impossible to automate. With `uid_check_austria`:
+Verifying VAT IDs through the FinanzOnline web portal requires logging in, navigating menus, and manually entering data - tedious and impossible to automate. With `finanzonline_uid`:
 
 - **No browser required** - runs entirely from the command line or from a Windows Icon.
 - **Fully scriptable** - integrate into invoicing systems, batch processes, or CI pipelines.
@@ -47,7 +47,7 @@ Verifying VAT IDs through the FinanzOnline web portal requires logging in, navig
 
 ```bash
 # Example: verify a VAT ID
-uid_check_austria check DE123456789
+finanzonline_uid check DE123456789
 ```
 
 ---
@@ -117,15 +117,15 @@ UV - the ultrafast installer - written in Rust (10-20x faster than pip/poetry)
 # Install UV
 pip install --upgrade uv
 # create configuration files
-uvx uid_check_austria@latest config-deploy --target user
+uvx finanzonline_uid@latest config-deploy --target user
 ```
 
 Create your personal config file in the `config.d/` directory (settings are deeply merged, so updates to default configs won't affect your settings):
 
 ```bash
-# Linux:   ~/.config/uid-check-austria/config.d/99-myconfig.toml
-# macOS:   ~/Library/Application Support/bitranox/Uid Check Austria/config.d/99-myconfig.toml
-# Windows: %APPDATA%\bitranox\Uid Check Austria\config.d\99-myconfig.toml
+# Linux:   ~/.config/finanzonline-uid/config.d/99-myconfig.toml
+# macOS:   ~/Library/Application Support/bitranox/FinanzOnline UID/config.d/99-myconfig.toml
+# Windows: %APPDATA%\bitranox\FinanzOnline UID\config.d\99-myconfig.toml
 ```
 
 ```toml
@@ -145,7 +145,7 @@ from_address = "alerts@yourcompany.com"
 
 ```bash
 # Launch the latest version without any further installation
-uvx uid_check_austria@latest check DE123456789
+uvx finanzonline_uid@latest check DE123456789
 ```
 
 For alternative install paths (pip, pipx, uvx, source builds), see [INSTALL_en.md](INSTALL_en.md).
@@ -156,10 +156,10 @@ For alternative install paths (pip, pipx, uvx, source builds), see [INSTALL_en.m
 
 ```bash
 # check per commandline
-uvx uid_check_austria@latest check NL123456789
+uvx finanzonline_uid@latest check NL123456789
 
 # check interactive (will ask for the UID to check) : 
-uvx uid_check_austria@latest check --interactive
+uvx finanzonline_uid@latest check --interactive
 ```
 
 the results will be displayed and a email with the results will be sent to the configured email adresses. 
