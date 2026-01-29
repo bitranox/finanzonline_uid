@@ -5,6 +5,12 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [2.5.5] - 2026-01-29
+
+### Fixed
+
+- **Test fixture type compatibility**: Fixed `MockConfig` class in test fixtures to match the base `Config` class method signatures. Added missing `redact` parameter to `as_dict()` and `to_json()` methods, resolving Pyright type-check errors.
+
 ## [2.5.4] - 2026-01-01
 
 ### Fixed

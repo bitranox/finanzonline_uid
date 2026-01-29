@@ -182,10 +182,10 @@ class MockConfig(Config):
     def __init__(self, data: dict[str, Any]) -> None:
         object.__setattr__(self, "_mock_data", data)
 
-    def as_dict(self) -> dict[str, Any]:
+    def as_dict(self, *, redact: bool = False) -> dict[str, Any]:
         return dict(object.__getattribute__(self, "_mock_data"))
 
-    def to_json(self, *, indent: int | None = None) -> str:
+    def to_json(self, *, indent: int | None = None, redact: bool = False) -> str:
         import json
 
         return json.dumps(object.__getattribute__(self, "_mock_data"), indent=indent)
