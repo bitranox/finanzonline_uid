@@ -5,6 +5,14 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [2.5.6] - 2026-02-01
+
+### Fixed
+
+- **macOS test compatibility**: Fixed test failures on macOS caused by `btx_lib_mail`'s security restrictions blocking `/var` directory (where macOS temp files reside under `/private/var/folders/`):
+  - Added pre-validation of attachment existence in `send_email()` before calling `btx_send`, ensuring `FileNotFoundError` is raised predictably regardless of OS-specific temp directory locations
+  - Updated `test_attachments_are_included` to mock `btx_send` directly, bypassing library security checks while still verifying attachments are correctly passed
+
 ## [2.5.5] - 2026-01-29
 
 ### Fixed
