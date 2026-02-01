@@ -214,6 +214,22 @@ def _normalize_recipients(recipients: str | Sequence[str]) -> str | list[str]:
     return recipients if isinstance(recipients, str) else list(recipients)
 
 
+def _validate_attachments_exist(attachments: Sequence[Path] | None) -> None:
+    """Validate that all attachment files exist before sending.
+
+    Args:
+        attachments: Optional sequence of file paths to validate.
+
+    Raises:
+        FileNotFoundError: When any attachment file does not exist.
+    """
+    if not attachments:
+        return
+    for path in attachments:
+        if not path.exists():
+            raise FileNotFoundError(f"Attachment file not found: {path}")
+
+
 def send_email(
     *,
     config: EmailConfig,
@@ -243,6 +259,9 @@ def send_email(
         FileNotFoundError: Missing attachment.
         RuntimeError: All SMTP hosts failed.
     """
+    if config.raise_on_missing_attachments:
+        _validate_attachments_exist(attachments)
+
     sender = from_address if from_address is not None else config.from_address
     normalized_recipients = _normalize_recipients(recipients)
 
