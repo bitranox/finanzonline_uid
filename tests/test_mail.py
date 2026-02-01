@@ -361,7 +361,9 @@ class TestSendEmailSuccess:
         attachment = tmp_path / "test.txt"
         attachment.write_text("Test attachment content")
 
-        with patch("smtplib.SMTP"):
+        # Mock btx_send directly to avoid btx_lib_mail's security restrictions
+        # on macOS temp directories (under /var which is blocked)
+        with patch("finanzonline_uid.mail.btx_send", return_value=True) as mock_send:
             result = send_email(
                 config=valid_email_config,
                 recipients="recipient@test.com",
@@ -369,6 +371,10 @@ class TestSendEmailSuccess:
                 body="Test body",
                 attachments=[attachment],
             )
+            # Verify attachments were passed to btx_send
+            assert mock_send.call_count == 1
+            call_kwargs = mock_send.call_args.kwargs
+            assert call_kwargs["attachment_file_paths"] == [attachment]
         assert result is True
 
     def test_credentials_are_used(self) -> None:
