@@ -5,6 +5,18 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 
 
+## [Unreleased]
+
+## [2.5.7] - 2026-02-13
+
+### Removed
+
+- **Deleted legacy `scripts/` module**: Removed the entire `scripts/` directory and its test file `tests/test_scripts.py`. Build automation is now handled by `bmk` via the Makefile.
+
+### Fixed
+
+- **Shell lint compliance in `reset_git_history.sh`**: Fixed indentation (2 → 4 spaces) to satisfy `shfmt` and suppressed shellcheck SC1083 false positive on `HEAD^{tree}` git syntax.
+
 ## [2.5.6] - 2026-02-01
 
 ### Fixed
