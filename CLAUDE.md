@@ -21,8 +21,9 @@ When starting a new session, read and apply the following system prompt files fr
 
 ### Bash-Specific Guidelines
 When working with Bash scripts:
+- use skill `bx-bash-reference` when in doubt of bash features or syntax
 - `core_programming_solid.md`
-- `bash_clean_architecture.md`
+- use skill `bx-bash-clean-architecture`
 - `bash_clean_code.md`
 - `bash_small_functions.md`
 
