@@ -178,3 +178,4 @@ result
 poetry.lock
 pdm.lock
 uv.lock
+installer_rotek/
