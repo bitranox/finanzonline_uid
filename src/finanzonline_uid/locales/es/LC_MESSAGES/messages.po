@@ -379,6 +379,18 @@ msgstr "Intentos hasta ahora"
 msgid "Retry Mode"
 msgstr "Modo de reintento"
 
+msgid "Retry Mode (unlimited)"
+msgstr "Modo de reintento (ilimitado)"
+
+msgid "Retries indefinitely"
+msgstr "Reintenta indefinidamente"
+
+msgid "Ctrl+C to stop"
+msgstr "Ctrl+C para detener"
+
+msgid "Retry mode: Will keep retrying every {minutes} min with no limit — only stops on success or Ctrl+C."
+msgstr "Modo de reintento: Reintenta cada {minutes} min sin límite — solo se detiene con éxito o Ctrl+C."
+
 msgid "Attempt"
 msgstr "Intento"
 

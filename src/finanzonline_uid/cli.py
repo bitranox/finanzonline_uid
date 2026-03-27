@@ -583,8 +583,13 @@ def _format_countdown(seconds_remaining: int, attempt: int, uid: str) -> Panel:
     text.append(_("Attempts so far"), style="dim")
     text.append(": ", style="dim")
     text.append(str(attempt), style="bold yellow")
+    text.append("\n\n")
+    text.append(f"⚠ {_('Retries indefinitely')}", style="bold yellow")
+    text.append("\n")
+    text.append(_("Ctrl+C to stop"), style="dim")
 
-    return Panel(text, title=_("Retry Mode"), border_style="blue")
+    title = _("Retry Mode (unlimited)")
+    return Panel(text, title=title, border_style="blue")
 
 
 def _wait_with_countdown(seconds: float, attempt: int, uid: str) -> bool:
@@ -653,6 +658,12 @@ def _execute_retry_loop(
 
             # Retryable return code (e.g., 1511 Service Unavailable) - continue loop
             click.echo(f"\n{_('Attempt')} {attempt}: {result.message}", err=True)
+            if attempt == 1:
+                interval_display = f"{retry_minutes:g}"
+                click.echo(
+                    _("Retry mode: Will keep retrying every {minutes} min with no limit — only stops on success or Ctrl+C.").format(minutes=interval_display),
+                    err=True,
+                )
 
             # Animated countdown (handles Ctrl+C internally)
             if not _wait_with_countdown(retry_minutes * 60, attempt, uid):
@@ -685,6 +696,12 @@ def _execute_retry_loop(
             # Retryable error - show message and wait
             last_error = error_info
             click.echo(f"\n{_('Attempt')} {attempt}: {error_info.message}", err=True)
+            if attempt == 1:
+                interval_display = f"{retry_minutes:g}"
+                click.echo(
+                    _("Retry mode: Will keep retrying every {minutes} min with no limit — only stops on success or Ctrl+C.").format(minutes=interval_display),
+                    err=True,
+                )
 
             # Animated countdown (handles Ctrl+C internally)
             if not _wait_with_countdown(retry_minutes * 60, attempt, uid):

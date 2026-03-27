@@ -379,6 +379,18 @@ msgstr "Попыток выполнено"
 msgid "Retry Mode"
 msgstr "Режим повтора"
 
+msgid "Retry Mode (unlimited)"
+msgstr "Режим повтора (без ограничений)"
+
+msgid "Retries indefinitely"
+msgstr "Повторяет бесконечно"
+
+msgid "Ctrl+C to stop"
+msgstr "Ctrl+C для остановки"
+
+msgid "Retry mode: Will keep retrying every {minutes} min with no limit — only stops on success or Ctrl+C."
+msgstr "Режим повтора: Повторяет каждые {minutes} мин. без ограничений — останавливается только при успехе или Ctrl+C."
+
 msgid "Attempt"
 msgstr "Попытка"
 

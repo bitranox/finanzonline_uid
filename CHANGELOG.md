@@ -7,6 +7,18 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-03-27
+
+### Added
+
+- **Clear retry mode messaging**: Retry countdown panel now shows "Retry Mode (unlimited)" title, a persistent "Retries indefinitely" warning, and "Ctrl+C to stop" hint. On the first retryable error, a one-time message explains the retry interval and that retries have no limit.
+- **Translations for new retry messages**: Added German, Spanish, French, and Russian translations for all new retry-related strings.
+
+### Changed
+
+- **CVE exclusion list updated**: Removed resolved/no-longer-flagged entries (GHSA-4xh5-x5gv-qwph, PYSEC-2022-43012, PYSEC-2025-49, CVE-2024-6345, CVE-2025-68146), added newly flagged CVE-2025-8869 (pip) and CVE-2026-25990 (pillow). Improved inline documentation for each exclusion.
+- **CI/CD workflow updates**: Updated GitHub Actions runner, upload/download artifact actions, and workflow configuration.
+
 ## [2.5.7] - 2026-02-13
 
 ### Removed
