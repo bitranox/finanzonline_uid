@@ -16,7 +16,7 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ### Changed
 
-- **CVE exclusion list updated**: Removed resolved/no-longer-flagged entries (GHSA-4xh5-x5gv-qwph, PYSEC-2022-43012, PYSEC-2025-49, CVE-2024-6345, CVE-2025-68146), added newly flagged CVE-2025-8869 (pip) and CVE-2026-25990 (pillow). Improved inline documentation for each exclusion.
+- **CVE exclusion list updated**: Removed resolved entries (GHSA-4xh5-x5gv-qwph, CVE-2025-68146), added newly flagged CVE-2025-8869 (pip) and CVE-2026-25990 (pillow). Retained setuptools exclusions needed for Python 3.10/3.11 on Windows CI. Improved inline documentation for each exclusion.
 - **CI/CD workflow updates**: Updated GitHub Actions runner, upload/download artifact actions, and workflow configuration.
 
 ## [2.5.7] - 2026-02-13
