@@ -351,8 +351,10 @@ class RateLimitTracker:
     def record_call(self, uid: str) -> RateLimitStatus:
         """Record an API call and return updated status.
 
-        This method should be called BEFORE making the actual API call
-        to ensure the count is incremented even if the call fails.
+        This method should be called AFTER a successful or non-retryable
+        API response. Retryable errors (service unavailable, rate limit
+        exceeded, etc.) should NOT be recorded to avoid exhausting the
+        local rate limit counter with failed attempts.
 
         Args:
             uid: The UID being queried (for logging/tracking purposes).

@@ -7,6 +7,16 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.6.1] - 2026-03-30
+
+### Fixed
+
+- **Rate limit not counting failed retries**: Retryable errors (service unavailable, rate limit exceeded, system maintenance, etc.) no longer count against the local rate limit tracker. Rate limit is now recorded only after a successfully processed query, preventing retry loops from exhausting the local quota with failed attempts.
+
+### Changed
+
+- **CVE exclusion list cleaned up**: Removed resolved CVEs (CVE-2026-25645 requests, CVE-2026-26007 cryptography, CVE-2026-4539 pygments).
+
 ## [2.6.0] - 2026-03-27
 
 ### Added

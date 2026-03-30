@@ -24,7 +24,7 @@ name = "finanzonline_uid"
 #: Human-readable summary shown in CLI help output.
 title = "Python library and CLI for querying Level 2 UID checks via FinanzOnline Austria"
 #: Current release version pulled from ``pyproject.toml`` by automation.
-version = "2.6.0"
+version = "2.6.1"
 #: Repository homepage presented to users.
 homepage = "https://github.com/bitranox/finanzonline_uid"
 #: Author attribution surfaced in CLI output.

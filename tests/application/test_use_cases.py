@@ -185,3 +185,46 @@ class TestCheckUidUseCase:
 
         # Login should not be called for invalid request
         mock_session_client.login.assert_not_called()
+
+    def test_rate_limit_not_recorded_on_retryable_error(
+        self,
+        credentials: FinanzOnlineCredentials,
+        mock_session_client: MagicMock,
+        mock_query_client: MagicMock,
+    ) -> None:
+        """Should not record rate limit when query returns retryable error."""
+        mock_query_client.query.return_value = UidCheckResult(
+            uid="DE123456789",
+            return_code=1511,
+            message="Service unavailable",
+            timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
+        mock_rate_limiter = MagicMock()
+        use_case = CheckUidUseCase(
+            mock_session_client,
+            mock_query_client,
+            rate_limiter=mock_rate_limiter,
+        )
+
+        use_case.execute(credentials, "ATU12345678", "DE123456789")
+
+        mock_rate_limiter.record_call.assert_not_called()
+
+    def test_rate_limit_recorded_on_success(
+        self,
+        credentials: FinanzOnlineCredentials,
+        mock_session_client: MagicMock,
+        mock_query_client: MagicMock,
+    ) -> None:
+        """Should record rate limit when query succeeds."""
+        mock_rate_limiter = MagicMock()
+        mock_rate_limiter.record_call.return_value = MagicMock(is_exceeded=False)
+        use_case = CheckUidUseCase(
+            mock_session_client,
+            mock_query_client,
+            rate_limiter=mock_rate_limiter,
+        )
+
+        use_case.execute(credentials, "ATU12345678", "DE123456789")
+
+        mock_rate_limiter.record_call.assert_called_once_with("DE123456789")

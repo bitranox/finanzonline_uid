@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING
 
 from finanzonline_uid.domain.errors import SessionError
 from finanzonline_uid.domain.models import UidCheckRequest
+from finanzonline_uid.domain.return_codes import is_retryable
 
 if TYPE_CHECKING:
     from finanzonline_uid.adapters.cache import UidResultCache
@@ -153,12 +154,13 @@ class CheckUidUseCase:
         if cached_result is not None:
             return cached_result
 
-        self._handle_rate_limit(target_uid)
         request = UidCheckRequest(uid_tn=uid_tn, uid=target_uid, stufe=2)
         session = self._login_or_raise(credentials)
 
         try:
             result = self._execute_query(session.session_id, credentials, request, target_uid)
+            if not is_retryable(result.return_code):
+                self._handle_rate_limit(target_uid)
             self._cache_valid_result(result)
             return result
         finally:
