@@ -23,6 +23,7 @@ from .errors import (
     AuthenticationError,
     ConfigurationError,
     QueryError,
+    ServiceMaintenanceError,
     SessionError,
     UidCheckError,
 )
@@ -51,6 +52,7 @@ __all__ = [
     "AuthenticationError",
     "ConfigurationError",
     "QueryError",
+    "ServiceMaintenanceError",
     "SessionError",
     "UidCheckError",
     # Return codes

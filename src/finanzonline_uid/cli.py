@@ -48,7 +48,7 @@ from .config import FinanzOnlineConfig, get_config, load_app_config, load_finanz
 from .i18n import _, setup_locale
 from .config_deploy import deploy_configuration
 from .config_show import display_config
-from .domain.errors import AuthenticationError, CheckErrorInfo, ConfigurationError, QueryError, SessionError, UidCheckError
+from .domain.errors import AuthenticationError, CheckErrorInfo, ConfigurationError, QueryError, ServiceMaintenanceError, SessionError, UidCheckError
 from .domain.models import sanitize_uid
 from .domain.return_codes import CliExitCode, get_return_code_info, is_retryable
 from .enums import DeployTarget, OutputFormat
@@ -385,6 +385,7 @@ def _get_uid_check_error_info(exc: UidCheckError) -> CheckErrorInfo:
     error_type_map: dict[type[UidCheckError], tuple[str, CliExitCode]] = {
         ConfigurationError: ("Configuration Error", CliExitCode.CONFIG_ERROR),
         AuthenticationError: ("Authentication Error", CliExitCode.AUTH_ERROR),
+        ServiceMaintenanceError: ("Service Maintenance", CliExitCode.QUERY_ERROR),
         SessionError: ("Session Error", CliExitCode.QUERY_ERROR),
         QueryError: ("Query Error", CliExitCode.QUERY_ERROR),
     }

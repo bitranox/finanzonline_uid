@@ -7,6 +7,17 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-04-01
+
+### Added
+
+- **Service maintenance detection**: When FinanzOnline returns an HTML maintenance page instead of a SOAP XML response, the error is now detected and reported as "Service Maintenance" with a clear message instead of a cryptic XML parsing error. The error is marked retryable, so `--retryminutes` automatically retries after maintenance windows.
+- **`ServiceMaintenanceError` exception**: New domain exception for maintenance scenarios, inherits from `SessionError` with `retryable=True`.
+
+### Changed
+
+- **CVE exclusion list cleaned up**: Removed 3 resolved setuptools CVE exclusions (PYSEC-2022-43012, PYSEC-2025-49, CVE-2024-6345).
+
 ## [2.6.1] - 2026-03-30
 
 ### Fixed

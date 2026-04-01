@@ -15,7 +15,7 @@ from finanzonline_uid.adapters.finanzonline.uid_query_client import (
     FinanzOnlineQueryClient,
     UID_QUERY_SERVICE_WSDL,
 )
-from finanzonline_uid.domain.errors import QueryError, SessionError
+from finanzonline_uid.domain.errors import QueryError, ServiceMaintenanceError, SessionError
 from finanzonline_uid.domain.models import FinanzOnlineCredentials, UidCheckRequest
 
 
@@ -238,6 +238,25 @@ class TestQuery:
                 query_client.query("SESSION123", credentials, uid_request)
 
             assert "Unexpected error" in str(exc_info.value)
+
+    def test_query_html_maintenance_page_raises_service_maintenance_error(
+        self,
+        query_client: FinanzOnlineQueryClient,
+        credentials: FinanzOnlineCredentials,
+        uid_request: UidCheckRequest,
+    ) -> None:
+        """HTML maintenance page triggers ServiceMaintenanceError (retryable)."""
+        xml_error = Exception("Invalid XML content received (Opening and ending tag mismatch: link line 10 and head, line 11, column 8)")
+        with patch.object(query_client, "_get_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.service.uidAbfrage.side_effect = xml_error
+            mock_get_client.return_value = mock_client
+
+            with pytest.raises(ServiceMaintenanceError) as exc_info:
+                query_client.query("SESSION123", credentials, uid_request)
+
+            assert exc_info.value.retryable is True
+            assert "maintenance" in str(exc_info.value).lower()
 
     def test_query_handles_none_msg(
         self,

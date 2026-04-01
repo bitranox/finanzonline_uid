@@ -18,7 +18,7 @@ from finanzonline_uid.adapters.finanzonline.session_client import (
     SESSION_SERVICE_WSDL,
     FinanzOnlineSessionClient,
 )
-from finanzonline_uid.domain.errors import AuthenticationError, SessionError
+from finanzonline_uid.domain.errors import AuthenticationError, ServiceMaintenanceError, SessionError
 
 
 # ============================================================================
@@ -231,6 +231,24 @@ class TestLoginFailure:
                 client.login(valid_credentials)
 
             assert "Unexpected error" in str(exc_info.value)
+
+    def test_html_maintenance_page_raises_service_maintenance_error(
+        self,
+        valid_credentials: Any,
+    ) -> None:
+        """HTML maintenance page triggers ServiceMaintenanceError (retryable)."""
+        client = FinanzOnlineSessionClient()
+        xml_error = Exception("Invalid XML content received (Opening and ending tag mismatch: link line 10 and head, line 11, column 8)")
+        with patch.object(client, "_get_client") as mock_get:
+            mock_zeep = MagicMock()
+            mock_zeep.service.login.side_effect = xml_error
+            mock_get.return_value = mock_zeep
+
+            with pytest.raises(ServiceMaintenanceError) as exc_info:
+                client.login(valid_credentials)
+
+            assert exc_info.value.retryable is True
+            assert "maintenance" in str(exc_info.value).lower()
 
 
 # ============================================================================

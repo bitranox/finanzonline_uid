@@ -12,6 +12,7 @@ Contents
 * :class:`AuthenticationError` - Login/credentials failure
 * :class:`SessionError` - Session management errors
 * :class:`QueryError` - UID query execution errors
+* :class:`ServiceMaintenanceError` - FinanzOnline service in maintenance
 
 System Role
 -----------
@@ -201,3 +202,31 @@ class QueryError(UidCheckError):
         self.return_code = return_code
         self.retryable = retryable
         self.diagnostics = diagnostics or Diagnostics()
+
+
+class ServiceMaintenanceError(SessionError):
+    """FinanzOnline service is in maintenance mode.
+
+    Raised when the service returns HTML (e.g. a maintenance page) instead
+    of a SOAP XML response. Always retryable since maintenance windows end.
+
+    Attributes:
+        message: Human-readable error description.
+        retryable: Always True for maintenance errors.
+        diagnostics: Diagnostics object with request/response details.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        diagnostics: Diagnostics | None = None,
+    ) -> None:
+        """Initialize with error details.
+
+        Args:
+            message: Human-readable error description.
+            diagnostics: Optional Diagnostics object with masked credentials.
+        """
+        super().__init__(message, diagnostics=diagnostics)
+        self.retryable = True
