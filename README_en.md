@@ -10,7 +10,6 @@
 [![Code Style: Ruff](https://img.shields.io/badge/Code%20Style-Ruff-46A3FF?logo=ruff&labelColor=000)](https://docs.astral.sh/ruff/)
 [![codecov](https://codecov.io/gh/bitranox/finanzonline_uid/graph/badge.svg?token=UFBaUDIgRk)](https://codecov.io/gh/bitranox/finanzonline_uid)
 [![Maintainability](https://qlty.sh/badges/041ba2c1-37d6-40bb-85a0-ec5a8a0aca0c/maintainability.svg)](https://qlty.sh/gh/bitranox/projects/finanzonline_uid)
-[![Known Vulnerabilities](https://snyk.io/test/github/bitranox/finanzonline_uid/badge.svg)](https://snyk.io/test/github/bitranox/finanzonline_uid)
 [![security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 
 > 🇩🇪 **[Deutsche Version verfügbar (README.md)](README.md)**
