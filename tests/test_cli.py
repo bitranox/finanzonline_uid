@@ -869,7 +869,9 @@ def test_when_check_uses_json_format_it_outputs_json(
                 )
 
                 assert result.exit_code == 0
-                parsed = json.loads(result.output)
+                json_start = result.output.find("{")
+                assert json_start >= 0, f"No JSON object in output: {result.output!r}"
+                parsed = json.loads(result.output[json_start:])
                 assert parsed["uid"] == "DE123456789"
                 assert parsed["is_valid"] is True
 

@@ -7,6 +7,17 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.1] - 2026-04-26
+
+### Fixed
+
+- **CI test failure on macOS**: Made `test_when_check_uses_json_format_it_outputs_json` tolerant of log lines mixed into stdout — the test now extracts the JSON portion from `result.output` instead of parsing the whole capture, fixing a regression where the macOS Python 3.12 CI job failed with `JSONDecodeError`.
+
+### Changed
+
+- **PowerShell linter configuration**: Added `[tool.psscriptanalyzer]` section to exclude `PSAvoidUsingInvokeExpression` and `PSAvoidUsingCmdletAliases` rules — required for the standard upstream `uv` install snippet (`irm ... | iex`) used in `installer_rotek/finanzonline_uid/install.ps1`.
+- **CVE exclusion list cleaned up**: Removed pip 24.3.1 CVE exclusions (CVE-2025-8869, CVE-2026-1703 — pip is now 26.0.1) and pillow CVE-2026-25990 (pillow now 12.2.0). Added CVE-2026-3219 (pip 26.0.1 concatenated tar/ZIP confusion, no fix available yet).
+
 ## [2.7.0] - 2026-04-01
 
 ### Added
