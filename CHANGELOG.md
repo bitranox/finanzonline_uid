@@ -7,6 +7,20 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.4] - 2026-05-04
+
+### Fixed
+
+- **Raw response section was missing from failure emails**: When zeep's `last_received` buffer is empty or its envelope cannot be serialized, the diagnostics section was previously skipped silently. The capture now always returns a non-empty marker so the email/CLI output always shows useful context:
+  - Captured XML when the response was received
+  - `[Request was sent but no SOAP response was captured/parseable]` when only the request envelope is available (the request body is intentionally not dumped — it contains credentials)
+  - `[No SOAP envelope captured - error occurred before HTTP exchange]` when the failure happened before any HTTP call
+- **Capture errors no longer crash diagnostics**: Any exception during XML serialization (lxml internals, oversized envelopes, etc.) is now caught and logged at DEBUG level instead of bubbling up.
+
+### Added
+
+- Four unit tests covering all `_capture_raw_response` paths (response present, sent-only fallback, empty buffer, oversized truncation).
+
 ## [2.7.3] - 2026-05-04
 
 ### Added

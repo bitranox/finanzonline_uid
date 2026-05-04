@@ -96,42 +96,74 @@ UID_QUERY_SERVICE_WSDL = "https://finanzonline.bmf.gv.at/fonuid/ws/uidAbfrageSer
 _RAW_RESPONSE_MAX_CHARS = 8192
 
 
-def _capture_raw_response(history: HistoryPlugin) -> str:
-    """Serialize zeep's last received SOAP envelope for diagnostics.
+def _serialize_envelope(history: HistoryPlugin, attr: str) -> str:
+    """Pull a sent/received envelope from HistoryPlugin and serialize to XML.
 
     Args:
-        history: zeep HistoryPlugin instance attached to the client.
+        history: zeep HistoryPlugin instance.
+        attr: ``"last_received"`` or ``"last_sent"``.
 
     Returns:
-        UTF-8 string of the raw response XML (truncated if >8 KB),
-        or empty string if no response was captured.
+        Pretty-printed XML string (truncated to ~8 KB), or empty string
+        if the envelope is not available or cannot be serialized.
     """
     try:
-        from lxml import etree  # imported here to avoid hard dep at module load
+        from lxml import etree  # imported here so failure is handled gracefully
     except ImportError:
         return ""
 
-    # HistoryPlugin.last_received raises IndexError if no envelope captured yet
     try:
-        last = history.last_received
+        entry = getattr(history, attr)
     except (IndexError, AttributeError):
         return ""
 
-    if not last:
+    if not entry or not isinstance(entry, dict):
         return ""
 
-    envelope = last.get("envelope") if isinstance(last, dict) else None
+    envelope = entry.get("envelope")
     if envelope is None:
         return ""
 
     try:
         raw = etree.tostring(envelope, pretty_print=True, encoding="unicode")
-    except (TypeError, ValueError, etree.XMLSyntaxError):
+    except Exception as exc:  # noqa: BLE001 — diagnostic helper must never crash
+        logger.debug("Failed to serialize %s envelope: %s", attr, exc)
         return ""
 
     if len(raw) > _RAW_RESPONSE_MAX_CHARS:
         raw = raw[:_RAW_RESPONSE_MAX_CHARS] + "\n... [truncated]"
     return raw
+
+
+def _capture_raw_response(history: HistoryPlugin) -> str:
+    """Capture raw XML from zeep's HistoryPlugin for failure diagnostics.
+
+    Tries the received envelope first (the BMF response we couldn't parse),
+    then falls back to indicating whether the request was sent. Always
+    returns a non-empty string so failure emails carry useful context.
+
+    Args:
+        history: zeep HistoryPlugin instance attached to the client.
+
+    Returns:
+        Pretty-printed XML response, a fallback marker, or a placeholder
+        explaining why nothing was captured.
+    """
+    received = _serialize_envelope(history, "last_received")
+    if received:
+        logger.info("Captured raw SOAP response (%d chars) for diagnostics", len(received))
+        return received
+
+    sent = _serialize_envelope(history, "last_sent")
+    if sent:
+        # Don't dump the request envelope — it contains tid/benid/pin/session_id
+        # in cleartext. Just signal that the request went out but no response
+        # came back / was parseable.
+        logger.warning("No SOAP response captured; request was sent (size=%d)", len(sent))
+        return "[Request was sent but no SOAP response was captured/parseable]"
+
+    logger.warning("No SOAP envelope captured (HistoryPlugin buffer empty)")
+    return "[No SOAP envelope captured - error occurred before HTTP exchange]"
 
 
 def _mask_value(value: str, visible_chars: int = 4) -> str:

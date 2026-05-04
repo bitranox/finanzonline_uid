@@ -14,6 +14,7 @@ from zeep.exceptions import Fault, TransportError
 from finanzonline_uid.adapters.finanzonline.uid_query_client import (
     FinanzOnlineQueryClient,
     UID_QUERY_SERVICE_WSDL,
+    _capture_raw_response,
 )
 from finanzonline_uid.domain.errors import QueryError, ServiceMaintenanceError, SessionError
 from finanzonline_uid.domain.models import FinanzOnlineCredentials, UidCheckRequest
@@ -451,3 +452,54 @@ class TestQuery:
 
             assert result.timestamp is not None
             assert result.timestamp.tzinfo is not None
+
+
+class TestCaptureRawResponse:
+    """Tests for the raw-response capture helper used by failure diagnostics."""
+
+    def test_returns_xml_when_response_envelope_present(self) -> None:
+        """A populated last_received envelope is serialized to XML."""
+        history = MagicMock()
+        history.last_received = {"envelope": MagicMock(), "http_headers": {}}
+        history.last_sent = None
+
+        with patch("lxml.etree.tostring", return_value="<Envelope>response</Envelope>"):
+            result = _capture_raw_response(history)
+
+        assert "<Envelope>" in result
+        assert "response" in result
+
+    def test_falls_back_to_sent_marker_when_only_request_present(self) -> None:
+        """If only the request envelope is captured, return a non-credential marker."""
+        history = MagicMock()
+        history.last_received = None
+        history.last_sent = {"envelope": MagicMock(), "http_headers": {}}
+
+        with patch("lxml.etree.tostring", return_value="<Envelope>secret-request-body</Envelope>"):
+            result = _capture_raw_response(history)
+
+        assert "Request was sent" in result
+        # The actual request body must NOT leak — it contains credentials.
+        assert "secret-request-body" not in result
+
+    def test_returns_placeholder_when_buffer_empty(self) -> None:
+        """When no envelope was ever captured, return a clear placeholder."""
+        history = MagicMock()
+        type(history).last_received = property(lambda self: (_ for _ in ()).throw(IndexError()))
+        type(history).last_sent = property(lambda self: (_ for _ in ()).throw(IndexError()))
+
+        result = _capture_raw_response(history)
+
+        assert "No SOAP envelope captured" in result
+
+    def test_truncates_oversized_responses(self) -> None:
+        """Large envelopes are truncated to ~8 KB to keep emails reasonable."""
+        big_xml = "<Envelope>" + ("x" * 20000) + "</Envelope>"
+        history = MagicMock()
+        history.last_received = {"envelope": MagicMock(), "http_headers": {}}
+
+        with patch("lxml.etree.tostring", return_value=big_xml):
+            result = _capture_raw_response(history)
+
+        assert "[truncated]" in result
+        assert len(result) < 9000  # 8192 cap + small header
