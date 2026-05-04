@@ -258,6 +258,25 @@ class TestQuery:
             assert exc_info.value.retryable is True
             assert "maintenance" in str(exc_info.value).lower()
 
+    def test_query_zeep_parsing_error_is_retryable(
+        self,
+        query_client: FinanzOnlineQueryClient,
+        credentials: FinanzOnlineCredentials,
+        uid_request: UidCheckRequest,
+    ) -> None:
+        """zeep TypeError 'name cannot be None' is wrapped as a retryable QueryError."""
+        zeep_error = TypeError("name cannot be None", object)
+        with patch.object(query_client, "_get_client") as mock_get_client:
+            mock_client = MagicMock()
+            mock_client.service.uidAbfrage.side_effect = zeep_error
+            mock_get_client.return_value = mock_client
+
+            with pytest.raises(QueryError) as exc_info:
+                query_client.query("SESSION123", credentials, uid_request)
+
+            assert exc_info.value.retryable is True
+            assert "malformed" in str(exc_info.value).lower()
+
     def test_query_handles_none_msg(
         self,
         query_client: FinanzOnlineQueryClient,

@@ -32,7 +32,7 @@ from zeep.transports import Transport
 from finanzonline_uid.domain.errors import QueryError, ServiceMaintenanceError, SessionError
 from finanzonline_uid.domain.models import Address, Diagnostics, UidCheckResult
 from finanzonline_uid.domain.return_codes import ReturnCode
-from finanzonline_uid.domain.soap_utils import extract_string_attr, extract_text_from_html_error, is_html_response_error
+from finanzonline_uid.domain.soap_utils import extract_string_attr, extract_text_from_html_error, is_html_response_error, is_zeep_parsing_error
 
 if TYPE_CHECKING:
     from finanzonline_uid.domain.models import (
@@ -227,6 +227,14 @@ def _handle_query_exception(
         message = extract_text_from_html_error(exc)
         logger.warning("FinanzOnline returned HTML instead of SOAP XML (likely maintenance): %s", exc)
         raise ServiceMaintenanceError(message, diagnostics=diagnostics) from exc
+
+    if is_zeep_parsing_error(exc):
+        logger.warning("FinanzOnline returned a SOAP response zeep could not parse (likely transient cross-border VIES issue): %s", exc)
+        raise QueryError(
+            f"Malformed response from FinanzOnline (transient, likely cross-border VIES issue): {exc}",
+            retryable=True,
+            diagnostics=diagnostics,
+        ) from exc
 
     logger.error("Unexpected error during UID query: %s", exc)
     raise QueryError(f"Unexpected error: {exc}", diagnostics=diagnostics) from exc

@@ -7,6 +7,16 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.2] - 2026-05-04
+
+### Fixed
+
+- **Transient zeep parsing errors now retryable**: Cryptic `Unexpected error: ('name cannot be None', <class 'zeep.xsd.elements.element.Element'>)` is now detected and reported as a clear, **retryable** `Query Error` ("Malformed response from FinanzOnline (transient, likely cross-border VIES issue)"). With `--retryminutes N` set, these flaky cross-border (HR/IT/etc.) lookups — which usually clear within 2–3 attempts when BMF's upstream VIES forwarding hiccups — now retry automatically instead of failing hard.
+
+### Added
+
+- **`is_zeep_parsing_error()` utility** in `domain/soap_utils.py` — pure detection helper for the zeep `name cannot be None` TypeError pattern, with full doctest and unit-test coverage.
+
 ## [2.7.1] - 2026-04-26
 
 ### Fixed

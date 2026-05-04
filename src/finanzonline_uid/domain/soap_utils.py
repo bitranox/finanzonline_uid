@@ -8,7 +8,8 @@ Contents
 --------
 * :func:`extract_string_attr` - Safely extract string attribute from SOAP response.
 * :func:`is_html_response_error` - Detect HTML-instead-of-XML errors (maintenance pages).
-* :func:`extract_html_maintenance_message` - Extract text from HTML maintenance page error.
+* :func:`extract_text_from_html_error` - Extract text from HTML maintenance page error.
+* :func:`is_zeep_parsing_error` - Detect transient zeep response-parsing errors.
 
 System Role
 -----------
@@ -123,3 +124,38 @@ def extract_text_from_html_error(exc: Exception) -> str:
         current = current.__cause__
 
     return "FinanzOnline service returned a maintenance page instead of a SOAP response"
+
+
+# Patterns indicating zeep failed to parse the SOAP response. These typically
+# appear when BMF relays a malformed response from a foreign VIES service
+# (cross-border UID checks like HR, IT, etc.) — the issue is transient and
+# usually clears on retry.
+_ZEEP_PARSING_ERROR_PATTERNS: tuple[str, ...] = (
+    "name cannot be none",
+    "zeep.xsd.elements.element.element",
+)
+
+
+def is_zeep_parsing_error(exc: Exception) -> bool:
+    """Detect zeep response-parsing errors that indicate a malformed BMF response.
+
+    These manifest as ``TypeError("name cannot be None", ...)`` from zeep's
+    XSD element machinery when the response XML cannot be deserialized
+    against the schema. They are typically transient and clear on retry,
+    most often seen with cross-border (non-AT) UID queries where BMF
+    relays VIES responses from other EU member states.
+
+    Args:
+        exc: The exception to check.
+
+    Returns:
+        True if the exception looks like a zeep parsing failure.
+
+    Examples:
+        >>> is_zeep_parsing_error(TypeError("name cannot be None", object))
+        True
+        >>> is_zeep_parsing_error(ValueError("something else"))
+        False
+    """
+    error_text = str(exc).lower()
+    return any(pattern in error_text for pattern in _ZEEP_PARSING_ERROR_PATTERNS)

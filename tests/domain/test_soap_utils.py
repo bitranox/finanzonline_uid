@@ -8,6 +8,7 @@ import pytest
 from finanzonline_uid.domain.soap_utils import (
     extract_text_from_html_error,
     is_html_response_error,
+    is_zeep_parsing_error,
 )
 
 
@@ -82,3 +83,33 @@ class TestExtractTextFromHtmlError:
         result = extract_text_from_html_error(outer)
         assert "FinanzOnline maintenance:" in result
         assert "Wartung" in result
+
+
+@pytest.mark.os_agnostic
+class TestIsZeepParsingError:
+    """Detect transient zeep response-parsing errors."""
+
+    def test_detects_name_cannot_be_none(self) -> None:
+        """Real-world TypeError from zeep Element.__init__ is detected."""
+        exc = TypeError("name cannot be None", object)
+        assert is_zeep_parsing_error(exc) is True
+
+    def test_detects_zeep_class_in_message(self) -> None:
+        """Reference to zeep Element class in exception text is detected."""
+        exc = RuntimeError("Failed: zeep.xsd.elements.element.Element resolution failed")
+        assert is_zeep_parsing_error(exc) is True
+
+    def test_ignores_unrelated_typeerror(self) -> None:
+        """Generic TypeErrors are not flagged."""
+        exc = TypeError("unsupported operand type(s)")
+        assert is_zeep_parsing_error(exc) is False
+
+    def test_ignores_html_error(self) -> None:
+        """HTML/maintenance errors are handled separately, not flagged here."""
+        exc = ValueError("Opening and ending tag mismatch: link line 10 and head")
+        assert is_zeep_parsing_error(exc) is False
+
+    def test_case_insensitive(self) -> None:
+        """Detection is case-insensitive."""
+        exc = TypeError("Name Cannot Be None")
+        assert is_zeep_parsing_error(exc) is True
