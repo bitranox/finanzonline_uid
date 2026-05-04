@@ -225,6 +225,8 @@ def _format_diagnostics_section(diagnostics: "Diagnostics") -> list[str]:
     lines = ["", f"{_BOLD}{_('Diagnostic Information')}{_RESET}", "-" * 30]
     for key, value in diagnostics.as_dict().items():
         lines.append(f"{key.replace('_', ' ').title()}: {value}")
+    if diagnostics.raw_response:
+        lines.extend(["", f"{_BOLD}{_('Raw SOAP Response')}{_RESET}", "-" * 30, diagnostics.raw_response])
     return lines
 
 
@@ -329,6 +331,9 @@ def format_error_json(
         data["severity"] = info.severity
 
     if diagnostics and not diagnostics.is_empty:
-        data["diagnostics"] = diagnostics.as_dict()
+        diag_dict: dict[str, Any] = dict(diagnostics.as_dict())
+        if diagnostics.raw_response:
+            diag_dict["raw_response"] = diagnostics.raw_response
+        data["diagnostics"] = diag_dict
 
     return json.dumps(data, indent=2)

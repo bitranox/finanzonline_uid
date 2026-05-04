@@ -136,6 +136,7 @@ class Diagnostics:
         return_code: Return code from response (if applicable).
         response_message: Response message from service (if applicable).
         error_detail: Additional error details (if applicable).
+        raw_response: Raw XML response for failure investigation (if captured).
 
     Examples:
         >>> diag = Diagnostics(operation="login", tid="123***789", benid="TEST***", pin="sec***pin")
@@ -153,6 +154,7 @@ class Diagnostics:
     return_code: str = ""
     response_message: str = ""
     error_detail: str = ""
+    raw_response: str = ""
 
     def as_dict(self) -> dict[str, str]:
         """Convert to dictionary, excluding empty values.
@@ -189,6 +191,7 @@ class Diagnostics:
                 self.return_code,
                 self.response_message,
                 self.error_detail,
+                self.raw_response,
             ]
         )
 

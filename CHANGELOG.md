@@ -7,6 +7,20 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.3] - 2026-05-04
+
+### Added
+
+- **Raw SOAP response in error diagnostics**: When the UID query fails (especially the transient zeep `name cannot be None` parsing error), the actual XML response from FinanzOnline is now captured via zeep's `HistoryPlugin` and included in:
+  - The error notification email (plain text section + scrollable monospace `<pre>` block in HTML)
+  - The CLI human/JSON output
+  - The `Diagnostics.raw_response` field
+- This makes flaky cross-border (HR/IT/etc.) failures investigable without re-running with debug logging. Captured XML is truncated at 8 KB.
+
+### Changed
+
+- **`Diagnostics` dataclass**: New optional field `raw_response: str = ""` (backward-compatible — default empty string).
+
 ## [2.7.2] - 2026-05-04
 
 ### Fixed

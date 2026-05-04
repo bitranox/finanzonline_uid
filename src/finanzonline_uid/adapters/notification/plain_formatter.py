@@ -113,6 +113,8 @@ def _format_diagnostics_section_plain(diagnostics: "Diagnostics") -> list[str]:
     lines = ["", _("Diagnostic Information"), "-" * 30]
     for key, value in diagnostics.as_dict().items():
         lines.append(f"{key.replace('_', ' ').title()}: {value}")
+    if diagnostics.raw_response:
+        lines.extend(["", _("Raw SOAP Response"), "-" * 30, diagnostics.raw_response])
     return lines
 
 

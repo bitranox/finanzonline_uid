@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from zeep import Client
 from zeep.exceptions import Fault, TransportError
+from zeep.plugins import HistoryPlugin
 from zeep.transports import Transport
 
 from finanzonline_uid.domain.errors import QueryError, ServiceMaintenanceError, SessionError
@@ -89,6 +90,48 @@ class SoapUidQueryResponse:
 
 
 UID_QUERY_SERVICE_WSDL = "https://finanzonline.bmf.gv.at/fonuid/ws/uidAbfrageService.wsdl"
+
+# Cap captured raw responses to avoid bloating logs/emails when BMF returns
+# large blobs. 8 KB is plenty for a UID SOAP response (typically ~1 KB).
+_RAW_RESPONSE_MAX_CHARS = 8192
+
+
+def _capture_raw_response(history: HistoryPlugin) -> str:
+    """Serialize zeep's last received SOAP envelope for diagnostics.
+
+    Args:
+        history: zeep HistoryPlugin instance attached to the client.
+
+    Returns:
+        UTF-8 string of the raw response XML (truncated if >8 KB),
+        or empty string if no response was captured.
+    """
+    try:
+        from lxml import etree  # imported here to avoid hard dep at module load
+    except ImportError:
+        return ""
+
+    # HistoryPlugin.last_received raises IndexError if no envelope captured yet
+    try:
+        last = history.last_received
+    except (IndexError, AttributeError):
+        return ""
+
+    if not last:
+        return ""
+
+    envelope = last.get("envelope") if isinstance(last, dict) else None
+    if envelope is None:
+        return ""
+
+    try:
+        raw = etree.tostring(envelope, pretty_print=True, encoding="unicode")
+    except (TypeError, ValueError, etree.XMLSyntaxError):
+        return ""
+
+    if len(raw) > _RAW_RESPONSE_MAX_CHARS:
+        raw = raw[:_RAW_RESPONSE_MAX_CHARS] + "\n... [truncated]"
+    return raw
 
 
 def _mask_value(value: str, visible_chars: int = 4) -> str:
@@ -155,6 +198,7 @@ def _build_query_diagnostics(
     request: UidCheckRequest,
     response: Any | None = None,
     error: str | None = None,
+    raw_response: str = "",
 ) -> Diagnostics:
     """Build diagnostic information for UID query operation.
 
@@ -164,6 +208,7 @@ def _build_query_diagnostics(
         request: The UID check request.
         response: Optional SOAP response object.
         error: Optional error message.
+        raw_response: Optional raw XML response captured for failure investigation.
 
     Returns:
         Diagnostics object with diagnostic information.
@@ -187,6 +232,7 @@ def _build_query_diagnostics(
         return_code=return_code,
         response_message=response_message,
         error_detail=error or "",
+        raw_response=raw_response,
     )
 
 
@@ -196,6 +242,7 @@ def _handle_query_exception(
     credentials: FinanzOnlineCredentials,
     request: UidCheckRequest,
     response: Any | None,
+    history: HistoryPlugin | None = None,
 ) -> None:
     """Handle exceptions during UID query and raise appropriate domain error.
 
@@ -205,6 +252,7 @@ def _handle_query_exception(
         credentials: FinanzOnline credentials.
         request: The UID check request.
         response: Optional SOAP response.
+        history: Optional zeep HistoryPlugin to capture the raw response from.
 
     Raises:
         SessionError: For session-related errors.
@@ -213,7 +261,8 @@ def _handle_query_exception(
     if isinstance(exc, (SessionError, QueryError)):
         raise
 
-    diagnostics = _build_query_diagnostics(session_id, credentials, request, response, error=str(exc))
+    raw_response = _capture_raw_response(history) if history is not None else ""
+    diagnostics = _build_query_diagnostics(session_id, credentials, request, response, error=str(exc), raw_response=raw_response)
 
     if isinstance(exc, Fault):
         logger.error("SOAP fault during UID query: %s", exc)
@@ -259,6 +308,9 @@ class FinanzOnlineQueryClient:
         """
         self._timeout = timeout
         self._client: Client | None = None
+        # HistoryPlugin captures the last sent/received SOAP envelopes so we
+        # can include the raw response in diagnostics when parsing fails.
+        self._history: HistoryPlugin = HistoryPlugin()
 
     def _get_client(self) -> Client:
         """Get or create SOAP client.
@@ -269,7 +321,7 @@ class FinanzOnlineQueryClient:
         if self._client is None:
             logger.debug("Creating UID query service client with timeout=%s", self._timeout)
             transport = Transport(timeout=self._timeout, operation_timeout=self._timeout)
-            self._client = Client(UID_QUERY_SERVICE_WSDL, transport=transport)
+            self._client = Client(UID_QUERY_SERVICE_WSDL, transport=transport, plugins=[self._history])
         return self._client
 
     def query(
@@ -299,7 +351,7 @@ class FinanzOnlineQueryClient:
             response = self._execute_soap_query(session_id, credentials, request)
             return self._process_query_response(session_id, credentials, request, response)
         except Exception as e:
-            _handle_query_exception(e, session_id, credentials, request, response)
+            _handle_query_exception(e, session_id, credentials, request, response, history=self._history)
             raise  # Unreachable but satisfies type checker
 
     def _execute_soap_query(

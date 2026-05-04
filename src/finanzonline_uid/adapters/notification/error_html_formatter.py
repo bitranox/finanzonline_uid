@@ -42,6 +42,19 @@ def _format_return_code_section_html(return_code: int) -> str:
         <tr><td style="padding: 8px 15px; font-weight: bold;">{_("Severity:")}</td><td style="padding: 8px 15px;"><span style="color: #dc3545; font-weight: bold;">{html.escape(info.severity.upper())}</span></td></tr>"""
 
 
+def _format_raw_response_block_html(raw_response: str) -> str:
+    """Format raw SOAP response as a preformatted HTML code block."""
+    if not raw_response:
+        return ""
+    escaped = html.escape(raw_response)
+    return (
+        f'<h3 style="color: #856404; border-bottom: 1px solid #ffc107; padding-bottom: 8px; margin-top: 30px;">{_("Raw SOAP Response")}</h3>'
+        f'<pre style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 12px; '
+        f"font-family: monospace; font-size: 0.8em; white-space: pre-wrap; word-break: break-all; "
+        f'overflow-x: auto; max-height: 400px;">{escaped}</pre>'
+    )
+
+
 def _format_diagnostics_section_html(diagnostics: "Diagnostics") -> str:
     """Format diagnostics section as HTML."""
     rows = "".join(
@@ -49,8 +62,11 @@ def _format_diagnostics_section_html(diagnostics: "Diagnostics") -> str:
         f'<td style="padding: 6px 15px; font-family: monospace; font-size: 0.85em; word-break: break-all;">{html.escape(str(v))}</td></tr>'
         for k, v in diagnostics.as_dict().items()
     )
-    return f"""<h3 style="color: #856404; border-bottom: 1px solid #ffc107; padding-bottom: 8px; margin-top: 30px;">{_("Diagnostic Information")}</h3>
-    <table style="width: 100%; border-collapse: collapse; margin: 10px 0; background-color: #fff3cd; border-radius: 4px;">{rows}</table>"""
+    table = (
+        f'<h3 style="color: #856404; border-bottom: 1px solid #ffc107; padding-bottom: 8px; margin-top: 30px;">{_("Diagnostic Information")}</h3>'
+        f'<table style="width: 100%; border-collapse: collapse; margin: 10px 0; background-color: #fff3cd; border-radius: 4px;">{rows}</table>'
+    )
+    return table + _format_raw_response_block_html(diagnostics.raw_response)
 
 
 def _build_error_table_rows(uid: str, error_type: str, error_message: str, return_code: int | None, retryable: bool, timestamp: str) -> str:
