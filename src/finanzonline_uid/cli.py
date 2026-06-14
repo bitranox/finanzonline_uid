@@ -54,6 +54,7 @@ from .domain.return_codes import CliExitCode, get_return_code_info, is_retryable
 from .enums import DeployTarget, OutputFormat
 from .logging_setup import init_logging
 from .mail import EmailConfig, load_email_config_from_dict
+from .typed_click import argument, option, version_option
 
 #: Shared Click context flags so help output stays consistent across commands.
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}  # noqa: C408
@@ -175,18 +176,18 @@ def _run_cli(argv: Sequence[str] | None) -> int:
     context_settings=CLICK_CONTEXT_SETTINGS,
     invoke_without_command=True,
 )
-@click.version_option(
+@version_option(
     version=__init__conf__.version,
     prog_name=__init__conf__.shell_command,
     message=f"{__init__conf__.shell_command} version {__init__conf__.version}",
 )
-@click.option(
+@option(
     "--traceback/--no-traceback",
     is_flag=True,
     default=False,
     help=_("Show full Python traceback on errors"),
 )
-@click.option(
+@option(
     "--profile",
     type=str,
     default=None,
@@ -255,19 +256,19 @@ def cli_fail() -> None:
 
 
 @cli.command("config", context_settings=CLICK_CONTEXT_SETTINGS)
-@click.option(
+@option(
     "--format",
     type=click.Choice([f for f in OutputFormat], case_sensitive=False),
     default=OutputFormat.HUMAN,
     help=_("Output format (human-readable or JSON)"),
 )
-@click.option(
+@option(
     "--section",
     type=str,
     default=None,
     help=_("Show only a specific configuration section (e.g., 'lib_log_rich')"),
 )
-@click.option(
+@option(
     "--profile",
     type=str,
     default=None,
@@ -326,7 +327,7 @@ def _handle_deploy_error(exc: Exception) -> None:
 
 
 @cli.command("config-deploy", context_settings=CLICK_CONTEXT_SETTINGS)
-@click.option(
+@option(
     "--target",
     "targets",
     type=click.Choice([t for t in DeployTarget], case_sensitive=False),
@@ -334,13 +335,13 @@ def _handle_deploy_error(exc: Exception) -> None:
     required=True,
     help=_("Target configuration layer(s) to deploy to (can specify multiple)"),
 )
-@click.option(
+@option(
     "--force",
     is_flag=True,
     default=False,
     help=_("Overwrite existing configuration files"),
 )
-@click.option(
+@option(
     "--profile",
     type=str,
     default=None,
@@ -712,47 +713,47 @@ def _execute_retry_loop(
 
 
 @cli.command("check", context_settings=CLICK_CONTEXT_SETTINGS)
-@click.argument("uid", required=False)
-@click.option(
+@argument("uid", required=False)
+@option(
     "--interactive",
     "-i",
     is_flag=True,
     default=False,
     help=_("Interactive mode: prompt for UID to check"),
 )
-@click.option(
+@option(
     "--no-email",
     is_flag=True,
     default=False,
     help=_("Disable email notification (default: email enabled)"),
 )
-@click.option(
+@option(
     "--format",
     "output_format",
     type=click.Choice(["human", "json"], case_sensitive=False),
     default="human",
     help=_("Output format (default: human)"),
 )
-@click.option(
+@option(
     "--recipient",
     "recipients",
     multiple=True,
     help=_("Email recipient (can specify multiple, uses config default if not specified)"),
 )
-@click.option(
+@option(
     "--retryminutes",
     type=float,
     default=None,
     help=_("Retry interval in minutes until check succeeds or canceled (interactive mode only)"),
 )
-@click.option(
+@option(
     "--outputdir",
     "-o",
     type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
     default=None,
     help=_("Directory to save valid UID results as files (overrides config)"),
 )
-@click.option(
+@option(
     "--outputformat",
     "file_format",
     type=click.Choice(["json", "txt", "html"], case_sensitive=False),
