@@ -7,6 +7,14 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.6] 2026-07-19
+
+### Changed
+- Bump `btx_lib_mail` floor to `>=1.4.0` and wrap the SMTP password in
+  `pydantic.SecretStr` when building the `ConfMail` transport config, matching
+  btx_lib_mail 1.4.0 which now stores `smtp_password` as a `SecretStr`.
+- Declare the `pydantic` dependency that the mail adapter now imports directly.
+
 ## [2.7.5] 2026-06-14
 
 ### Changed
@@ -19,7 +27,7 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 - **Raw response section was missing from failure emails**: When zeep's `last_received` buffer is empty or its envelope cannot be serialized, the diagnostics section was previously skipped silently. The capture now always returns a non-empty marker so the email/CLI output always shows useful context:
   - Captured XML when the response was received
-  - `[Request was sent but no SOAP response was captured/parseable]` when only the request envelope is available (the request body is intentionally not dumped — it contains credentials)
+  - `[Request was sent but no SOAP response was captured/parseable]` when only the request envelope is available (the request body is intentionally not dumped  -  it contains credentials)
   - `[No SOAP envelope captured - error occurred before HTTP exchange]` when the failure happened before any HTTP call
 - **Capture errors no longer crash diagnostics**: Any exception during XML serialization (lxml internals, oversized envelopes, etc.) is now caught and logged at DEBUG level instead of bubbling up.
 
@@ -39,28 +47,28 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ### Changed
 
-- **`Diagnostics` dataclass**: New optional field `raw_response: str = ""` (backward-compatible — default empty string).
+- **`Diagnostics` dataclass**: New optional field `raw_response: str = ""` (backward-compatible  -  default empty string).
 
 ## [2.7.2] - 2026-05-04
 
 ### Fixed
 
-- **Transient zeep parsing errors now retryable**: Cryptic `Unexpected error: ('name cannot be None', <class 'zeep.xsd.elements.element.Element'>)` is now detected and reported as a clear, **retryable** `Query Error` ("Malformed response from FinanzOnline (transient, likely cross-border VIES issue)"). With `--retryminutes N` set, these flaky cross-border (HR/IT/etc.) lookups — which usually clear within 2–3 attempts when BMF's upstream VIES forwarding hiccups — now retry automatically instead of failing hard.
+- **Transient zeep parsing errors now retryable**: Cryptic `Unexpected error: ('name cannot be None', <class 'zeep.xsd.elements.element.Element'>)` is now detected and reported as a clear, **retryable** `Query Error` ("Malformed response from FinanzOnline (transient, likely cross-border VIES issue)"). With `--retryminutes N` set, these flaky cross-border (HR/IT/etc.) lookups  -  which usually clear within 2-3 attempts when BMF's upstream VIES forwarding hiccups  -  now retry automatically instead of failing hard.
 
 ### Added
 
-- **`is_zeep_parsing_error()` utility** in `domain/soap_utils.py` — pure detection helper for the zeep `name cannot be None` TypeError pattern, with full doctest and unit-test coverage.
+- **`is_zeep_parsing_error()` utility** in `domain/soap_utils.py`  -  pure detection helper for the zeep `name cannot be None` TypeError pattern, with full doctest and unit-test coverage.
 
 ## [2.7.1] - 2026-04-26
 
 ### Fixed
 
-- **CI test failure on macOS**: Made `test_when_check_uses_json_format_it_outputs_json` tolerant of log lines mixed into stdout — the test now extracts the JSON portion from `result.output` instead of parsing the whole capture, fixing a regression where the macOS Python 3.12 CI job failed with `JSONDecodeError`.
+- **CI test failure on macOS**: Made `test_when_check_uses_json_format_it_outputs_json` tolerant of log lines mixed into stdout  -  the test now extracts the JSON portion from `result.output` instead of parsing the whole capture, fixing a regression where the macOS Python 3.12 CI job failed with `JSONDecodeError`.
 
 ### Changed
 
-- **PowerShell linter configuration**: Added `[tool.psscriptanalyzer]` section to exclude `PSAvoidUsingInvokeExpression` and `PSAvoidUsingCmdletAliases` rules — required for the standard upstream `uv` install snippet (`irm ... | iex`) used in `installer_rotek/finanzonline_uid/install.ps1`.
-- **CVE exclusion list cleaned up**: Removed pip 24.3.1 CVE exclusions (CVE-2025-8869, CVE-2026-1703 — pip is now 26.0.1) and pillow CVE-2026-25990 (pillow now 12.2.0). Added CVE-2026-3219 (pip 26.0.1 concatenated tar/ZIP confusion, no fix available yet).
+- **PowerShell linter configuration**: Added `[tool.psscriptanalyzer]` section to exclude `PSAvoidUsingInvokeExpression` and `PSAvoidUsingCmdletAliases` rules  -  required for the standard upstream `uv` install snippet (`irm ... | iex`) used in `installer_rotek/finanzonline_uid/install.ps1`.
+- **CVE exclusion list cleaned up**: Removed pip 24.3.1 CVE exclusions (CVE-2025-8869, CVE-2026-1703  -  pip is now 26.0.1) and pillow CVE-2026-25990 (pillow now 12.2.0). Added CVE-2026-3219 (pip 26.0.1 concatenated tar/ZIP confusion, no fix available yet).
 
 ## [2.7.0] - 2026-04-01
 
