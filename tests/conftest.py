@@ -309,6 +309,53 @@ def valid_email_config() -> Any:
     )
 
 
+class RecordingTransport:
+    """Capture what btx_lib_mail hands to the wire instead of delivering it.
+
+    Implements btx_lib_mail's ``Transport`` protocol. Substituting it exercises
+    the real message composition, recipient fan-out and failover orchestration
+    while stopping short of a socket, so assertions can be made against the
+    bytes that would have been sent.
+    """
+
+    def __init__(self, fail_with: Exception | None = None) -> None:
+        self.deliveries: list[dict[str, Any]] = []
+        self._fail_with = fail_with
+
+    def deliver(
+        self,
+        *,
+        host: str,
+        sender: str,
+        recipient: str,
+        message: Any,
+        delivery: Any,
+    ) -> None:
+        if self._fail_with is not None:
+            raise self._fail_with
+        message.seek(0)
+        self.deliveries.append(
+            {
+                "host": host,
+                "sender": sender,
+                "recipient": recipient,
+                "raw": message.read().decode("utf-8", errors="replace"),
+                "credentials": delivery.credentials,
+            }
+        )
+
+    @property
+    def recipients(self) -> list[str]:
+        """Recipients in delivery order (btx_lib_mail delivers one per call)."""
+        return [d["recipient"] for d in self.deliveries]
+
+
+@pytest.fixture
+def recording_transport() -> RecordingTransport:
+    """Provide a transport double that records deliveries instead of sending."""
+    return RecordingTransport()
+
+
 # ============================================================================
 # FinanzOnline configuration fixtures
 # ============================================================================

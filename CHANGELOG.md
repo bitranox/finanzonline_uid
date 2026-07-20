@@ -7,6 +7,24 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.7] 2026-07-20
+
+### Fixed
+- Restored a green test suite against `btx_lib_mail` 1.5.0, which replaced its
+  `send_message` call with a streaming transport that drives raw SMTP verbs
+  (`MAIL FROM` / `RCPT TO` / `BDAT`) and unpacks `(code, resp)` replies. Seven
+  tests and one doctest stubbed delivery with `patch("smtplib.SMTP")`, and a
+  `MagicMock` cannot satisfy that protocol, so every send failed with
+  `ValueError: not enough values to unpack`.
+
+### Changed
+- `send_email` and `send_notification` accept an optional `transport`, forwarded
+  to btx_lib_mail's delivery seam. Passing one substitutes the entire SMTP wire
+  protocol, which is how delivery is now exercised without a live server or a
+  patched `smtplib`.
+- Bump the `btx_lib_mail` floor to `>=1.5.0`, the first release exposing that
+  `transport` parameter, and the `filelock` floor to `>=3.31.1`.
+
 ## [2.7.6] 2026-07-19
 
 ### Changed

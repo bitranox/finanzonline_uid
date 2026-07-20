@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Sequence, cast
 
-from btx_lib_mail.lib_mail import ConfMail, send as btx_send
+from btx_lib_mail.lib_mail import ConfMail, Transport, send as btx_send
 from pydantic import SecretStr
 
 from .config import parse_float, parse_string_list
@@ -240,6 +240,7 @@ def send_email(
     body_html: str = "",
     from_address: str | None = None,
     attachments: Sequence[Path] | None = None,
+    transport: Transport | None = None,
 ) -> bool:
     """Send an email using configured SMTP settings.
 
@@ -251,6 +252,9 @@ def send_email(
         body_html: HTML body (optional).
         from_address: Override sender (uses config default if None).
         attachments: Optional file paths to attach.
+        transport: Delivery seam. ``None`` uses btx_lib_mail's production
+            smtplib transport; supplying one substitutes the whole SMTP wire
+            protocol, which is how delivery is exercised without a live server.
 
     Returns:
         True on success.
@@ -289,6 +293,7 @@ def send_email(
             credentials=_resolve_credentials(config),
             use_starttls=config.use_starttls,
             timeout=config.timeout,
+            transport=transport,
         )
         logger.info("Email sent successfully", extra={"from": sender, "recipients": normalized_recipients})
         return result
@@ -304,6 +309,7 @@ def send_notification(
     recipients: str | Sequence[str],
     subject: str,
     message: str,
+    transport: Transport | None = None,
 ) -> bool:
     """Send a simple plain-text notification email.
 
@@ -315,6 +321,7 @@ def send_notification(
         recipients: Single recipient address or sequence of addresses.
         subject: Email subject line.
         message: Plain-text notification message.
+        transport: Delivery seam forwarded to :func:`send_email`.
 
     Returns:
         Always True when delivery succeeds. Failures raise exceptions.
@@ -327,26 +334,36 @@ def send_notification(
         Sends email via SMTP. Logs send attempts.
 
     Example:
-        >>> from unittest.mock import patch
+        A transport stands in for the SMTP server, so the example delivers a
+        real composed message without touching the network.
+
+        >>> class CollectingTransport:
+        ...     def __init__(self):
+        ...         self.recipients = []
+        ...     def deliver(self, *, host, sender, recipient, message, delivery):
+        ...         self.recipients.append(recipient)
         >>> config = EmailConfig(
         ...     smtp_hosts=["smtp.example.com"],
         ...     from_address="alerts@example.com"
         ... )
-        >>> with patch("smtplib.SMTP"):
-        ...     result = send_notification(
-        ...         config=config,
-        ...         recipients="admin@example.com",
-        ...         subject="System Alert",
-        ...         message="Deployment completed successfully"
-        ...     )
-        >>> result
+        >>> transport = CollectingTransport()
+        >>> send_notification(
+        ...     config=config,
+        ...     recipients="admin@example.com",
+        ...     subject="System Alert",
+        ...     message="Deployment completed successfully",
+        ...     transport=transport,
+        ... )
         True
+        >>> transport.recipients
+        ['admin@example.com']
     """
     return send_email(
         config=config,
         recipients=recipients,
         subject=subject,
         body=message,
+        transport=transport,
     )
 
 
