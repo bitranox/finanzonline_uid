@@ -20,7 +20,6 @@ import pytest
 from finanzonline_uid.adapters.cache import UidResultCache
 from finanzonline_uid.domain.models import Address, UidCheckResult
 
-
 # ============================================================================
 # Fixtures
 # ============================================================================

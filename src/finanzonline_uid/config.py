@@ -34,7 +34,6 @@ from .domain.errors import ConfigurationError
 from .domain.models import FinanzOnlineCredentials
 from .enums import EmailFormat
 
-
 # =============================================================================
 # Configuration Parsing Helpers (shared with mail.py)
 # =============================================================================

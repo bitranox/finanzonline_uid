@@ -123,7 +123,7 @@ class CheckUidUseCase:
         """Logout from session, logging but not raising on failure."""
         try:
             self._session_client.logout(session_id, credentials)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - logout failures are non-fatal, just log
             logger.warning("Logout failed (non-fatal): %s", e)
 
     def execute(

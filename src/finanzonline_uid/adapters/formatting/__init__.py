@@ -32,18 +32,18 @@ from .html_templates import (
 from .result_html import format_result_html
 
 __all__ = [
-    # HTML Templates
-    "HTML_DOCTYPE",
-    "HTML_BODY_STYLE",
-    "HTML_TABLE_STYLE",
-    "HTML_TD_STYLE",
+    "COLOR_GRAY",
     "COLOR_GREEN",
     "COLOR_RED",
     "COLOR_YELLOW",
-    "COLOR_GRAY",
+    "HTML_BODY_STYLE",
+    # HTML Templates
+    "HTML_DOCTYPE",
+    "HTML_TABLE_STYLE",
+    "HTML_TD_STYLE",
+    "RATE_LIMITED_CODES",
     # Return code sets
     "SERVICE_UNAVAILABLE_CODES",
-    "RATE_LIMITED_CODES",
     # Result Formatters
     "format_result_html",
 ]

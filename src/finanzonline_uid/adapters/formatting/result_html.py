@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from finanzonline_uid.domain.return_codes import ReturnCodeInfo
 
 
-def _format_company_section_html(result: "UidCheckResult") -> str:
+def _format_company_section_html(result: UidCheckResult) -> str:
     """Format company information section for HTML output."""
     has_name = bool(result.name)
     has_address = result.address is not None
@@ -55,7 +55,7 @@ def _format_company_section_html(result: "UidCheckResult") -> str:
     return "".join(rows)
 
 
-def _format_cache_notice_html(result: "UidCheckResult") -> str:
+def _format_cache_notice_html(result: UidCheckResult) -> str:
     """Format cached result notice as HTML info box."""
     if not result.from_cache or result.cached_at is None:
         return ""
@@ -66,7 +66,7 @@ def _format_cache_notice_html(result: "UidCheckResult") -> str:
 </div>"""
 
 
-def _build_result_table_rows(result: "UidCheckResult", info: "ReturnCodeInfo") -> str:
+def _build_result_table_rows(result: UidCheckResult, info: ReturnCodeInfo) -> str:
     """Build HTML table rows for result display."""
     status = get_result_status(result.return_code)
     status_color = get_status_color(result.return_code)
@@ -88,7 +88,7 @@ def _build_result_table_rows(result: "UidCheckResult", info: "ReturnCodeInfo") -
     return "".join(rows) + _format_company_section_html(result)
 
 
-def format_result_html(result: "UidCheckResult") -> str:
+def format_result_html(result: UidCheckResult) -> str:
     """Format UID check result as HTML document.
 
     Produces a complete, styled HTML document suitable for saving

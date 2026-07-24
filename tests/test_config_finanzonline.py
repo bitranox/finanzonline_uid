@@ -9,13 +9,11 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from conftest import MockConfig
 
 from finanzonline_uid.config import FinanzOnlineConfig, load_finanzonline_config
 from finanzonline_uid.domain.errors import ConfigurationError
 from finanzonline_uid.enums import EmailFormat
-
-from conftest import MockConfig
-
 
 # ============================================================================
 # Successful Loading

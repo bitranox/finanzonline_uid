@@ -20,7 +20,6 @@ import pytest
 
 from finanzonline_uid.adapters.ratelimit import PerUidRateLimitStatus, RateLimitStatus, RateLimitTracker
 
-
 # ============================================================================
 # Fixtures
 # ============================================================================

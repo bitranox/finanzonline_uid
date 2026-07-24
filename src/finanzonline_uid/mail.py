@@ -18,12 +18,13 @@ System Role:
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Sequence, cast
+from typing import Any, cast
 
-from btx_lib_mail.lib_mail import ConfMail, Transport, send as btx_send
+from btx_lib_mail.lib_mail import ConfMail, Transport
+from btx_lib_mail.lib_mail import send as btx_send
 from pydantic import SecretStr
 
 from .config import parse_float, parse_string_list
@@ -33,6 +34,11 @@ logger = logging.getLogger(__name__)
 
 def _default_smtp_hosts() -> list[str]:
     """Factory function for default SMTP hosts list."""
+    return []
+
+
+def _default_recipients() -> list[str]:
+    """Factory function for default recipients list."""
     return []
 
 
@@ -111,7 +117,7 @@ class EmailConfig:
     timeout: float = 30.0
     raise_on_missing_attachments: bool = True
     raise_on_invalid_recipient: bool = True
-    default_recipients: list[str] = field(default_factory=lambda: [])
+    default_recipients: list[str] = field(default_factory=_default_recipients)
 
     def __post_init__(self) -> None:
         """Validate configuration values.
@@ -299,7 +305,7 @@ def send_email(
         return result
 
     except Exception as e:
-        logger.error("Failed to send email", extra={"error": str(e), "from": sender, "recipients": normalized_recipients}, exc_info=True)
+        logger.exception("Failed to send email", extra={"error": str(e), "from": sender, "recipients": normalized_recipients})
         raise
 
 
@@ -415,7 +421,7 @@ def load_email_config_from_dict(config_dict: Mapping[str, Any]) -> EmailConfig:
 
 __all__ = [
     "EmailConfig",
+    "load_email_config_from_dict",
     "send_email",
     "send_notification",
-    "load_email_config_from_dict",
 ]

@@ -29,10 +29,10 @@ from .use_cases import (
 )
 
 __all__ = [
+    # Use cases
+    "CheckUidUseCase",
     # Ports
     "NotificationPort",
     "SessionPort",
     "UidQueryPort",
-    # Use cases
-    "CheckUidUseCase",
 ]

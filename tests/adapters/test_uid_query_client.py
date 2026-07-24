@@ -12,8 +12,8 @@ import pytest
 from zeep.exceptions import Fault, TransportError
 
 from finanzonline_uid.adapters.finanzonline.uid_query_client import (
-    FinanzOnlineQueryClient,
     UID_QUERY_SERVICE_WSDL,
+    FinanzOnlineQueryClient,
     _capture_raw_response,
 )
 from finanzonline_uid.domain.errors import QueryError, ServiceMaintenanceError, SessionError
@@ -287,17 +287,19 @@ class TestQuery:
         """Raw response captured by HistoryPlugin is included in diagnostics on parsing error."""
         captured_xml = "<Envelope><Body><Garbage>oops</Garbage></Body></Envelope>"
         zeep_error = TypeError("name cannot be None", object)
-        with patch("finanzonline_uid.adapters.finanzonline.uid_query_client._capture_raw_response", return_value=captured_xml):
-            with patch.object(query_client, "_get_client") as mock_get_client:
-                mock_client = MagicMock()
-                mock_client.service.uidAbfrage.side_effect = zeep_error
-                mock_get_client.return_value = mock_client
+        with (
+            patch("finanzonline_uid.adapters.finanzonline.uid_query_client._capture_raw_response", return_value=captured_xml),
+            patch.object(query_client, "_get_client") as mock_get_client,
+        ):
+            mock_client = MagicMock()
+            mock_client.service.uidAbfrage.side_effect = zeep_error
+            mock_get_client.return_value = mock_client
 
-                with pytest.raises(QueryError) as exc_info:
-                    query_client.query("SESSION123", credentials, uid_request)
+            with pytest.raises(QueryError) as exc_info:
+                query_client.query("SESSION123", credentials, uid_request)
 
-                assert exc_info.value.diagnostics is not None
-                assert exc_info.value.diagnostics.raw_response == captured_xml
+            assert exc_info.value.diagnostics is not None
+            assert exc_info.value.diagnostics.raw_response == captured_xml
 
     def test_query_handles_none_msg(
         self,

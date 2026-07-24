@@ -20,11 +20,9 @@ System Role:
 
 from __future__ import annotations
 
-from typing import TextIO
-
 import logging
 import sys
-
+from typing import TextIO
 
 CANONICAL_GREETING = "Hello World"
 
@@ -102,12 +100,11 @@ def noop_main() -> None:
     """
 
     logger.debug("Executing noop_main placeholder")
-    return None
 
 
 __all__ = [
     "CANONICAL_GREETING",
     "emit_greeting",
-    "raise_intentional_failure",
     "noop_main",
+    "raise_intentional_failure",
 ]

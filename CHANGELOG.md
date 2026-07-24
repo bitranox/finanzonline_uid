@@ -7,6 +7,36 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.8] 2026-07-24
+
+### Fixed
+- Restored a clean gate against a latest-ruff regression (94 findings across
+  `EXE002`, `I001`, `UP037`, `BLE001`, `RUF022`, `UP035`, `PLE0704`, `G201`,
+  `PLC0206`, `PLR1711`, `RET501`, `RUF100`, `SIM117`). Every rule was fixed at
+  the root; none were silenced via `[tool.ruff.lint].ignore`.
+- 62 `src`/`tests` files carried a stray executable bit with no shebang
+  (`EXE002`), an artifact of the softdev SMB/fuse mount; cleared with
+  `chmod -x` plus `git update-index --chmod=-x`.
+- Two `_handle_*_exception` helpers used a bare `raise` outside of any
+  enclosing `except` block (`PLE0704`); it only worked because the caller was
+  still inside its own `except` when it called the helper. Replaced with an
+  explicit `raise exc` so the re-raise no longer depends on the caller's
+  exception context.
+- `EmailConfig.default_recipients` used `field(default_factory=list)` after
+  ruff's `PIE807` autofix replaced `lambda: []`; the unparameterized `list`
+  lost pyright's type information (`list[Unknown]`, `reportUnknownVariableType`).
+  Replaced with a small typed factory function, mirroring the existing
+  `_default_smtp_hosts` pattern.
+
+### Changed
+- Eleven blind `except Exception`/`except BaseException` blocks (`BLE001`) at
+  genuine resilience boundaries (CLI top-level entry point, non-fatal email
+  and rate-limit notifications, SOAP logout, diagnostics-only XML capture)
+  now carry an explicit `# noqa: BLE001` with the reason instead of being
+  silently accepted; the broad catch is intentional there.
+- `mail.py`'s `logger.error(..., exc_info=True)` is now `logger.exception(...)`
+  (`G201`).
+
 ## [2.7.7] 2026-07-20
 
 ### Fixed

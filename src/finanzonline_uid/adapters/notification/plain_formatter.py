@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from finanzonline_uid.domain.models import Address, Diagnostics, UidCheckResult
 
 
-def _format_address_plain(address: "Address") -> list[str]:
+def _format_address_plain(address: Address) -> list[str]:
     """Format address as plain text lines with proper indentation."""
     address_lines = address.as_lines()
     if not address_lines:
@@ -39,7 +39,7 @@ def _format_address_plain(address: "Address") -> list[str]:
     return [f"{label} {address_lines[0]}"] + [f"{padding} {line}" for line in address_lines[1:]]
 
 
-def _format_company_section_plain(result: "UidCheckResult") -> list[str]:
+def _format_company_section_plain(result: UidCheckResult) -> list[str]:
     """Format company information section for plain text output."""
     has_name = bool(result.name)
     address = result.address
@@ -55,7 +55,7 @@ def _format_company_section_plain(result: "UidCheckResult") -> list[str]:
     return lines
 
 
-def _format_cache_notice_plain(result: "UidCheckResult") -> list[str]:
+def _format_cache_notice_plain(result: UidCheckResult) -> list[str]:
     """Format cached result notice for plain text output."""
     if not result.from_cache or result.cached_at is None:
         return []
@@ -69,7 +69,7 @@ def _format_cache_notice_plain(result: "UidCheckResult") -> list[str]:
     ]
 
 
-def format_result_plain(result: "UidCheckResult") -> str:
+def format_result_plain(result: UidCheckResult) -> str:
     """Format UID check result as plain text.
 
     Args:
@@ -108,7 +108,7 @@ def _format_return_code_section_plain(return_code: int) -> list[str]:
     return [f"{_('Return Code:')} {return_code}", f"{_('Meaning:')}     {info.meaning}", f"{_('Severity:')}    {info.severity}"]
 
 
-def _format_diagnostics_section_plain(diagnostics: "Diagnostics") -> list[str]:
+def _format_diagnostics_section_plain(diagnostics: Diagnostics) -> list[str]:
     """Format diagnostics section for plain text error output."""
     lines = ["", _("Diagnostic Information"), "-" * 30]
     for key, value in diagnostics.as_dict().items():
@@ -124,7 +124,7 @@ def format_error_plain(
     uid: str,
     return_code: int | None = None,
     retryable: bool = False,
-    diagnostics: "Diagnostics | None" = None,
+    diagnostics: Diagnostics | None = None,
 ) -> str:
     """Format error notification as plain text.
 

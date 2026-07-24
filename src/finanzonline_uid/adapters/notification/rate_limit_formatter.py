@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from finanzonline_uid.adapters.ratelimit import RateLimitStatus
 
 
-def format_rate_limit_warning_plain(status: "RateLimitStatus") -> str:
+def format_rate_limit_warning_plain(status: RateLimitStatus) -> str:
     """Format rate limit warning as plain text.
 
     Args:
@@ -83,7 +83,7 @@ def format_rate_limit_warning_plain(status: "RateLimitStatus") -> str:
     return "\n".join(lines)
 
 
-def format_rate_limit_warning_html(status: "RateLimitStatus") -> str:
+def format_rate_limit_warning_html(status: RateLimitStatus) -> str:
     """Format rate limit warning as HTML.
 
     Args:

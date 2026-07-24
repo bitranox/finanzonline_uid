@@ -55,7 +55,7 @@ def _format_raw_response_block_html(raw_response: str) -> str:
     )
 
 
-def _format_diagnostics_section_html(diagnostics: "Diagnostics") -> str:
+def _format_diagnostics_section_html(diagnostics: Diagnostics) -> str:
     """Format diagnostics section as HTML."""
     rows = "".join(
         f'<tr><td style="padding: 6px 15px; font-weight: bold; color: #666; font-size: 0.9em;">{html.escape(k.replace("_", " ").title())}:</td>'
@@ -97,7 +97,7 @@ def format_error_html(
     uid: str,
     return_code: int | None = None,
     retryable: bool = False,
-    diagnostics: "Diagnostics | None" = None,
+    diagnostics: Diagnostics | None = None,
 ) -> str:
     """Format error notification as HTML.
 

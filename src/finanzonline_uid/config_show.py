@@ -103,8 +103,7 @@ def display_config(
         else:
             # Show all configuration
             data: dict[str, Any] = config.as_dict()
-            for section_name in data:
-                section_data: Any = data[section_name]
+            for section_name, section_data in data.items():
                 click.echo(f"\n[{section_name}]")
                 if isinstance(section_data, dict):
                     dict_data = cast(dict[str, Any], section_data)

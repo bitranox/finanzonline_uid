@@ -135,7 +135,7 @@ def html_row(label: str, value: str, extra_td_style: str = "", escape_value: boo
     return f'<tr><td style="{td_base} font-weight: bold;">{label}</td><td style="{td_base}{extra_td_style}">{safe_value}</td></tr>'
 
 
-def format_address_row_html(address: "Address | None") -> str:
+def format_address_row_html(address: Address | None) -> str:
     """Format address as HTML table row, or empty string if no address.
 
     Args:

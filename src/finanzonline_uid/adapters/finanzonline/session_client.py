@@ -182,7 +182,10 @@ def _handle_login_exception(
         SessionError: For all other session errors.
     """
     if isinstance(exc, (AuthenticationError, SessionError)):
-        raise
+        # Re-raise the passed-in exception explicitly (not a bare `raise`): this function
+        # has no enclosing except block of its own, so a bare `raise` would only work by
+        # relying on the caller's still-active exception context.
+        raise exc
 
     diagnostics = _build_login_diagnostics(credentials, response, error=str(exc))
 
@@ -313,7 +316,6 @@ class FinanzOnlineSessionClient:
 
             return return_code == ReturnCode.UID_VALID
 
-        except Exception as e:
-            # Logout failures are non-fatal, just log and return False
+        except Exception as e:  # noqa: BLE001 - logout failures are non-fatal, just log and return False
             logger.warning("Logout failed (non-fatal): %s", e)
             return False

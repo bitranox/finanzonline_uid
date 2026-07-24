@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from typing import Any
 
+import lib_cli_exit_tools
 import pytest
 from click.testing import CliRunner, Result
 
-import lib_cli_exit_tools
-
-from finanzonline_uid import cli as cli_mod
 from finanzonline_uid import __init__conf__
+from finanzonline_uid import cli as cli_mod
 
 
 @dataclass(slots=True)
@@ -535,6 +534,7 @@ def test_when_config_deploy_supports_multiple_targets(
 ) -> None:
     """Verify config-deploy accepts multiple --target options."""
     from pathlib import Path
+
     from finanzonline_uid.enums import DeployTarget
 
     path1 = tmp_path / "config1.toml"
@@ -718,6 +718,7 @@ def test_when_restore_is_disabled_the_traceback_choice_remains(
 def mock_fo_config(monkeypatch: pytest.MonkeyPatch) -> Any:
     """Mock FinanzOnline configuration."""
     from unittest.mock import MagicMock
+
     from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
     mock_config = MagicMock()
@@ -745,7 +746,8 @@ def mock_fo_config(monkeypatch: pytest.MonkeyPatch) -> Any:
 def mock_uid_result_valid() -> Any:
     """Mock valid UID check result."""
     from datetime import datetime, timezone
-    from finanzonline_uid.domain.models import UidCheckResult, Address
+
+    from finanzonline_uid.domain.models import Address, UidCheckResult
 
     return UidCheckResult(
         uid="DE123456789",
@@ -761,6 +763,7 @@ def mock_uid_result_valid() -> Any:
 def mock_uid_result_invalid() -> Any:
     """Mock invalid UID check result."""
     from datetime import datetime, timezone
+
     from finanzonline_uid.domain.models import UidCheckResult
 
     return UidCheckResult(
@@ -846,8 +849,8 @@ def test_when_check_uses_json_format_it_outputs_json(
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify check command with --format json outputs JSON."""
-    from unittest.mock import MagicMock, patch
     import json
+    from unittest.mock import MagicMock, patch
 
     mock_config_obj = MagicMock()
     mock_config_obj.as_dict.return_value = {}
@@ -883,6 +886,7 @@ def test_when_check_has_config_error_it_exits_two(
 ) -> None:
     """Verify check command exits 2 for ConfigurationError."""
     from unittest.mock import MagicMock, patch
+
     from finanzonline_uid.domain.errors import ConfigurationError
 
     mock_config_obj = MagicMock()
@@ -911,6 +915,7 @@ def test_when_check_has_auth_error_it_exits_three(
 ) -> None:
     """Verify check command exits 3 for AuthenticationError."""
     from unittest.mock import MagicMock, patch
+
     from finanzonline_uid.domain.errors import AuthenticationError
 
     mock_config_obj = MagicMock()
@@ -945,6 +950,7 @@ def test_when_check_has_session_error_it_exits_four(
 ) -> None:
     """Verify check command exits 4 for SessionError."""
     from unittest.mock import MagicMock, patch
+
     from finanzonline_uid.domain.errors import SessionError
 
     mock_config_obj = MagicMock()
@@ -978,6 +984,7 @@ def test_when_check_has_query_error_it_exits_four(
 ) -> None:
     """Verify check command exits 4 for QueryError."""
     from unittest.mock import MagicMock, patch
+
     from finanzonline_uid.domain.errors import QueryError
 
     mock_config_obj = MagicMock()
@@ -1056,6 +1063,7 @@ def test_when_check_sends_error_email_on_failure(
 ) -> None:
     """Verify check command sends error email notification on failure."""
     from unittest.mock import MagicMock, patch
+
     from finanzonline_uid.domain.errors import SessionError
 
     mock_config_obj = MagicMock()

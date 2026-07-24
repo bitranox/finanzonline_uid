@@ -23,9 +23,9 @@ from __future__ import annotations
 from .formatters import format_error_human, format_error_json, format_html, format_human, format_json
 
 __all__ = [
+    "format_error_human",
+    "format_error_json",
     "format_html",
     "format_human",
     "format_json",
-    "format_error_human",
-    "format_error_json",
 ]

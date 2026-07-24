@@ -33,9 +33,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from lib_layered_config import Config
-
 import lib_log_rich.runtime
+from lib_layered_config import Config
 
 from . import __init__conf__
 

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import runpy
 from pathlib import Path
 from typing import Any, cast
-import runpy
-import rtoml
 
 import pytest
+import rtoml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT_PATH = PROJECT_ROOT / "pyproject.toml"

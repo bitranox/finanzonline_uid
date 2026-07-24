@@ -27,12 +27,10 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
+import lib_cli_exit_tools
 import pytest
 from click.testing import CliRunner
 from lib_layered_config import Config
-
-import lib_cli_exit_tools
-
 
 # ============================================================================
 # pytest configuration

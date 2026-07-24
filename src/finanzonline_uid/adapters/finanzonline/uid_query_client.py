@@ -126,7 +126,7 @@ def _serialize_envelope(history: HistoryPlugin, attr: str) -> str:
 
     try:
         raw = etree.tostring(envelope, pretty_print=True, encoding="unicode")
-    except Exception as exc:  # noqa: BLE001 — diagnostic helper must never crash
+    except Exception as exc:  # noqa: BLE001 - diagnostics-only best effort, must not fail the caller
         logger.debug("Failed to serialize %s envelope: %s", attr, exc)
         return ""
 
@@ -291,7 +291,10 @@ def _handle_query_exception(
         QueryError: For all other query errors.
     """
     if isinstance(exc, (SessionError, QueryError)):
-        raise
+        # Re-raise the passed-in exception explicitly (not a bare `raise`): this function
+        # has no enclosing except block of its own, so a bare `raise` would only work by
+        # relying on the caller's still-active exception context.
+        raise exc
 
     raw_response = _capture_raw_response(history) if history is not None else ""
     diagnostics = _build_query_diagnostics(session_id, credentials, request, response, error=str(exc), raw_response=raw_response)

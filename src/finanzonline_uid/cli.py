@@ -25,39 +25,38 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Final
 
+import lib_cli_exit_tools
+import lib_log_rich.runtime
 import rich_click as click
+from click.core import ParameterSource
+from lib_cli_exit_tools.adapters.signals import SigIntInterrupt
 from lib_layered_config import Config
 from rich.live import Live
 from rich.panel import Panel
 from rich.text import Text
 
-import lib_cli_exit_tools
-import lib_log_rich.runtime
-from click.core import ParameterSource
-from lib_cli_exit_tools.adapters.signals import SigIntInterrupt
-
 from . import __init__conf__
-from .adapters.finanzonline import FinanzOnlineQueryClient, FinanzOnlineSessionClient
 from .adapters.cache import UidResultCache
+from .adapters.finanzonline import FinanzOnlineQueryClient, FinanzOnlineSessionClient
 from .adapters.notification import EmailNotificationAdapter
-from .adapters.ratelimit import RateLimitTracker
 from .adapters.output import format_html, format_human, format_json
+from .adapters.ratelimit import RateLimitTracker
 from .application.use_cases import CheckUidUseCase
 from .behaviors import emit_greeting, noop_main, raise_intentional_failure
 from .config import FinanzOnlineConfig, get_config, load_app_config, load_finanzonline_config
-from .i18n import _, setup_locale
 from .config_deploy import deploy_configuration
 from .config_show import display_config
 from .domain.errors import AuthenticationError, CheckErrorInfo, ConfigurationError, QueryError, ServiceMaintenanceError, SessionError, UidCheckError
 from .domain.models import sanitize_uid
 from .domain.return_codes import CliExitCode, get_return_code_info, is_retryable
 from .enums import DeployTarget, OutputFormat
+from .i18n import _, setup_locale
 from .logging_setup import init_logging
 from .mail import EmailConfig, load_email_config_from_dict
 from .typed_click import argument, option, version_option
 
 #: Shared Click context flags so help output stays consistent across commands.
-CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}  # noqa: C408
+CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 #: Character budget used when printing truncated tracebacks.
 TRACEBACK_SUMMARY_LIMIT: Final[int] = 500
 #: Character budget used when verbose tracebacks are enabled.
@@ -163,7 +162,7 @@ def _run_cli(argv: Sequence[str] | None) -> int:
             argv=list(argv) if argv is not None else None,
             prog_name=__init__conf__.shell_command,
         )
-    except BaseException as exc:  # noqa: BLE001 - handled by shared printers
+    except BaseException as exc:  # noqa: BLE001 - top-level entry point must convert every failure to an exit code
         tracebacks_enabled = bool(getattr(lib_cli_exit_tools.config, "traceback", False))
         apply_traceback_preferences(tracebacks_enabled)
         length_limit = TRACEBACK_VERBOSE_LIMIT if tracebacks_enabled else TRACEBACK_SUMMARY_LIMIT
@@ -372,7 +371,7 @@ def cli_config_deploy(ctx: click.Context, targets: tuple[str, ...], force: bool,
         try:
             deployed_paths = deploy_configuration(targets=deploy_targets, force=force, profile=effective_profile)
             _display_deploy_result(deployed_paths, effective_profile, force=force)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - CLI command boundary converts any deploy failure to a clean message
             _handle_deploy_error(exc)
 
 
@@ -944,7 +943,7 @@ def _create_rate_limit_notifier(
             adapter, final_recipients = prepared
             success = adapter.send_rate_limit_warning(status, final_recipients)
             _log_notification_result(success, final_recipients, "Rate limit warning")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - notification send is non-fatal, must not abort the check
             logger.warning("Rate limit notification error (non-fatal): %s", e)
 
     return notifier
@@ -1066,7 +1065,7 @@ def _send_check_notification(
         else:
             logger.warning("Email notification failed")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - notification send is non-fatal, must not abort the check
         logger.warning("Email notification error (non-fatal): %s", e)
         click.echo(_("Warning: Email notification failed: {error}").format(error=e), err=True)
 
@@ -1099,7 +1098,7 @@ def _send_error_notification(
         else:
             logger.warning("Error notification failed")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - notification send is non-fatal, must not abort the check
         logger.warning("Error notification error (non-fatal): %s", e)
         click.echo(_("Warning: Error notification failed: {error}").format(error=e), err=True)
 

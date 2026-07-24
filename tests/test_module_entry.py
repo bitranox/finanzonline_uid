@@ -2,17 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from collections.abc import Callable
 import runpy
 import sys
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import TextIO
 
+import lib_cli_exit_tools
 import pytest
 
-import lib_cli_exit_tools
-
-from finanzonline_uid import __init__conf__, cli as cli_mod
+from finanzonline_uid import __init__conf__
+from finanzonline_uid import cli as cli_mod
 
 
 @dataclass(slots=True)

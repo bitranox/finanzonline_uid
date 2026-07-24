@@ -149,15 +149,17 @@ src/finanzonline_uid/
 ```python
 @dataclass(frozen=True, slots=True)
 class FinanzOnlineCredentials:
-    tid: str      # Participant ID
-    benid: str    # User ID
-    pin: str      # Password
+    tid: str  # Participant ID
+    benid: str  # User ID
+    pin: str  # Password
+
 
 @dataclass(frozen=True, slots=True)
 class UidCheckRequest:
-    uid_tn: str   # Own Austrian UID (ATU...)
-    uid: str      # Target UID to verify
+    uid_tn: str  # Own Austrian UID (ATU...)
+    uid: str  # Target UID to verify
     stufe: int = 2
+
 
 @dataclass(frozen=True, slots=True)
 class Address:
@@ -167,6 +169,7 @@ class Address:
     line4: str = ""
     line5: str = ""
     line6: str = ""
+
 
 @dataclass(frozen=True, slots=True)
 class UidCheckResult:
@@ -188,9 +191,10 @@ class SessionPort(Protocol):
     def login(self, credentials: FinanzOnlineCredentials) -> SessionInfo: ...
     def logout(self, session_id: str, credentials: FinanzOnlineCredentials) -> bool: ...
 
+
 class UidQueryPort(Protocol):
-    def query(self, session_id: str, credentials: FinanzOnlineCredentials,
-              request: UidCheckRequest) -> UidCheckResult: ...
+    def query(self, session_id: str, credentials: FinanzOnlineCredentials, request: UidCheckRequest) -> UidCheckResult: ...
+
 
 class NotificationPort(Protocol):
     def send_result(self, result: UidCheckResult, recipients: list[str]) -> bool: ...

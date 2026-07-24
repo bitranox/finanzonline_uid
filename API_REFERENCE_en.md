@@ -8,10 +8,10 @@ This document describes the Python API for `finanzonline_uid`.
 import finanzonline_uid
 
 # Package metadata
-finanzonline_uid.__version__    # "0.0.1"
-finanzonline_uid.__title__      # "Python library and CLI..."
-finanzonline_uid.__author__     # "bitranox"
-finanzonline_uid.__url__        # "https://github.com/bitranox/finanzonline_uid"
+finanzonline_uid.__version__  # "0.0.1"
+finanzonline_uid.__title__  # "Python library and CLI..."
+finanzonline_uid.__author__  # "bitranox"
+finanzonline_uid.__url__  # "https://github.com/bitranox/finanzonline_uid"
 ```
 
 ---
@@ -83,10 +83,10 @@ Authentication credentials for FinanzOnline web services.
 from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
 credentials = FinanzOnlineCredentials(
-    tid="123456789",      # Participant ID (8-12 alphanumeric)
-    benid="WEBUSER",      # User ID (5-12 chars)
-    pin="password123",    # Password (5-128 chars)
-    herstellerid="ATU12345678"  # Software producer VAT-ID (10-24 alphanumeric)
+    tid="123456789",  # Participant ID (8-12 alphanumeric)
+    benid="WEBUSER",  # User ID (5-12 chars)
+    pin="password123",  # Password (5-128 chars)
+    herstellerid="ATU12345678",  # Software producer VAT-ID (10-24 alphanumeric)
 )
 ```
 
@@ -109,9 +109,9 @@ Request parameters for Level 2 UID verification.
 from finanzonline_uid.domain.models import UidCheckRequest
 
 request = UidCheckRequest(
-    uid_tn="ATU12345678",    # Own Austrian UID
-    uid="DE987654321",       # Target VAT ID to verify
-    stufe=2                  # Query level (always 2)
+    uid_tn="ATU12345678",  # Own Austrian UID
+    uid="DE987654321",  # Target VAT ID to verify
+    stufe=2,  # Query level (always 2)
 )
 ```
 
@@ -133,18 +133,18 @@ Complete result from Level 2 UID verification.
 from finanzonline_uid.domain.models import UidCheckResult
 
 # Example result
-result.uid           # "DE987654321"
-result.return_code   # 0
-result.message       # "gueltige UID"
-result.name          # "Example GmbH"
-result.address       # Address object
-result.timestamp     # datetime (UTC)
-result.from_cache    # False (True if result was cached)
-result.cached_at     # None (or original query datetime if from cache)
+result.uid  # "DE987654321"
+result.return_code  # 0
+result.message  # "gueltige UID"
+result.name  # "Example GmbH"
+result.address  # Address object
+result.timestamp  # datetime (UTC)
+result.from_cache  # False (True if result was cached)
+result.cached_at  # None (or original query datetime if from cache)
 
 # Properties
-result.is_valid      # True if return_code == 0
-result.is_invalid    # True if return_code == 1
+result.is_valid  # True if return_code == 0
+result.is_invalid  # True if return_code == 1
 result.has_company_info  # True if name or address present
 ```
 
@@ -170,20 +170,13 @@ Company address from Level 2 UID verification.
 ```python
 from finanzonline_uid.domain.models import Address
 
-address = Address(
-    line1="Example GmbH",
-    line2="Hauptstrasse 1",
-    line3="1010 Wien",
-    line4="",
-    line5="",
-    line6=""
-)
+address = Address(line1="Example GmbH", line2="Hauptstrasse 1", line3="1010 Wien", line4="", line5="", line6="")
 
 # Methods
 address.as_lines()  # ["Example GmbH", "Hauptstrasse 1", "1010 Wien"]
-address.as_text()   # "Example GmbH\nHauptstrasse 1\n1010 Wien"
+address.as_text()  # "Example GmbH\nHauptstrasse 1\n1010 Wien"
 address.as_text(", ")  # "Example GmbH, Hauptstrasse 1, 1010 Wien"
-address.is_empty    # False
+address.is_empty  # False
 ```
 
 **Attributes:**
@@ -202,10 +195,7 @@ Main use case for executing Level 2 UID verification.
 
 ```python
 from finanzonline_uid.application.use_cases import CheckUidUseCase
-from finanzonline_uid.adapters.finanzonline import (
-    FinanzOnlineSessionClient,
-    FinanzOnlineQueryClient
-)
+from finanzonline_uid.adapters.finanzonline import FinanzOnlineSessionClient, FinanzOnlineQueryClient
 from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
 # Create clients
@@ -216,18 +206,9 @@ query_client = FinanzOnlineQueryClient(timeout=30.0)
 use_case = CheckUidUseCase(session_client, query_client)
 
 # Execute verification
-credentials = FinanzOnlineCredentials(
-    tid="123456789",
-    benid="WEBUSER",
-    pin="password",
-    herstellerid="ATU12345678"
-)
+credentials = FinanzOnlineCredentials(tid="123456789", benid="WEBUSER", pin="password", herstellerid="ATU12345678")
 
-result = use_case.execute(
-    credentials=credentials,
-    uid_tn="ATU12345678",
-    target_uid="DE987654321"
-)
+result = use_case.execute(credentials=credentials, uid_tn="ATU12345678", target_uid="DE987654321")
 
 print(f"Valid: {result.is_valid}")
 print(f"Company: {result.name}")
@@ -263,12 +244,12 @@ config = EmailConfig(
     smtp_hosts=["smtp.example.com:587"],
     from_address="alerts@example.com",
     smtp_username="user@example.com",  # Optional
-    smtp_password="password",           # Optional
+    smtp_password="password",  # Optional
     use_starttls=True,
     timeout=30.0,
     raise_on_missing_attachments=True,
     raise_on_invalid_recipient=True,
-    default_recipients=["admin@example.com"]
+    default_recipients=["admin@example.com"],
 )
 ```
 
@@ -296,10 +277,7 @@ Send an email using configured SMTP settings.
 from finanzonline_uid.mail import EmailConfig, send_email
 from pathlib import Path
 
-config = EmailConfig(
-    smtp_hosts=["smtp.example.com:587"],
-    from_address="alerts@example.com"
-)
+config = EmailConfig(smtp_hosts=["smtp.example.com:587"], from_address="alerts@example.com")
 
 send_email(
     config=config,
@@ -308,7 +286,7 @@ send_email(
     body="Plain text body",
     body_html="<h1>HTML body</h1>",  # Optional
     from_address="override@example.com",  # Optional
-    attachments=[Path("report.pdf")]  # Optional
+    attachments=[Path("report.pdf")],  # Optional
 )
 ```
 
@@ -340,17 +318,9 @@ Send a simple plain-text notification email.
 ```python
 from finanzonline_uid.mail import EmailConfig, send_notification
 
-config = EmailConfig(
-    smtp_hosts=["smtp.example.com:587"],
-    from_address="alerts@example.com"
-)
+config = EmailConfig(smtp_hosts=["smtp.example.com:587"], from_address="alerts@example.com")
 
-send_notification(
-    config=config,
-    recipients="admin@example.com",
-    subject="System Alert",
-    message="Backup completed successfully"
-)
+send_notification(config=config, recipients="admin@example.com", subject="System Alert", message="Backup completed successfully")
 ```
 
 **Parameters:**
@@ -386,11 +356,11 @@ All domain exceptions inherit from `UidCheckError`:
 
 ```python
 from finanzonline_uid.domain.errors import (
-    UidCheckError,           # Base exception
-    ConfigurationError,      # Missing or invalid configuration
-    AuthenticationError,     # Login/credentials failure
-    SessionError,            # Session management errors
-    QueryError,              # UID query execution errors
+    UidCheckError,  # Base exception
+    ConfigurationError,  # Missing or invalid configuration
+    AuthenticationError,  # Login/credentials failure
+    SessionError,  # Session management errors
+    QueryError,  # UID query execution errors
 )
 ```
 
@@ -407,22 +377,16 @@ from finanzonline_uid.domain.errors import (
 ## Return Code Utilities
 
 ```python
-from finanzonline_uid.domain.return_codes import (
-    get_return_code_info,
-    is_success,
-    is_retryable,
-    Severity,
-    ReturnCodeInfo
-)
+from finanzonline_uid.domain.return_codes import get_return_code_info, is_success, is_retryable, Severity, ReturnCodeInfo
 
 # Get info about a return code
 info = get_return_code_info(0)
-print(info.code)       # 0
-print(info.meaning)    # "UID is valid"
-print(info.severity)   # Severity.SUCCESS
+print(info.code)  # 0
+print(info.meaning)  # "UID is valid"
+print(info.severity)  # Severity.SUCCESS
 print(info.retryable)  # False
 
 # Quick checks
-is_success(0)      # True
-is_retryable(1513) # True (rate limit)
+is_success(0)  # True
+is_retryable(1513)  # True (rate limit)
 ```

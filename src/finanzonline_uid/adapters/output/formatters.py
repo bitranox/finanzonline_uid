@@ -220,7 +220,7 @@ def format_html(result: UidCheckResult) -> str:
     return format_result_html(result)
 
 
-def _format_diagnostics_section(diagnostics: "Diagnostics") -> list[str]:
+def _format_diagnostics_section(diagnostics: Diagnostics) -> list[str]:
     """Format diagnostics section for human-readable output."""
     lines = ["", f"{_BOLD}{_('Diagnostic Information')}{_RESET}", "-" * 30]
     for key, value in diagnostics.as_dict().items():
@@ -236,7 +236,7 @@ def format_error_human(
     uid: str,
     return_code: int | None = None,
     retryable: bool = False,
-    diagnostics: "Diagnostics | None" = None,
+    diagnostics: Diagnostics | None = None,
 ) -> str:
     """Format error as human-readable text for CLI display.
 
@@ -294,7 +294,7 @@ def format_error_json(
     uid: str,
     return_code: int | None = None,
     retryable: bool = False,
-    diagnostics: "Diagnostics | None" = None,
+    diagnostics: Diagnostics | None = None,
 ) -> str:
     """Format error as JSON for CLI display.
 

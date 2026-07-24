@@ -8,10 +8,10 @@ Dieses Dokument beschreibt die Python-API für `finanzonline_uid`.
 import finanzonline_uid
 
 # Paket-Metadaten
-finanzonline_uid.__version__    # "0.0.1"
-finanzonline_uid.__title__      # "Python library and CLI..."
-finanzonline_uid.__author__     # "bitranox"
-finanzonline_uid.__url__        # "https://github.com/bitranox/finanzonline_uid"
+finanzonline_uid.__version__  # "0.0.1"
+finanzonline_uid.__title__  # "Python library and CLI..."
+finanzonline_uid.__author__  # "bitranox"
+finanzonline_uid.__url__  # "https://github.com/bitranox/finanzonline_uid"
 ```
 
 ---
@@ -83,10 +83,10 @@ Authentifizierungsdaten für FinanzOnline-Webservices.
 from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
 credentials = FinanzOnlineCredentials(
-    tid="123456789",      # Teilnehmer-ID (8-12 alphanumerisch)
-    benid="WEBUSER",      # Benutzer-ID (5-12 Zeichen)
-    pin="password123",    # Passwort (5-128 Zeichen)
-    herstellerid="ATU12345678"  # Software-Hersteller UID (10-24 alphanumerisch)
+    tid="123456789",  # Teilnehmer-ID (8-12 alphanumerisch)
+    benid="WEBUSER",  # Benutzer-ID (5-12 Zeichen)
+    pin="password123",  # Passwort (5-128 Zeichen)
+    herstellerid="ATU12345678",  # Software-Hersteller UID (10-24 alphanumerisch)
 )
 ```
 
@@ -109,9 +109,9 @@ Anfrageparameter für Stufe-2-UID-Verifizierung.
 from finanzonline_uid.domain.models import UidCheckRequest
 
 request = UidCheckRequest(
-    uid_tn="ATU12345678",    # Eigene österreichische UID
-    uid="DE987654321",       # Ziel-UID zur Verifizierung
-    stufe=2                  # Abfragestufe (immer 2)
+    uid_tn="ATU12345678",  # Eigene österreichische UID
+    uid="DE987654321",  # Ziel-UID zur Verifizierung
+    stufe=2,  # Abfragestufe (immer 2)
 )
 ```
 
@@ -133,18 +133,18 @@ Vollständiges Ergebnis der Stufe-2-UID-Verifizierung.
 from finanzonline_uid.domain.models import UidCheckResult
 
 # Beispiel-Ergebnis
-result.uid           # "DE987654321"
-result.return_code   # 0
-result.message       # "gueltige UID"
-result.name          # "Beispiel GmbH"
-result.address       # Address-Objekt
-result.timestamp     # datetime (UTC)
-result.from_cache    # False (True wenn aus Cache)
-result.cached_at     # None (oder ursprünglicher Abfragezeitpunkt wenn aus Cache)
+result.uid  # "DE987654321"
+result.return_code  # 0
+result.message  # "gueltige UID"
+result.name  # "Beispiel GmbH"
+result.address  # Address-Objekt
+result.timestamp  # datetime (UTC)
+result.from_cache  # False (True wenn aus Cache)
+result.cached_at  # None (oder ursprünglicher Abfragezeitpunkt wenn aus Cache)
 
 # Properties
-result.is_valid      # True wenn return_code == 0
-result.is_invalid    # True wenn return_code == 1
+result.is_valid  # True wenn return_code == 0
+result.is_invalid  # True wenn return_code == 1
 result.has_company_info  # True wenn Name oder Adresse vorhanden
 ```
 
@@ -170,20 +170,13 @@ Firmenadresse aus der Stufe-2-UID-Verifizierung.
 ```python
 from finanzonline_uid.domain.models import Address
 
-address = Address(
-    line1="Beispiel GmbH",
-    line2="Hauptstraße 1",
-    line3="1010 Wien",
-    line4="",
-    line5="",
-    line6=""
-)
+address = Address(line1="Beispiel GmbH", line2="Hauptstraße 1", line3="1010 Wien", line4="", line5="", line6="")
 
 # Methoden
 address.as_lines()  # ["Beispiel GmbH", "Hauptstraße 1", "1010 Wien"]
-address.as_text()   # "Beispiel GmbH\nHauptstraße 1\n1010 Wien"
+address.as_text()  # "Beispiel GmbH\nHauptstraße 1\n1010 Wien"
 address.as_text(", ")  # "Beispiel GmbH, Hauptstraße 1, 1010 Wien"
-address.is_empty    # False
+address.is_empty  # False
 ```
 
 **Attribute:**
@@ -202,10 +195,7 @@ Haupt-Use-Case für die Ausführung der Stufe-2-UID-Verifizierung.
 
 ```python
 from finanzonline_uid.application.use_cases import CheckUidUseCase
-from finanzonline_uid.adapters.finanzonline import (
-    FinanzOnlineSessionClient,
-    FinanzOnlineQueryClient
-)
+from finanzonline_uid.adapters.finanzonline import FinanzOnlineSessionClient, FinanzOnlineQueryClient
 from finanzonline_uid.domain.models import FinanzOnlineCredentials
 
 # Clients erstellen
@@ -216,18 +206,9 @@ query_client = FinanzOnlineQueryClient(timeout=30.0)
 use_case = CheckUidUseCase(session_client, query_client)
 
 # Verifizierung ausführen
-credentials = FinanzOnlineCredentials(
-    tid="123456789",
-    benid="WEBUSER",
-    pin="password",
-    herstellerid="ATU12345678"
-)
+credentials = FinanzOnlineCredentials(tid="123456789", benid="WEBUSER", pin="password", herstellerid="ATU12345678")
 
-result = use_case.execute(
-    credentials=credentials,
-    uid_tn="ATU12345678",
-    target_uid="DE987654321"
-)
+result = use_case.execute(credentials=credentials, uid_tn="ATU12345678", target_uid="DE987654321")
 
 print(f"Gültig: {result.is_valid}")
 print(f"Firma: {result.name}")
@@ -263,12 +244,12 @@ config = EmailConfig(
     smtp_hosts=["smtp.beispiel.at:587"],
     from_address="alerts@beispiel.at",
     smtp_username="benutzer@beispiel.at",  # Optional
-    smtp_password="passwort",               # Optional
+    smtp_password="passwort",  # Optional
     use_starttls=True,
     timeout=30.0,
     raise_on_missing_attachments=True,
     raise_on_invalid_recipient=True,
-    default_recipients=["admin@beispiel.at"]
+    default_recipients=["admin@beispiel.at"],
 )
 ```
 
@@ -296,10 +277,7 @@ Sendet eine E-Mail mit konfigurierten SMTP-Einstellungen.
 from finanzonline_uid.mail import EmailConfig, send_email
 from pathlib import Path
 
-config = EmailConfig(
-    smtp_hosts=["smtp.beispiel.at:587"],
-    from_address="alerts@beispiel.at"
-)
+config = EmailConfig(smtp_hosts=["smtp.beispiel.at:587"], from_address="alerts@beispiel.at")
 
 send_email(
     config=config,
@@ -308,7 +286,7 @@ send_email(
     body="Klartext-Inhalt",
     body_html="<h1>HTML-Inhalt</h1>",  # Optional
     from_address="override@beispiel.at",  # Optional
-    attachments=[Path("bericht.pdf")]  # Optional
+    attachments=[Path("bericht.pdf")],  # Optional
 )
 ```
 
@@ -340,17 +318,9 @@ Sendet eine einfache Klartext-Benachrichtigungs-E-Mail.
 ```python
 from finanzonline_uid.mail import EmailConfig, send_notification
 
-config = EmailConfig(
-    smtp_hosts=["smtp.beispiel.at:587"],
-    from_address="alerts@beispiel.at"
-)
+config = EmailConfig(smtp_hosts=["smtp.beispiel.at:587"], from_address="alerts@beispiel.at")
 
-send_notification(
-    config=config,
-    recipients="admin@beispiel.at",
-    subject="Systemwarnung",
-    message="Backup erfolgreich abgeschlossen"
-)
+send_notification(config=config, recipients="admin@beispiel.at", subject="Systemwarnung", message="Backup erfolgreich abgeschlossen")
 ```
 
 **Parameter:**
@@ -386,11 +356,11 @@ Alle Domain-Exceptions erben von `UidCheckError`:
 
 ```python
 from finanzonline_uid.domain.errors import (
-    UidCheckError,           # Basis-Exception
-    ConfigurationError,      # Fehlende oder ungültige Konfiguration
-    AuthenticationError,     # Login/Zugangsdaten-Fehler
-    SessionError,            # Session-Verwaltungsfehler
-    QueryError,              # UID-Abfrageausführungsfehler
+    UidCheckError,  # Basis-Exception
+    ConfigurationError,  # Fehlende oder ungültige Konfiguration
+    AuthenticationError,  # Login/Zugangsdaten-Fehler
+    SessionError,  # Session-Verwaltungsfehler
+    QueryError,  # UID-Abfrageausführungsfehler
 )
 ```
 
@@ -407,22 +377,16 @@ from finanzonline_uid.domain.errors import (
 ## Rückgabecode-Hilfsfunktionen
 
 ```python
-from finanzonline_uid.domain.return_codes import (
-    get_return_code_info,
-    is_success,
-    is_retryable,
-    Severity,
-    ReturnCodeInfo
-)
+from finanzonline_uid.domain.return_codes import get_return_code_info, is_success, is_retryable, Severity, ReturnCodeInfo
 
 # Informationen über einen Rückgabecode abrufen
 info = get_return_code_info(0)
-print(info.code)       # 0
-print(info.meaning)    # "UID ist gültig"
-print(info.severity)   # Severity.SUCCESS
+print(info.code)  # 0
+print(info.meaning)  # "UID ist gültig"
+print(info.severity)  # Severity.SUCCESS
 print(info.retryable)  # False
 
 # Schnellprüfungen
-is_success(0)      # True
-is_retryable(1513) # True (Ratenlimit)
+is_success(0)  # True
+is_retryable(1513)  # True (Ratenlimit)
 ```

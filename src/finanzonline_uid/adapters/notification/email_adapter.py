@@ -114,7 +114,7 @@ class EmailNotificationAdapter:
 
     def send_result(
         self,
-        result: "UidCheckResult",
+        result: UidCheckResult,
         recipients: list[str],
     ) -> bool:
         """Send verification result notification via email.
@@ -153,7 +153,7 @@ class EmailNotificationAdapter:
                 body=plain_body,
                 body_html=html_body,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - email delivery is non-fatal, degrade to a bool result
             logger.error("Failed to send notification: %s", e)
             return False
 
@@ -165,7 +165,7 @@ class EmailNotificationAdapter:
         recipients: list[str],
         return_code: int | None = None,
         retryable: bool = False,
-        diagnostics: "Diagnostics | None" = None,
+        diagnostics: Diagnostics | None = None,
     ) -> bool:
         """Send error notification via email.
 
@@ -207,13 +207,13 @@ class EmailNotificationAdapter:
                 body=plain_body,
                 body_html=html_body,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - email delivery is non-fatal, degrade to a bool result
             logger.error("Failed to send error notification: %s", e)
             return False
 
     def send_rate_limit_warning(
         self,
-        status: "RateLimitStatus",
+        status: RateLimitStatus,
         recipients: list[str],
     ) -> bool:
         """Send rate limit warning notification via email.
@@ -252,6 +252,6 @@ class EmailNotificationAdapter:
                 body=plain_body,
                 body_html=html_body,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - email delivery is non-fatal, degrade to a bool result
             logger.error("Failed to send rate limit warning: %s", e)
             return False

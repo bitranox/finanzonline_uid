@@ -20,7 +20,6 @@ from finanzonline_uid.adapters.finanzonline.session_client import (
 )
 from finanzonline_uid.domain.errors import AuthenticationError, ServiceMaintenanceError, SessionError
 
-
 # ============================================================================
 # Initialization
 # ============================================================================
