@@ -1,13 +1,13 @@
 [project]
 name = "finanzonline_uid"
-version = "2.7.8"
+version = "2.7.9"
 description = "Python library and CLI for querying Level 2 UID checks via FinanzOnline Austria"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "rich-click>=1.9.8",
     "lib_cli_exit_tools>=2.3.4",
-    "lib_log_rich>=6.3.6",
+    "lib_log_rich>=6.3.7",
     "lib_layered_config>=5.6.2",
     # 1.5.0 exposes the `transport` delivery seam that send_email forwards.
     "btx_lib_mail>=1.5.2",
