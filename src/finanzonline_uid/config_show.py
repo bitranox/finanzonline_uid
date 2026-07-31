@@ -18,9 +18,9 @@ from __future__ import annotations
 import json
 from typing import Any, cast
 
-import click
 from lib_layered_config import Config
 
+from . import safe_console
 from .enums import OutputFormat
 
 
@@ -45,7 +45,7 @@ def display_config(
             displays all configuration.
 
     Side Effects:
-        Writes formatted configuration to stdout via click.echo().
+        Writes formatted configuration to stdout via safe_console.echo().
         Raises SystemExit(1) if requested section doesn't exist.
 
     Note:
@@ -76,46 +76,46 @@ def display_config(
             # Show specific section as JSON
             section_data = config.get(section, default={})
             if section_data:
-                click.echo(json.dumps({section: section_data}, indent=2))
+                safe_console.echo(json.dumps({section: section_data}, indent=2))
             else:
-                click.echo(f"Section '{section}' not found or empty", err=True)
+                safe_console.echo(f"Section '{section}' not found or empty", err=True)
                 raise SystemExit(1)
         else:
             # Use lib_layered_config's built-in to_json method
-            click.echo(config.to_json(indent=2))
+            safe_console.echo(config.to_json(indent=2))
     else:
         # Human-readable format using lib_layered_config's as_dict
         if section:
             # Show specific section
             section_data = config.get(section, default={})
             if section_data:
-                click.echo(f"\n[{section}]")
+                safe_console.echo(f"\n[{section}]")
                 for key, value in section_data.items():
                     if isinstance(value, (list, dict)):
-                        click.echo(f"  {key} = {json.dumps(value)}")
+                        safe_console.echo(f"  {key} = {json.dumps(value)}")
                     elif isinstance(value, str):
-                        click.echo(f'  {key} = "{value}"')
+                        safe_console.echo(f'  {key} = "{value}"')
                     else:
-                        click.echo(f"  {key} = {value}")
+                        safe_console.echo(f"  {key} = {value}")
             else:
-                click.echo(f"Section '{section}' not found or empty", err=True)
+                safe_console.echo(f"Section '{section}' not found or empty", err=True)
                 raise SystemExit(1)
         else:
             # Show all configuration
             data: dict[str, Any] = config.as_dict()
             for section_name, section_data in data.items():
-                click.echo(f"\n[{section_name}]")
+                safe_console.echo(f"\n[{section_name}]")
                 if isinstance(section_data, dict):
                     dict_data = cast(dict[str, Any], section_data)
                     for key, value in dict_data.items():
                         if isinstance(value, (list, dict)):
-                            click.echo(f"  {key} = {json.dumps(value)}")
+                            safe_console.echo(f"  {key} = {json.dumps(value)}")
                         elif isinstance(value, str):
-                            click.echo(f'  {key} = "{value}"')
+                            safe_console.echo(f'  {key} = "{value}"')
                         else:
-                            click.echo(f"  {key} = {value}")
+                            safe_console.echo(f"  {key} = {value}")
                 else:
-                    click.echo(f"  {section_data}")
+                    safe_console.echo(f"  {section_data}")
 
 
 __all__ = [

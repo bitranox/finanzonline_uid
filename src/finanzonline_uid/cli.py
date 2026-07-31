@@ -35,7 +35,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.text import Text
 
-from . import __init__conf__
+from . import __init__conf__, safe_console
 from .adapters.cache import UidResultCache
 from .adapters.finanzonline import FinanzOnlineQueryClient, FinanzOnlineSessionClient
 from .adapters.notification import EmailNotificationAdapter
@@ -222,7 +222,7 @@ def cli(ctx: click.Context, traceback: bool, profile: str | None) -> None:
         if source not in (ParameterSource.DEFAULT, None):
             cli_main()
         else:
-            click.echo(ctx.get_help())
+            safe_console.echo(ctx.get_help())
 
 
 def cli_main() -> None:
@@ -302,26 +302,26 @@ def _display_deploy_result(deployed_paths: list[Any], effective_profile: str | N
     """Display deployment result to user."""
     if deployed_paths:
         profile_msg = f" ({_('profile')}: {effective_profile})" if effective_profile else ""
-        click.echo(f"\n{_('Configuration deployed successfully')}{profile_msg}:")
+        safe_console.echo(f"\n{_('Configuration deployed successfully')}{profile_msg}:")
         for path in deployed_paths:
-            click.echo(f"  ✓ {path}")
+            safe_console.echo(f"  ✓ {path}")
     elif force:
         # Force was used but nothing deployed - content is identical
-        click.echo(f"\n{_('All configuration files are already up to date (content unchanged).')}")
+        safe_console.echo(f"\n{_('All configuration files are already up to date (content unchanged).')}")
     else:
-        click.echo(f"\n{_('No files were created (all target files already exist).')}")
-        click.echo(_("Use --force to overwrite existing configuration files."))
+        safe_console.echo(f"\n{_('No files were created (all target files already exist).')}")
+        safe_console.echo(_("Use --force to overwrite existing configuration files."))
 
 
 def _handle_deploy_error(exc: Exception) -> None:
     """Handle deployment errors with appropriate logging and messages."""
     if isinstance(exc, PermissionError):
         logger.error("Permission denied when deploying configuration", extra={"error": str(exc)})
-        click.echo(f"\n{_('Error')}: {_('Permission denied.')} {exc}", err=True)
-        click.echo(_("Hint: System-wide deployment (--target app/host) may require sudo."), err=True)
+        safe_console.echo(f"\n{_('Error')}: {_('Permission denied.')} {exc}", err=True)
+        safe_console.echo(_("Hint: System-wide deployment (--target app/host) may require sudo."), err=True)
     else:
         logger.error("Failed to deploy configuration", extra={"error": str(exc), "error_type": type(exc).__name__})
-        click.echo(f"\n{_('Error')}: {_('Failed to deploy configuration:')} {exc}", err=True)
+        safe_console.echo(f"\n{_('Error')}: {_('Failed to deploy configuration:')} {exc}", err=True)
     raise SystemExit(1)
 
 
@@ -448,7 +448,7 @@ def _resolve_uid_input(uid: str | None, interactive: bool) -> str:
     if interactive:
         raw_uid = click.prompt(_("Enter EU VAT ID to verify"), type=str)
     elif uid is None:
-        click.echo(_("Error: UID argument is required (or use --interactive)"), err=True)
+        safe_console.echo(_("Error: UID argument is required (or use --interactive)"), err=True)
         raise SystemExit(CliExitCode.CONFIG_ERROR)
     else:
         raw_uid = uid
@@ -464,9 +464,9 @@ def _output_check_result(result: Any, output_format: str) -> None:
         output_format: Format string ("json" or "human").
     """
     if OutputFormat(output_format.lower()) == OutputFormat.JSON:
-        click.echo(format_json(result))
+        safe_console.echo(format_json(result))
     else:
-        click.echo(format_human(result))
+        safe_console.echo(format_human(result))
 
 
 def _save_result_to_file(result: Any, outputdir: Path, file_format: str) -> None:
@@ -503,11 +503,11 @@ def _save_result_to_file(result: Any, outputdir: Path, file_format: str) -> None
 
         filepath.write_text(content, encoding="utf-8")
 
-        click.echo(_("Result saved to: {filepath}").format(filepath=filepath))
+        safe_console.echo(_("Result saved to: {filepath}").format(filepath=filepath))
     except OSError as exc:
         # Log warning but don't fail - the UID check itself succeeded
         warning_msg = _("Warning: Could not save result to {filepath}: {error}").format(filepath=filepath, error=exc)
-        click.echo(warning_msg, err=True)
+        safe_console.echo(warning_msg, err=True)
 
 
 def _handle_check_error(
@@ -532,14 +532,14 @@ def _handle_check_error(
     Raises:
         SystemExit: Always raises with the specified exit code.
     """
-    click.echo(f"\n{error_info.error_type}: {error_info.message}", err=True)
+    safe_console.echo(f"\n{error_info.error_type}: {error_info.message}", err=True)
 
     if error_info.return_code is not None:
         info = get_return_code_info(error_info.return_code)
-        click.echo(f"  {_('Return code:')} {error_info.return_code} ({info.meaning})", err=True)
+        safe_console.echo(f"  {_('Return code:')} {error_info.return_code} ({info.meaning})", err=True)
 
     if error_info.retryable:
-        click.echo(f"  {_('This error may be temporary. Try again later.')}", err=True)
+        safe_console.echo(f"  {_('This error may be temporary. Try again later.')}", err=True)
 
     if send_notification:
         _send_error_notification(
@@ -658,10 +658,10 @@ def _execute_retry_loop(
                 return result, None  # Final result (success or non-retryable)
 
             # Retryable return code (e.g., 1511 Service Unavailable) - continue loop
-            click.echo(f"\n{_('Attempt')} {attempt}: {result.message}", err=True)
+            safe_console.echo(f"\n{_('Attempt')} {attempt}: {result.message}", err=True)
             if attempt == 1:
                 interval_display = f"{retry_minutes:g}"
-                click.echo(
+                safe_console.echo(
                     _("Retry mode: Will keep retrying every {minutes} min with no limit — only stops on success or Ctrl+C.").format(minutes=interval_display),
                     err=True,
                 )
@@ -669,12 +669,12 @@ def _execute_retry_loop(
             # Animated countdown (handles Ctrl+C internally)
             if not _wait_with_countdown(retry_minutes * 60, attempt, uid):
                 # User cancelled during wait - return last result
-                click.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
+                safe_console.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
                 return result, None
 
         except (SigIntInterrupt, KeyboardInterrupt):
             # User pressed Ctrl+C - clean exit
-            click.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
+            safe_console.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
             if last_error:
                 return None, last_error
             if last_result:
@@ -696,10 +696,10 @@ def _execute_retry_loop(
 
             # Retryable error - show message and wait
             last_error = error_info
-            click.echo(f"\n{_('Attempt')} {attempt}: {error_info.message}", err=True)
+            safe_console.echo(f"\n{_('Attempt')} {attempt}: {error_info.message}", err=True)
             if attempt == 1:
                 interval_display = f"{retry_minutes:g}"
-                click.echo(
+                safe_console.echo(
                     _("Retry mode: Will keep retrying every {minutes} min with no limit — only stops on success or Ctrl+C.").format(minutes=interval_display),
                     err=True,
                 )
@@ -707,7 +707,7 @@ def _execute_retry_loop(
             # Animated countdown (handles Ctrl+C internally)
             if not _wait_with_countdown(retry_minutes * 60, attempt, uid):
                 # User cancelled during wait
-                click.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
+                safe_console.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
                 return None, last_error
 
 
@@ -796,7 +796,7 @@ def cli_check(
     """
     # Validate retryminutes requires interactive mode
     if retryminutes is not None and not interactive:
-        click.echo(_("Error: --retryminutes requires --interactive mode"), err=True)
+        safe_console.echo(_("Error: --retryminutes requires --interactive mode"), err=True)
         raise SystemExit(CliExitCode.CONFIG_ERROR)
 
     resolved_uid = _resolve_uid_input(uid, interactive)
@@ -992,13 +992,13 @@ def _show_config_help(error_message: str) -> None:
     Args:
         error_message: The configuration error message.
     """
-    click.echo(f"\n{_('Error')}: {error_message}", err=True)
-    click.echo(f"\n{_('Configure FinanzOnline credentials in your config file or via environment variables:')}", err=True)
-    click.echo(f"  FINANZONLINE_UID___FINANZONLINE__TID=... ({_('8-12 alphanumeric')})", err=True)
-    click.echo(f"  FINANZONLINE_UID___FINANZONLINE__BENID=... ({_('5-12 chars')})", err=True)
-    click.echo(f"  FINANZONLINE_UID___FINANZONLINE__PIN=... ({_('5-128 chars')})", err=True)
-    click.echo("  FINANZONLINE_UID___FINANZONLINE__UID_TN=ATU...", err=True)
-    click.echo(f"  FINANZONLINE_UID___FINANZONLINE__HERSTELLERID=... ({_('10-24 alphanumeric')})", err=True)
+    safe_console.echo(f"\n{_('Error')}: {error_message}", err=True)
+    safe_console.echo(f"\n{_('Configure FinanzOnline credentials in your config file or via environment variables:')}", err=True)
+    safe_console.echo(f"  FINANZONLINE_UID___FINANZONLINE__TID=... ({_('8-12 alphanumeric')})", err=True)
+    safe_console.echo(f"  FINANZONLINE_UID___FINANZONLINE__BENID=... ({_('5-12 chars')})", err=True)
+    safe_console.echo(f"  FINANZONLINE_UID___FINANZONLINE__PIN=... ({_('5-128 chars')})", err=True)
+    safe_console.echo("  FINANZONLINE_UID___FINANZONLINE__UID_TN=ATU...", err=True)
+    safe_console.echo(f"  FINANZONLINE_UID___FINANZONLINE__HERSTELLERID=... ({_('10-24 alphanumeric')})", err=True)
 
 
 def _resolve_notification_recipients(
@@ -1067,7 +1067,7 @@ def _send_check_notification(
 
     except Exception as e:  # noqa: BLE001 - notification send is non-fatal, must not abort the check
         logger.warning("Email notification error (non-fatal): %s", e)
-        click.echo(_("Warning: Email notification failed: {error}").format(error=e), err=True)
+        safe_console.echo(_("Warning: Email notification failed: {error}").format(error=e), err=True)
 
 
 def _send_error_notification(
@@ -1100,7 +1100,7 @@ def _send_error_notification(
 
     except Exception as e:  # noqa: BLE001 - notification send is non-fatal, must not abort the check
         logger.warning("Error notification error (non-fatal): %s", e)
-        click.echo(_("Warning: Error notification failed: {error}").format(error=e), err=True)
+        safe_console.echo(_("Warning: Error notification failed: {error}").format(error=e), err=True)
 
 
 def main(argv: Sequence[str] | None = None, *, restore_traceback: bool = True) -> int:
