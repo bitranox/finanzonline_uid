@@ -22,15 +22,6 @@ finanzonline_uid/
 │   ├── prd/                    # Product requirements (WSDL, XSD specs)
 │   └── systemdesign/           # System design documents
 ├── notebooks/                  # Jupyter notebooks for experiments
-├── scripts/                    # Build and automation scripts
-│   ├── build.py               # Build wheel/sdist
-│   ├── bump*.py               # Version bump scripts
-│   ├── clean.py               # Clean build artifacts
-│   ├── test.py                # Run tests with coverage
-│   ├── push.py                # Git push automation
-│   ├── release.py             # Create releases
-│   ├── menu.py                # Interactive TUI menu
-│   └── _utils.py              # Shared utilities
 ├── src/finanzonline_uid/      # Main Python package
 │   ├── adapters/              # Infrastructure adapters (Clean Architecture)
 │   │   ├── cache/             # Result caching with file locking
