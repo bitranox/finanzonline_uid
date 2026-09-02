@@ -62,7 +62,7 @@ finanzonline_uid/
 ## Versioning & Releases
 
 - **Single Source of Truth**: Package version is in `pyproject.toml` (`[project].version`)
-- **Version Bumps**: update `pyproject.toml` , `CHANGELOG.md` and update the constants in `src/../__init__conf__.py` according to `pyproject.toml`  
+- **Version Bumps**: `make bump` (patch / minor / major) is the supported path - it updates `pyproject.toml`, renames the `CHANGELOG.md` `[Unreleased]` heading to the new version and opens a fresh one, then regenerates the package `__init__conf__.py` from `pyproject.toml`  
     - Automation rewrites `src/finanzonline_uid/__init__conf__.py` from `pyproject.toml`, so runtime code imports generated constants instead of querying `importlib.metadata`.
     - bmk regenerates that metadata module itself - it runs as a stage of `make bump`, and again before every `make commit` / `make push`. `make test` does not regenerate it, and the generated constants are never hand-edited.
 - **Release Tags**: Format is `vX.Y.Z` (push tags for CI to build and publish)
