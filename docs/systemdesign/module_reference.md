@@ -125,20 +125,12 @@ stand-in domain.
   or the exit code produced by ``lib_cli_exit_tools``.
 * **Location:** src/finanzonline_uid/cli.py
 
-### __main__._module_main
+### __main__
 
-* **Purpose:** Provide ``python -m`` entry point mirroring the console script.
-* **Input:** None.
-* **Output:** Exit code from ``cli.main`` after restoring traceback state.
-* **Location:** src/finanzonline_uid/__main__.py
-
-### __main__._open_cli_session / _command_to_run / _command_name
-
-* **Purpose:** Describe the session wiring and command selection used by the
-  module entry point so tests and documentation can reason about the
-  composition.
-* **Output:** Context manager yielding the command runner, the Click command
-  itself, and the shell-facing name.
+* **Purpose:** Provide the ``python -m finanzonline_uid`` entry point by running
+  ``cli.main``, the same function the console scripts run.
+* **Input:** None (reads ``sys.argv``).
+* **Output:** Exits with the code ``cli.main`` returns.
 * **Location:** src/finanzonline_uid/__main__.py
 
 ### __init__conf__.print_info

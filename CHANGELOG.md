@@ -7,6 +7,15 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.10] 2026-10-05 20:07:48
+### Fixed
+- **`python -m finanzonline_uid` now behaves exactly like the console script.** The module entry ran
+  its own session instead of `cli.main()`, so a usage error (bad flag, unknown command) exited 1
+  instead of 2. It now runs `cli.main()` directly.
+
+### Changed
+- Raised dependency floors across major versions: lib_layered_config 7.0.1 (was 5.6.2), btx_lib_mail 3.0.1 (was 1.5.2), filelock 4.0.12 (was 3.32.5); also lib_log_rich 6.3.8, rich-click 1.9.9 and the dev tool floors. The test suite passes against them.
+
 ## [2.7.9] 2026-08-01 00:40:33
 ### Fixed
 - **Console output no longer crashes on a legacy codepage.** A Windows console at codepage 1252
