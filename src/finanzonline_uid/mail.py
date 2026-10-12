@@ -379,7 +379,18 @@ def _parse_string(raw: Any, default: str) -> str:
 
 
 def _parse_optional_string(raw: Any) -> str | None:
-    """Parse an optional string value."""
+    """Parse an optional string value.
+
+    lib_layered_config reads an unquoted all-digit value as an int, and only when the number
+    reads back as the same text, so ``str()`` restores exactly what was written. A bool stays
+    "not a string" so that ``true`` is not turned into the text ``True``.
+
+    Examples:
+        >>> _parse_optional_string("secret"), _parse_optional_string(123456), _parse_optional_string(True)
+        ('secret', '123456', None)
+    """
+    if isinstance(raw, int) and not isinstance(raw, bool):
+        return str(raw)
     return raw if isinstance(raw, str) else None
 
 

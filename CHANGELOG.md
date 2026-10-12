@@ -7,6 +7,13 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+### Fixed
+- **A digit-only SMTP user name or password, or `[lib_log_rich]` service or environment name, is
+  no longer lost or refused.** lib_layered_config reads an unquoted `.env` or environment value
+  that spells a number losslessly as an int. `EMAIL__SMTP_PASSWORD=123456` was silently dropped
+  (no login was attempted) and `LIB_LOG_RICH__SERVICE=4711` made lib_log_rich refuse its settings
+  with `Input should be a valid string`. Both now read the number back as the text that was written.
+
 ## [2.7.10] 2026-10-05 20:07:48
 ### Fixed
 - **`python -m finanzonline_uid` now behaves exactly like the console script.** The module entry ran
