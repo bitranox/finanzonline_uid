@@ -7,6 +7,8 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.11] 2026-10-12 19:52:27
+
 ### Fixed
 - **A digit-only SMTP user name or password, or `[lib_log_rich]` service or environment name, is
   no longer lost or refused.** lib_layered_config reads an unquoted `.env` or environment value

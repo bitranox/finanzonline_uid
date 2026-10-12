@@ -1,6 +1,6 @@
 [project]
 name = "finanzonline_uid"
-version = "2.7.10"
+version = "2.7.11"
 description = "Python library and CLI for querying Level 2 UID checks via FinanzOnline Austria"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -206,3 +206,7 @@ exclude-rules = [
 # PYSEC-2022-42969: py library ReDoS (no fix available, low risk)
 # CVE-2026-3219: pip 26.0.1 concatenated tar/ZIP confusion (no fix available yet, CI-only)
 ignore-vulns = ["PYSEC-2022-42969", "CVE-2026-3219"]
+
+[tool.uv]
+exclude-newer = "1 day"
+exclude-newer-package = {btx-lib-mail = false, lib-cli-exit-tools = false, lib-layered-config = false, lib-log-rich = false, pydantic = "2026-10-11T18:37:56Z", pydantic-core = "2026-10-11T18:35:45Z", rtoml = "2026-10-12T00:17:16Z"}
