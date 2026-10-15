@@ -510,6 +510,20 @@ def _save_result_to_file(result: Any, outputdir: Path, file_format: str) -> None
         safe_console.echo(warning_msg, err=True)
 
 
+def _emit_check_result(result: Any, *, output_format: str, outputdir: Path | None, file_format: str) -> None:
+    """Print the check result and save it to a file when it is valid.
+
+    Args:
+        result: UidCheckResult to output.
+        output_format: Console format string ("json" or "human").
+        outputdir: Directory to save valid results in, or None to skip saving.
+        file_format: Format for the saved file ("json", "txt", "html").
+    """
+    _output_check_result(result, output_format)
+    if outputdir and result.is_valid:
+        _save_result_to_file(result, outputdir, file_format)
+
+
 def _handle_check_error(
     error_info: CheckErrorInfo,
     *,
@@ -618,6 +632,75 @@ def _wait_with_countdown(seconds: float, attempt: int, uid: str) -> bool:
         return False
 
 
+def _echo_cancelled(attempt: int) -> None:
+    """Tell the user the retry loop was cancelled after ``attempt`` attempts.
+
+    Args:
+        attempt: Number of attempts made before the cancellation.
+    """
+    safe_console.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
+
+
+def _announce_retry(attempt: int, message: str, retry_minutes: float) -> None:
+    """Report a failed attempt, and on the first one explain the retry mode.
+
+    Args:
+        attempt: Current attempt number.
+        message: Why the attempt did not produce a final result.
+        retry_minutes: Minutes between retry attempts.
+    """
+    safe_console.echo(f"\n{_('Attempt')} {attempt}: {message}", err=True)
+    if attempt == 1:
+        interval_display = f"{retry_minutes:g}"
+        safe_console.echo(
+            _("Retry mode: Will keep retrying every {minutes} min with no limit — only stops on success or Ctrl+C.").format(minutes=interval_display),
+            err=True,
+        )
+
+
+def _wait_for_next_attempt(attempt: int, message: str, *, retry_minutes: float, uid: str) -> bool:
+    """Announce a retryable failure and count down to the next attempt.
+
+    Args:
+        attempt: Current attempt number.
+        message: Why the attempt did not produce a final result.
+        retry_minutes: Minutes between retry attempts.
+        uid: The UID being checked (displayed in countdown).
+
+    Returns:
+        True to retry, False if the user cancelled during the countdown
+        (the cancellation has already been reported).
+    """
+    _announce_retry(attempt, message, retry_minutes)
+    # Animated countdown (handles Ctrl+C internally)
+    if _wait_with_countdown(retry_minutes * 60, attempt, uid):
+        return True
+    _echo_cancelled(attempt)
+    return False
+
+
+def _cancelled_outcome(last_result: Any, last_error: CheckErrorInfo | None) -> tuple[Any, CheckErrorInfo | None]:
+    """Pick what a Ctrl+C during an attempt returns from the retry loop.
+
+    Args:
+        last_result: Result of the most recent completed attempt, if any.
+        last_error: Most recent retryable error, if any.
+
+    Returns:
+        The last error if one occurred, else the last result, else a
+        cancellation error.
+    """
+    if last_error:
+        return None, last_error
+    if last_result:
+        return last_result, None
+    return None, CheckErrorInfo(
+        error_type="Cancelled",
+        message=_("Check cancelled by user"),
+        exit_code=CliExitCode.QUERY_ERROR,
+    )
+
+
 def _execute_retry_loop(
     fo_config: FinanzOnlineConfig,
     uid: str,
@@ -658,32 +741,14 @@ def _execute_retry_loop(
                 return result, None  # Final result (success or non-retryable)
 
             # Retryable return code (e.g., 1511 Service Unavailable) - continue loop
-            safe_console.echo(f"\n{_('Attempt')} {attempt}: {result.message}", err=True)
-            if attempt == 1:
-                interval_display = f"{retry_minutes:g}"
-                safe_console.echo(
-                    _("Retry mode: Will keep retrying every {minutes} min with no limit — only stops on success or Ctrl+C.").format(minutes=interval_display),
-                    err=True,
-                )
-
-            # Animated countdown (handles Ctrl+C internally)
-            if not _wait_with_countdown(retry_minutes * 60, attempt, uid):
+            if not _wait_for_next_attempt(attempt, result.message, retry_minutes=retry_minutes, uid=uid):
                 # User cancelled during wait - return last result
-                safe_console.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
                 return result, None
 
         except (SigIntInterrupt, KeyboardInterrupt):
             # User pressed Ctrl+C - clean exit
-            safe_console.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
-            if last_error:
-                return None, last_error
-            if last_result:
-                return last_result, None
-            return None, CheckErrorInfo(
-                error_type="Cancelled",
-                message=_("Check cancelled by user"),
-                exit_code=CliExitCode.QUERY_ERROR,
-            )
+            _echo_cancelled(attempt)
+            return _cancelled_outcome(last_result, last_error)
 
         except (ConfigurationError, AuthenticationError, ValueError) as exc:
             # Non-retryable errors - stop immediately
@@ -696,18 +761,8 @@ def _execute_retry_loop(
 
             # Retryable error - show message and wait
             last_error = error_info
-            safe_console.echo(f"\n{_('Attempt')} {attempt}: {error_info.message}", err=True)
-            if attempt == 1:
-                interval_display = f"{retry_minutes:g}"
-                safe_console.echo(
-                    _("Retry mode: Will keep retrying every {minutes} min with no limit — only stops on success or Ctrl+C.").format(minutes=interval_display),
-                    err=True,
-                )
-
-            # Animated countdown (handles Ctrl+C internally)
-            if not _wait_with_countdown(retry_minutes * 60, attempt, uid):
+            if not _wait_for_next_attempt(attempt, error_info.message, retry_minutes=retry_minutes, uid=uid):
                 # User cancelled during wait
-                safe_console.echo(f"\n{_('Cancelled by user after')} {attempt} {_('attempt(s)')}", err=True)
                 return None, last_error
 
 
@@ -816,40 +871,30 @@ def cli_check(
             effective_outputdir = outputdir or fo_config.output_dir
             effective_file_format = (file_format or fo_config.output_format).lower()
 
-            if retryminutes is not None:
+            result: Any
+            error_info: CheckErrorInfo | None = None
+            if retryminutes is None:
+                # Single attempt mode: errors propagate to the handler below
+                result = _execute_uid_check(fo_config, resolved_uid, config=config, recipients=recipients_list)
+            else:
                 # Retry mode - uses retry loop with countdown animation
                 result, error_info = _execute_retry_loop(fo_config, resolved_uid, retryminutes, config, recipients_list)
 
-                if result is not None:
-                    # Success!
-                    _output_check_result(result, output_format)
-                    if effective_outputdir and result.is_valid:
-                        _save_result_to_file(result, effective_outputdir, effective_file_format)
-                    if not no_email:
-                        _send_check_notification(config=config, fo_config=fo_config, result=result, recipients=recipients_list)
-                    raise SystemExit(CliExitCode.SUCCESS if result.is_valid else CliExitCode.UID_INVALID)
-                elif error_info is not None:
-                    # Error (cancelled or non-retryable)
-                    _handle_check_error(
-                        error_info,
-                        send_notification=not no_email,
-                        config=config,
-                        fo_config=fo_config,
-                        uid=resolved_uid,
-                        recipients=recipients_list,
-                    )
-            else:
-                # Single attempt mode (existing behavior)
-                result = _execute_uid_check(fo_config, resolved_uid, config=config, recipients=recipients_list)
-                _output_check_result(result, output_format)
-
-                if effective_outputdir and result.is_valid:
-                    _save_result_to_file(result, effective_outputdir, effective_file_format)
-
+            if result is not None:
+                _emit_check_result(result, output_format=output_format, outputdir=effective_outputdir, file_format=effective_file_format)
                 if not no_email:
                     _send_check_notification(config=config, fo_config=fo_config, result=result, recipients=recipients_list)
-
                 raise SystemExit(CliExitCode.SUCCESS if result.is_valid else CliExitCode.UID_INVALID)
+            if error_info is not None:
+                # Error (cancelled or non-retryable)
+                _handle_check_error(
+                    error_info,
+                    send_notification=not no_email,
+                    config=config,
+                    fo_config=fo_config,
+                    uid=resolved_uid,
+                    recipients=recipients_list,
+                )
 
         except (ConfigurationError, AuthenticationError, SessionError, QueryError, ValueError, UidCheckError) as exc:
             error_info = _get_error_info(exc)

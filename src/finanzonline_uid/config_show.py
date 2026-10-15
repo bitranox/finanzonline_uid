@@ -16,6 +16,7 @@ System Role:
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from typing import Any, cast
 
 from lib_layered_config import Config
@@ -72,50 +73,112 @@ def display_config(
 
     # Output in requested format
     if format == OutputFormat.JSON:
-        if section:
-            # Show specific section as JSON
-            section_data = config.get(section, default={})
-            if section_data:
-                safe_console.echo(json.dumps({section: section_data}, indent=2))
-            else:
-                safe_console.echo(f"Section '{section}' not found or empty", err=True)
-                raise SystemExit(1)
-        else:
-            # Use lib_layered_config's built-in to_json method
-            safe_console.echo(config.to_json(indent=2))
+        _display_json(config, section)
     else:
-        # Human-readable format using lib_layered_config's as_dict
-        if section:
-            # Show specific section
-            section_data = config.get(section, default={})
-            if section_data:
-                safe_console.echo(f"\n[{section}]")
-                for key, value in section_data.items():
-                    if isinstance(value, (list, dict)):
-                        safe_console.echo(f"  {key} = {json.dumps(value)}")
-                    elif isinstance(value, str):
-                        safe_console.echo(f'  {key} = "{value}"')
-                    else:
-                        safe_console.echo(f"  {key} = {value}")
-            else:
-                safe_console.echo(f"Section '{section}' not found or empty", err=True)
-                raise SystemExit(1)
+        _display_human(config, section)
+
+
+def _require_section(config: Config, section: str) -> Any:
+    """Return a section's data, exiting with status 1 when it is missing or empty.
+
+    Args:
+        config: Loaded layered configuration.
+        section: Name of the section to look up.
+
+    Returns:
+        The section's data (never empty).
+
+    Raises:
+        SystemExit: With code 1 if the section does not exist or is empty.
+    """
+    section_data = config.get(section, default={})
+    if not section_data:
+        safe_console.echo(f"Section '{section}' not found or empty", err=True)
+        raise SystemExit(1)
+    return section_data
+
+
+def _display_json(config: Config, section: str | None) -> None:
+    """Write the whole configuration, or one section, as JSON.
+
+    Args:
+        config: Loaded layered configuration.
+        section: Optional section to restrict the output to.
+    """
+    if section:
+        # Show specific section as JSON
+        section_data = _require_section(config, section)
+        safe_console.echo(json.dumps({section: section_data}, indent=2))
+    else:
+        # Use lib_layered_config's built-in to_json method
+        safe_console.echo(config.to_json(indent=2))
+
+
+def _display_human(config: Config, section: str | None) -> None:
+    """Write the whole configuration, or one section, in TOML-like form.
+
+    Args:
+        config: Loaded layered configuration.
+        section: Optional section to restrict the output to.
+    """
+    if section:
+        # Show specific section
+        section_data = _require_section(config, section)
+        safe_console.echo(f"\n[{section}]")
+        _echo_entries(section_data.items())
+    else:
+        _display_all_human(config)
+
+
+def _display_all_human(config: Config) -> None:
+    """Write every configuration section in TOML-like form.
+
+    Args:
+        config: Loaded layered configuration.
+    """
+    data: dict[str, Any] = config.as_dict()
+    for section_name, section_data in data.items():
+        safe_console.echo(f"\n[{section_name}]")
+        if isinstance(section_data, dict):
+            dict_data = cast(dict[str, Any], section_data)
+            _echo_entries(dict_data.items())
         else:
-            # Show all configuration
-            data: dict[str, Any] = config.as_dict()
-            for section_name, section_data in data.items():
-                safe_console.echo(f"\n[{section_name}]")
-                if isinstance(section_data, dict):
-                    dict_data = cast(dict[str, Any], section_data)
-                    for key, value in dict_data.items():
-                        if isinstance(value, (list, dict)):
-                            safe_console.echo(f"  {key} = {json.dumps(value)}")
-                        elif isinstance(value, str):
-                            safe_console.echo(f'  {key} = "{value}"')
-                        else:
-                            safe_console.echo(f"  {key} = {value}")
-                else:
-                    safe_console.echo(f"  {section_data}")
+            safe_console.echo(f"  {section_data}")
+
+
+def _echo_entries(entries: Iterable[tuple[str, Any]]) -> None:
+    """Write one ``key = value`` line per entry, indented under its section.
+
+    Args:
+        entries: Key/value pairs of one section.
+    """
+    for key, value in entries:
+        safe_console.echo(f"  {key} = {_format_value(value)}")
+
+
+def _format_value(value: Any) -> str:
+    """Render a configuration value the way a TOML file would show it.
+
+    Args:
+        value: The value to render.
+
+    Returns:
+        JSON for lists and dicts, a double-quoted string for strings, and the
+        plain value otherwise.
+
+    Examples:
+        >>> _format_value("prod")
+        '"prod"'
+        >>> _format_value([1, 2])
+        '[1, 2]'
+        >>> _format_value(3)
+        '3'
+    """
+    if isinstance(value, (list, dict)):
+        return json.dumps(value)
+    if isinstance(value, str):
+        return f'"{value}"'
+    return f"{value}"
 
 
 __all__ = [
