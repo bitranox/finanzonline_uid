@@ -49,23 +49,23 @@ Alles über eine einzige Befehlssuite.
 
 | Tool         | Geschwindigkeit | Lockfile | Tool-Ausführung | pyproject-Unterstützung |
 |--------------|-----------------|----------|-----------------|-------------------------|
-| pip          | mittel          | ❌        | ❌               | teilweise               |
-| poetry       | langsam         | ✅        | ❌               | ✅                       |
-| pipx         | mittel          | ❌        | ✅               | ❌                       |
-| **uv + uvx** | ⚡ sehr schnell  | ✅        | ✅               | ✅                       |
+| pip          | mittel          | ❌       | ❌              | teilweise               |
+| poetry       | langsam         | ✅       | ❌              | ✅                      |
+| pipx         | mittel          | ❌       | ✅              | ❌                      |
+| **uv + uvx** | ⚡ sehr schnell | ✅       | ✅              | ✅                      |
 
 ---
 
 ## 🪶 Hauptfunktionen
 
-| Funktion                      | Beschreibung                                              |
-|-------------------------------|-----------------------------------------------------------|
-| **Sehr schnell**              | Geschrieben in Rust (10–20× schneller als pip/poetry)     |
-| **Deterministische Builds**   | via `uv.lock`                                             |
-| **Isolierte Tools (`uvx`)**   | Keine globalen Installationen erforderlich                |
-| **PEP-kompatibel**            | Unterstützt `pyproject.toml`, PEP 621                     |
-| **Cache-Sharing**             | Wiederverwendung von Paketen aus dem globalen Cache       |
-| **Kompatibel**                | Funktioniert mit bestehenden virtuellen Umgebungen        |
+| Funktion                    | Beschreibung                                          |
+|-----------------------------|-------------------------------------------------------|
+| **Sehr schnell**            | Geschrieben in Rust (10–20× schneller als pip/poetry) |
+| **Deterministische Builds** | via `uv.lock`                                         |
+| **Isolierte Tools (`uvx`)** | Keine globalen Installationen erforderlich            |
+| **PEP-kompatibel**          | Unterstützt `pyproject.toml`, PEP 621                 |
+| **Cache-Sharing**           | Wiederverwendung von Paketen aus dem globalen Cache   |
+| **Kompatibel**              | Funktioniert mit bestehenden virtuellen Umgebungen    |
 
 
 ---
@@ -78,6 +78,39 @@ Alles über eine einzige Befehlssuite.
 
 ---
 
+
+## Warum wir uv empfehlen: Schutz vor Supply-Chain-Angriffen
+
+Dieses Repository enthält eine `uv.lock`. Sie legt jedes Paket, das das Projekt braucht,
+einschließlich der transitiven Abhängigkeiten, auf eine exakte Version und auf die Hashes der
+Dateien dieser Version fest. Die Einstellung `exclude-newer` unter `[tool.uv]` in `pyproject.toml`
+fügt eine Wartezeit hinzu: uv nimmt keine Version in die Lock-Datei auf, die jünger ist als diese
+Wartezeit. Die CI installiert aus der Lock-Datei. Eine gekaperte Version, die innerhalb der
+Wartezeit wieder zurückgezogen wird, erreicht unsere Builds deshalb nie, und eine Datei mit
+abweichendem Hash wird abgelehnt.
+
+Dieser Schutz bleibt in diesem Repository. Das installierbare Paket gibt für seine Abhängigkeiten
+nur Untergrenzen (`>=`) an. Ein einfaches `pip install` nimmt deshalb von jeder transitiven
+Abhängigkeit die neueste Version, die es im Moment der Installation gibt. Wurde eine davon eine
+Stunde vorher gekapert, bekommen Sie die gekaperte Version. `pipx install` und `uv tool install`
+ohne Optionen verhalten sich genauso.
+
+So installieren Sie das Kommandozeilenwerkzeug mit einer eigenen Wartezeit (uv überspringt dann
+jede Version, die jünger als 7 Tage ist, auch transitive), oder führen genau den Stand aus, den
+unsere CI testet:
+
+```bash
+uv tool install --exclude-newer "7 days" finanzonline_uid
+git clone https://github.com/bitranox/finanzonline_uid.git && cd finanzonline_uid && uv sync --locked && uv run finanzonline-uid --help
+```
+
+Wenn Ihr eigenes Projekt von finanzonline_uid abhängt, geben Sie ihm dieselbe Wartezeit (hier als Beispiel
+7 Tage) und committen Sie die `uv.lock`, die `uv add finanzonline_uid` schreibt:
+
+```toml
+[tool.uv]
+exclude-newer = "7 days"
+```
 
 ## 1. Installation via uv
 

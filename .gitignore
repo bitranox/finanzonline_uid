@@ -181,7 +181,6 @@ result
 # Optional lockfiles (for alternative managers)
 poetry.lock
 pdm.lock
-uv.lock
 installer_rotek/
 
 # Local, per-developer settings (Claude Code etc.) - never commit
