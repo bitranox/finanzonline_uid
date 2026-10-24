@@ -1,16 +1,16 @@
 [project]
 name = "finanzonline_uid"
-version = "2.7.13"
+version = "2.7.14"
 description = "Python library and CLI for querying Level 2 UID checks via FinanzOnline Austria"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "rich-click>=1.9.9",
     "lib_cli_exit_tools>=2.4.1",
-    "lib_log_rich>=6.5.6",
+    "lib_log_rich>=6.5.7",
     "lib_layered_config>=7.3.0",
     # 1.5.0 exposes the `transport` delivery seam that send_email forwards.
-    "btx_lib_mail>=4.5.0",
+    "btx_lib_mail>=4.6.0",
     "pydantic>=2.14.1",
     "zeep>=4.3.3",
     "filelock>=4.1.0",
@@ -52,7 +52,7 @@ Issues = "https://github.com/bitranox/finanzonline_uid/issues"
 dev = [
   "pytest>=9.1.1",
   "pytest-cov>=7.1.0",
-  "ruff>=0.17.1",
+  "ruff>=0.17.2",
   "pyright[nodejs]>=1.1.414",
   "bandit>=1.9.4",
   "build>=1.6.1",
@@ -67,7 +67,7 @@ dev = [
   # "codecov-cli>=11.2.8",
   # Transitive CVE pins
   "click>=8.5.0",                # CVE-2026-7246
-  "certifi>=2026.10.19",         # PYSEC-2026-4320
+  "certifi>=2026.10.23",         # PYSEC-2026-4320
   "pip-audit>=2.10.1",
   "textual>=8.2.8",
   "import-linter>=2.15",
