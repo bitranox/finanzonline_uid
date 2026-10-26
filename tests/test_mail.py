@@ -13,8 +13,8 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
-from conftest import RecordingTransport
 
+from conftest import RecordingTransport
 from finanzonline_uid.mail import (
     EmailConfig,
     load_email_config_from_dict,

@@ -14,6 +14,16 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   `_MAC_APP_ROOT`, `_PROGRAMDATA`) at an empty directory under `tmp_path`, so a system-wide deploy
   (for example a `/etc/xdg/<slug>/config.d/99-*.toml`) can no longer fail tests locally while CI
   stays green.
+- The test suite no longer reads the developer's own user configuration layer. A new autouse fixture,
+  `user_layer_in_tmp_path`, points the user layer (`XDG_CONFIG_HOME`, `LIB_LAYERED_CONFIG_MAC_HOME_ROOT`,
+  `_APPDATA`, `_LOCALAPPDATA`) at an empty directory under `tmp_path`; `HOME` is left alone, because
+  git and uv read it.
+- The doctests under `src/` no longer run against the machine's configuration layers: a fixture in
+  `tests/conftest.py` never reaches them. The two layer redirects now live in a rootdir `conftest.py`,
+  their variable lists in `tests/layer_roots.py`; pyproject sets `testpaths` to include `src` and
+  `tests` (which keeps the root `conftest.py` out of doctest collection), adds `tests` to `pythonpath`
+  and pyright's `extraPaths`, and gives pyright an execution environment rooted at `tests/`. A test
+  checks that every doctest collected from `src/` gets both redirects.
 
 ## [2.7.14] 2026-10-24 17:12:47
 
