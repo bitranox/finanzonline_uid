@@ -24,6 +24,9 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   `tests` (which keeps the root `conftest.py` out of doctest collection), adds `tests` to `pythonpath`
   and pyright's `extraPaths`, and gives pyright an execution environment rooted at `tests/`. A test
   checks that every doctest collected from `src/` gets both redirects.
+- Two config display tests now compare the shown SMTP hosts exactly (the parsed JSON value, and the
+  whole `smtp_hosts = [...]` line of the text display) instead of searching the output for a host
+  substring, which also passed on a wrong host such as `xsmtp.test.com:5870`.
 
 ## [2.7.14] 2026-10-24 17:12:47
 

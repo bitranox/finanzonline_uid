@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -351,9 +352,7 @@ def test_when_config_is_invoked_with_json_format_and_section_it_shows_section(
     result: Result = cli_runner.invoke(cli_mod.cli, ["config", "--format", "json", "--section", "email"])
 
     assert result.exit_code == 0
-    assert "email" in result.output
-    assert "smtp_hosts" in result.output
-    assert "smtp.test.com:587" in result.output
+    assert json.loads(result.output)["email"]["smtp_hosts"] == ["smtp.test.com:587"]
 
 
 @pytest.mark.os_agnostic
@@ -411,8 +410,8 @@ def test_when_config_is_invoked_with_section_showing_complex_values(
 
     assert result.exit_code == 0
     assert "[email]" in result.output
-    assert "smtp_hosts" in result.output
-    assert '["smtp1.test.com:587", "smtp2.test.com:587"]' in result.output or "smtp1.test.com:587" in result.output
+    smtp_hosts_line = next(line.strip() for line in result.output.splitlines() if line.strip().startswith("smtp_hosts"))
+    assert smtp_hosts_line == 'smtp_hosts = ["smtp1.test.com:587", "smtp2.test.com:587"]'
     assert "metadata" in result.output
     assert '"test@example.com"' in result.output
     assert "60.0" in result.output
