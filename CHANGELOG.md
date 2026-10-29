@@ -28,13 +28,13 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   whole `smtp_hosts = [...]` line of the text display) instead of searching the output for a host
   substring, which also passed on a wrong host such as `xsmtp.test.com:5870`.
 
-## [2.7.14] 2026-10-24 17:12:47
+## [2.7.14] - 2026-10-24
 
 ### Changed
 
 - Raise the btx_lib_mail floor to 4.6.0.
 
-## [2.7.13] 2026-10-15 17:06:05
+## [2.7.13] - 2026-10-15
 
 ### Fixed
 
@@ -55,7 +55,7 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   (`pytest_runtest_setup` in `tests/conftest.py`); registered in `pyproject.toml` alone they skipped
   nothing, so a test trusting its marker ran everywhere. `tests/test_platform_markers.py` pins it.
 
-## [2.7.12] 2026-10-15 16:19:33
+## [2.7.12] - 2026-10-15
 
 ### Added
 - Python 3.14 and 3.15 are supported versions: declared in the classifiers, so CI and `make test-all`
@@ -68,7 +68,7 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 - `INSTALL_en.md` and `INSTALL_de.md` explain why installing with uv protects against supply-chain
   attacks and why a plain `pip install` from PyPI does not.
 
-## [2.7.11] 2026-10-12 19:52:27
+## [2.7.11] - 2026-10-12
 
 ### Fixed
 - **A digit-only SMTP user name or password, or `[lib_log_rich]` service or environment name, is
@@ -77,7 +77,7 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   (no login was attempted) and `LIB_LOG_RICH__SERVICE=4711` made lib_log_rich refuse its settings
   with `Input should be a valid string`. Both now read the number back as the text that was written.
 
-## [2.7.10] 2026-10-05 20:07:48
+## [2.7.10] - 2026-10-05
 ### Fixed
 - **`python -m finanzonline_uid` now behaves exactly like the console script.** The module entry ran
   its own session instead of `cli.main()`, so a usage error (bad flag, unknown command) exited 1
@@ -86,7 +86,7 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 ### Changed
 - Raised dependency floors across major versions: lib_layered_config 7.0.1 (was 5.6.2), btx_lib_mail 3.0.1 (was 1.5.2), filelock 4.0.12 (was 3.32.5); also lib_log_rich 6.3.8, rich-click 1.9.9 and the dev tool floors. The test suite passes against them.
 
-## [2.7.9] 2026-08-01 00:40:33
+## [2.7.9] - 2026-08-01
 ### Fixed
 - **Console output no longer crashes on a legacy codepage.** A Windows console at codepage 1252
   hands Python an `errors="strict"` stream, so writing a non-ASCII character such as a check mark
@@ -98,7 +98,7 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   module reaches for `click.echo` or builds an unwrapped `Console(file=sys.stdout)` again.
 
 
-## [2.7.8] 2026-07-24
+## [2.7.8] - 2026-07-24
 
 ### Fixed
 - Restored a clean gate against a latest-ruff regression (94 findings across
@@ -128,7 +128,7 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 - `mail.py`'s `logger.error(..., exc_info=True)` is now `logger.exception(...)`
   (`G201`).
 
-## [2.7.7] 2026-07-20
+## [2.7.7] - 2026-07-20
 
 ### Fixed
 - Restored a green test suite against `btx_lib_mail` 1.5.0, which replaced its
@@ -146,7 +146,7 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 - Bump the `btx_lib_mail` floor to `>=1.5.0`, the first release exposing that
   `transport` parameter, and the `filelock` floor to `>=3.31.1`.
 
-## [2.7.6] 2026-07-19
+## [2.7.6] - 2026-07-19
 
 ### Changed
 - Bump `btx_lib_mail` floor to `>=1.4.0` and wrap the SMTP password in
@@ -154,7 +154,7 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   btx_lib_mail 1.4.0 which now stores `smtp_password` as a `SecretStr`.
 - Declare the `pydantic` dependency that the mail adapter now imports directly.
 
-## [2.7.5] 2026-06-14
+## [2.7.5] - 2026-06-14
 
 ### Changed
 - Added a `typed_click.py` facade wrapping rich-click's `option` / `version_option` / `argument` decorators behind explicit, fully-known signatures, keeping the CLI strict-clean under pyright 1.1.410 (`reportUnknownMemberType`) without disabling the rule (ignore isolated to the facade).
