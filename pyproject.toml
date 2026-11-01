@@ -8,9 +8,9 @@ dependencies = [
     "rich-click>=1.9.9",
     "lib_cli_exit_tools>=2.4.1",
     "lib_log_rich>=8.1.2",
-    "lib_layered_config>=7.5.0",
+    "lib_layered_config>=7.7.0",
     # 1.5.0 exposes the `transport` delivery seam that send_email forwards.
-    "btx_lib_mail>=4.6.0",
+    "btx_lib_mail>=4.6.4",
     "pydantic>=2.14.1",
     "zeep>=4.3.3",
     "filelock>=4.1.0",
@@ -239,4 +239,4 @@ ignore-vulns = ["PYSEC-2022-42969", "CVE-2026-3219"]
 
 [tool.uv]
 exclude-newer = "7 days"
-exclude-newer-package = {btx-lib-mail = false, lib-cli-exit-tools = false, lib-layered-config = false, lib-log-rich = false, certifi = "2026-10-23T11:36:17Z", hatchling = "2026-10-28T02:27:31Z", pytest = "2026-10-27T21:30:21Z", ruff = "2026-10-27T00:34:06Z"}
+exclude-newer-package = {btx-lib-mail = false, lib-cli-exit-tools = false, lib-layered-config = false, lib-log-rich = false, hatchling = "2026-10-28T02:27:31Z", pytest = "2026-10-27T21:30:21Z", ruff = "2026-10-27T00:34:06Z"}
