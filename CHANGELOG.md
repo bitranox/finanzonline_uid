@@ -9,6 +9,11 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ### Fixed
 
+- `notebooks/Quickstart.ipynb` installs the checkout it runs in, so CI's "Execute notebooks" job
+  tests the commit under test. It used to install `git+https://github.com/...` every time, which is
+  the pushed default branch, so a pull request's notebook run tested the code already there.
+  Outside a checkout (a downloaded notebook) it still installs from GitHub.
+
 - The test suite no longer reads the app and host configuration layers of the machine it runs on. An
   autouse fixture points lib_layered_config's three app-root variables (`LIB_LAYERED_CONFIG_ETC`,
   `_MAC_APP_ROOT`, `_PROGRAMDATA`) at an empty directory under `tmp_path`, so a system-wide deploy
