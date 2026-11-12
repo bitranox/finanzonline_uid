@@ -7,6 +7,8 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [2.7.15] - 2026-11-12
+
 ### Changed
 
 - Raise the lib_log_rich floor to 8.2.0: an unreachable Graylog no longer costs a connect timeout
