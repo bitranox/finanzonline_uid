@@ -7,6 +7,12 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+### Changed
+
+- Raise the lib_log_rich floor to 8.2.0: an unreachable Graylog no longer costs a connect timeout
+  and a traceback per log line. The adapter skips Graylog for 5 s (doubling to 300 s) after a failed
+  send, prints one line per window, and reports the skipped count to Graylog once it is back.
+
 ### Fixed
 
 - A target UID that BMF's schema cannot accept (for example `123456`, a missing or unknown country
