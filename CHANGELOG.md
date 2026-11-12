@@ -9,6 +9,22 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ### Fixed
 
+- A target UID that BMF's schema cannot accept (for example `123456`, a missing or unknown country
+  code) is refused locally with a "Validation Error" naming the expected format, before any login.
+  It used to be sent to FinanzOnline, which answered with a bare SOAP "Validation error", and
+  `--retryminutes` kept retrying it. The check uses the `uid` pattern of BMF's `uidAbfrage.xsd`.
+- `uid_tn`, `tid` and `herstellerid` are now matched in full: a value with a trailing newline
+  (`"ATU12345678\n"`) used to pass validation.
+- A failure while shutting down logging no longer replaces the command's result: `main()` used to
+  end in a `RuntimeError` traceback ("Queue worker failed to stop within the allotted timeout") when a
+  log sink such as an unreachable Graylog stalled the queue, losing the exit code of a finished
+  check. It now prints one warning on stderr and keeps the exit code.
+- The German, Spanish, French and Russian message catalogs (`.mo`) are compiled from the current
+  `.po` files again: the four retry-mode strings added in 2.6.0 ("Retry Mode (unlimited)", ...) were
+  shown in English. A test now checks every `.po` translation is in its compiled catalog.
+- The log line for each check attempt in retry mode reads "UID check attempt N" (it said "Retry
+  attempt 1" for the first, un-retried attempt).
+
 - `notebooks/Quickstart.ipynb` installs the checkout it runs in, so CI's "Execute notebooks" job
   tests the commit under test. It used to install `git+https://github.com/...` every time, which is
   the pushed default branch, so a pull request's notebook run tested the code already there.

@@ -410,6 +410,9 @@ msgstr "Предупреждение: Ошибка отправки email-уве
 msgid "Warning: Error notification failed: {error}"
 msgstr "Предупреждение: Ошибка отправки уведомления об ошибке: {error}"
 
+msgid "Warning: logging did not shut down cleanly, some log events may be lost: {error}"
+msgstr "Предупреждение: журналирование завершилось некорректно, некоторые записи журнала могли быть потеряны: {error}"
+
 # Output directory and format
 msgid "Directory to save valid UID results as files (overrides config)"
 msgstr "Каталог для сохранения валидных результатов UID в файлы (переопределяет конфигурацию)"

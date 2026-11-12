@@ -730,7 +730,7 @@ def _execute_retry_loop(
 
     while True:
         attempt += 1
-        logger.info("Retry attempt %d", attempt, extra={"uid": uid})
+        logger.info("UID check attempt %d", attempt, extra={"uid": uid})
 
         try:
             result = _execute_uid_check(fo_config, uid, config=config, recipients=recipients)
@@ -1168,4 +1168,18 @@ def main(argv: Sequence[str] | None = None, *, restore_traceback: bool = True) -
         if restore_traceback:
             restore_traceback_state(previous_state)
         if lib_log_rich.runtime.is_initialised():
-            lib_log_rich.runtime.shutdown()
+            _shutdown_logging()
+
+
+def _shutdown_logging() -> None:
+    """Stop the logging runtime without letting a teardown failure replace the command's result.
+
+    An exception raised in ``main``'s ``finally`` would discard the exit code the
+    command returned: a slow log sink (an unreachable Graylog) made a finished
+    check end in a traceback instead. Logging is gone at this point, so the
+    warning goes straight to stderr.
+    """
+    try:
+        lib_log_rich.runtime.shutdown()
+    except Exception as exc:  # noqa: BLE001 - teardown is best effort; the command's exit code must stand
+        safe_console.echo(_("Warning: logging did not shut down cleanly, some log events may be lost: {error}").format(error=exc), err=True)

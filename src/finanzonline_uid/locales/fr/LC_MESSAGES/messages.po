@@ -410,6 +410,9 @@ msgstr "Avertissement : Échec de la notification par e-mail : {error}"
 msgid "Warning: Error notification failed: {error}"
 msgstr "Avertissement : Échec de la notification d'erreur : {error}"
 
+msgid "Warning: logging did not shut down cleanly, some log events may be lost: {error}"
+msgstr "Avertissement : la journalisation ne s'est pas arrêtée proprement, certains événements de journal ont pu être perdus : {error}"
+
 # Output directory and format
 msgid "Directory to save valid UID results as files (overrides config)"
 msgstr "Répertoire pour enregistrer les résultats UID valides en fichiers (remplace la configuration)"

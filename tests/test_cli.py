@@ -1554,3 +1554,30 @@ def test_save_result_to_file_handles_write_error(
 
     captured = capsys.readouterr()
     assert "Warning" in captured.err or "Could not save" in captured.err
+
+
+@pytest.mark.os_agnostic
+def test_when_logging_shutdown_fails_main_still_returns_the_command_exit_code(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """A logging teardown failure must not replace the command's result.
+
+    Measured: with an unreachable Graylog, lib_log_rich's shutdown() raised
+    "Queue worker failed to stop within the allotted timeout" out of main(),
+    so a finished check ended in a traceback and the wrong exit code.
+    """
+    import lib_log_rich.runtime
+
+    ledger: list[CapturedRun] = []
+    monkeypatch.setattr(lib_cli_exit_tools, "run_cli", _capture_run_cli(ledger))
+    monkeypatch.setattr(lib_log_rich.runtime, "is_initialised", lambda: True)
+
+    def _failing_shutdown() -> None:
+        raise RuntimeError("Queue worker failed to stop within the allotted timeout")
+
+    monkeypatch.setattr(lib_log_rich.runtime, "shutdown", _failing_shutdown)
+
+    result = cli_mod.main(["info"])
+
+    assert result == 42
+    err = capsys.readouterr().err
+    assert "Queue worker failed to stop within the allotted timeout" in err
+    assert "Traceback" not in err

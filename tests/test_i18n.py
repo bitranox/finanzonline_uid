@@ -15,10 +15,14 @@ Contents
 
 from __future__ import annotations
 
+import ast
+import gettext
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
 
+from finanzonline_uid import i18n as i18n_module
 from finanzonline_uid.i18n import (
     DEFAULT_LANGUAGE,
     N_,
@@ -200,3 +204,53 @@ def reset_locale() -> Generator[None, None, None]:
     """Reset locale to English after each test."""
     yield
     setup_locale("en")
+
+
+def _po_entries(po_path: Path) -> dict[str, str]:
+    """Return msgid -> msgstr of a .po file (single and continued string lines)."""
+    entries: dict[str, str] = {}
+    key: str | None = None
+    current: list[str] = []
+    msgid = ""
+
+    def _close() -> None:
+        if key == "msgstr" and msgid:
+            entries[msgid] = "".join(current)
+
+    for raw in po_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line.startswith(("msgid ", "msgstr ")):
+            if key == "msgid":
+                msgid = "".join(current)
+            _close()
+            key, _sep, literal = line.partition(" ")
+            current = [ast.literal_eval(literal)]
+        elif line.startswith('"') and key is not None:
+            current.append(ast.literal_eval(line))
+        else:
+            if key == "msgid":
+                msgid = "".join(current)
+            _close()
+            key = None
+    if key == "msgid":
+        msgid = "".join(current)
+    _close()
+    return entries
+
+
+@pytest.mark.parametrize("language", [lang for lang in SUPPORTED_LANGUAGES if lang != DEFAULT_LANGUAGE])
+def test_compiled_catalog_carries_every_po_translation(language: str) -> None:
+    """The shipped .mo must hold every translation its .po declares.
+
+    Measured: four retry-mode strings were translated in the .po files and never
+    compiled, so those lines stayed English in every non-English locale.
+    """
+    locale_dir = Path(i18n_module.__file__).parent / "locales" / language / "LC_MESSAGES"
+    entries = _po_entries(locale_dir / "messages.po")
+    with (locale_dir / "messages.mo").open("rb") as mo_file:
+        catalog = gettext.GNUTranslations(mo_file)
+
+    missing = sorted(msgid for msgid, msgstr in entries.items() if msgstr and catalog.gettext(msgid) != msgstr)
+
+    assert len(entries) > 100, "the .po parser read almost nothing; the check would pass vacuously"
+    assert missing == []

@@ -161,6 +161,39 @@ class TestUidCheckRequest:
         with pytest.raises(ValueError, match="Level 2"):
             UidCheckRequest(uid_tn="ATU12345678", uid="DE123456789", stufe=1)
 
+    @pytest.mark.parametrize(
+        "uid",
+        ["DE123456789", "ATU12345678", "FR12345678901", "XI123456789", "EL123456789", "NL123456789B01", "RO12", "RO1234567890"],
+    )
+    def test_uid_matching_the_bmf_schema_is_accepted(self, uid: str) -> None:
+        """Every shape uidAbfrage.xsd allows for the target uid passes."""
+        assert UidCheckRequest(uid_tn="ATU12345678", uid=uid).uid == uid
+
+    @pytest.mark.parametrize(
+        "uid",
+        [
+            "123456",  # no country code: BMF answers a bare SOAP "Validation error"
+            "US123456789",  # not an EU member state code
+            "DE1234567",  # 7 characters after the code, the schema needs 8
+            "DE1234567890123",  # 13 characters, the schema allows 12
+            "RO1",  # Romania needs 2 to 10 digits
+            "RO12345678901",  # 11 digits
+            "ROABC",  # Romania takes digits only
+            "de123456789",  # the schema's country codes are upper case
+            "DE123456789\n",  # a trailing newline must not slip past the check
+            "DE12345678\u0661",  # an Arabic-Indic digit is not an ASCII digit
+        ],
+    )
+    def test_uid_the_bmf_schema_rejects_is_refused_before_any_request(self, uid: str) -> None:
+        """A UID BMF's schema rejects is refused locally with a readable message."""
+        with pytest.raises(ValueError, match="EU VAT ID"):
+            UidCheckRequest(uid_tn="ATU12345678", uid=uid)
+
+    def test_uid_tn_with_a_trailing_newline_is_refused(self) -> None:
+        """The own UID check matches the whole string, not a prefix up to a newline."""
+        with pytest.raises(ValueError, match="ATU followed by 8 digits"):
+            UidCheckRequest(uid_tn="ATU12345678\n", uid="DE123456789")
+
 
 class TestAddress:
     """Tests for Address dataclass."""

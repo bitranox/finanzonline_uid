@@ -410,6 +410,9 @@ msgstr "Warnung: E-Mail-Benachrichtigung fehlgeschlagen: {error}"
 msgid "Warning: Error notification failed: {error}"
 msgstr "Warnung: Fehlerbenachrichtigung fehlgeschlagen: {error}"
 
+msgid "Warning: logging did not shut down cleanly, some log events may be lost: {error}"
+msgstr "Warnung: Die Protokollierung wurde nicht sauber beendet, einige Protokolleinträge gingen möglicherweise verloren: {error}"
+
 # Output directory and format
 msgid "Directory to save valid UID results as files (overrides config)"
 msgstr "Verzeichnis zum Speichern gültiger UID-Ergebnisse als Dateien (überschreibt Konfiguration)"

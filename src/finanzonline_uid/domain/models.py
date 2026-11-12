@@ -44,14 +44,18 @@ _RC_UID_VALID = 0
 _RC_UID_INVALID = 1
 
 # XSD validation patterns
-_TID_PATTERN = re.compile(r"^[0-9A-Za-z]{8,12}$")
+_TID_PATTERN = re.compile(r"[0-9A-Za-z]{8,12}")
 _BENID_MIN_LEN = 5
 _BENID_MAX_LEN = 12
 _PIN_MIN_LEN = 5
 _PIN_MAX_LEN = 128
-_HERSTELLERID_PATTERN = re.compile(r"^[0-9A-Za-z]{10,24}$")
+_HERSTELLERID_PATTERN = re.compile(r"[0-9A-Za-z]{10,24}")
 # Austrian UID format: ATU + exactly 8 digits (case-insensitive)
-_UID_TN_PATTERN = re.compile(r"^ATU\d{8}$", re.IGNORECASE)
+_UID_TN_PATTERN = re.compile(r"ATU[0-9]{8}", re.IGNORECASE)
+# The target "uid" pattern of BMF's uidAbfrage.xsd, verbatim except that \d is
+# spelled [0-9] (Python's \d also matches non-ASCII digits). The service answers a
+# value outside it with a bare SOAP "Validation error", so refuse it here instead.
+_UID_PATTERN = re.compile(r"(AT|BE|BG|CY|CZ|DE|DK|EE|EL|ES|FI|FR|GB|HR|HU|IE|IT|LT|LU|LV|MT|NL|PL|PT|SE|SI|SK|XI)[A-Za-z0-9]{8,12}|RO[0-9]{2,10}")
 
 
 def _validate_required(value: str, field_name: str, display_name: str) -> None:
@@ -67,8 +71,11 @@ def _validate_length_range(value: str, field_name: str, min_len: int, max_len: i
 
 
 def _validate_pattern(value: str, field_name: str, pattern: re.Pattern[str], description: str) -> None:
-    """Validate that a field matches the specified pattern."""
-    if not pattern.match(value):
+    """Validate that the WHOLE field matches the specified pattern.
+
+    fullmatch, not match: a ``$``-anchored match also accepts a trailing newline.
+    """
+    if not pattern.fullmatch(value):
         raise ValueError(f"{field_name} must be {description}, got: {value!r}")
 
 
@@ -259,6 +266,17 @@ def _validate_uid_tn(uid_tn: str) -> None:
     _validate_pattern(uid_tn, "uid_tn", _UID_TN_PATTERN, "ATU followed by 8 digits (e.g., ATU12345678)")
 
 
+def _validate_uid(uid: str) -> None:
+    """Validate the target UID against the format BMF's schema accepts."""
+    _validate_required(uid, "uid", "target VAT ID")
+    _validate_pattern(
+        uid,
+        "uid",
+        _UID_PATTERN,
+        "an EU VAT ID: an EU country code (e.g., DE, FR, XI) followed by 8 to 12 letters or digits, or RO followed by 2 to 10 digits (e.g., DE123456789)",
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class UidCheckRequest:
     """Request parameters for Level 2 UID verification.
@@ -276,7 +294,7 @@ class UidCheckRequest:
     def __post_init__(self) -> None:
         """Validate request parameters."""
         _validate_uid_tn(self.uid_tn)
-        _validate_required(self.uid, "uid", "target VAT ID")
+        _validate_uid(self.uid)
         if self.stufe != 2:
             raise ValueError("Only Level 2 queries are supported (stufe=2)")
 
