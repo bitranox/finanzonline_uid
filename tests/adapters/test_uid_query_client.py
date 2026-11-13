@@ -579,6 +579,16 @@ class TestMalformedReply:
         assert exc_info.value.diagnostics.operation == SoapOperation.UID_QUERY
         assert exc_info.value.diagnostics.return_code == ""
 
+    def test_reply_without_rc_raises_query_error(self, credentials: FinanzOnlineCredentials, uid_request: UidCheckRequest) -> None:
+        """A reply carrying no return code is refused, never read as a VALID UID."""
+        client, _ = _client_answering(SimpleNamespace(msg="x", name="ACME"))
+
+        with pytest.raises(QueryError) as exc_info:
+            client.query("SESSION123", credentials, uid_request)
+
+        assert str(exc_info.value).startswith("Unexpected error: Malformed uidAbfrage response: rc: Field required")
+        assert isinstance(exc_info.value.__cause__, MalformedSoapResponseError)
+
     def test_non_string_msg_raises_query_error(self, credentials: FinanzOnlineCredentials, uid_request: UidCheckRequest) -> None:
         """A msg that is not a string is refused, never converted with str()."""
         client, _ = _client_answering(SimpleNamespace(rc=0, msg=123, name=None))

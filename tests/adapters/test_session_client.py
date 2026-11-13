@@ -551,6 +551,15 @@ class TestMalformedReplies:
         assert str(exc_info.value).startswith("Unexpected error: Malformed login response: msg: ")
         assert isinstance(exc_info.value.__cause__, MalformedSoapResponseError)
 
+    def test_login_reply_without_rc_raises_session_error(self, valid_credentials: Any) -> None:
+        """A reply carrying no return code is refused, never read as a successful login."""
+        client, _ = _client_answering(login=SimpleNamespace(msg="x", id="SESSION123456"))
+
+        with pytest.raises(SessionError) as exc_info:
+            client.login(valid_credentials)
+
+        assert str(exc_info.value).startswith("Unexpected error: Malformed login response: rc: Field required")
+
     def test_login_with_no_reply_names_the_whole_reply(self, valid_credentials: Any) -> None:
         """A None reply is refused as a whole, not as an empty field name."""
         client, _ = _client_answering(login=None)

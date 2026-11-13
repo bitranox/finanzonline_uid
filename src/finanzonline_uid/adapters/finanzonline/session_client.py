@@ -109,7 +109,9 @@ class SoapLoginResponse(BaseModel, frozen=True, from_attributes=True):
         (0, '', 'SESS...3456')
     """
 
-    return_code: int = Field(default=0, validation_alias="rc")
+    # Required: login.xsd declares rc without minOccurs="0", and reading a missing
+    # code as 0 would report a reply that carries no answer as a successful login.
+    return_code: int = Field(validation_alias="rc")
     message: SoapText = Field(default="", validation_alias="msg")
     session_id: SoapText = Field(default="", validation_alias="id")
 

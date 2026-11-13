@@ -166,7 +166,9 @@ class SoapUidQueryResponse(BaseModel, frozen=True, from_attributes=True):
         (0, '', 'ACME', ['Street 1'])
     """
 
-    return_code: int = Field(default=0, validation_alias="rc")
+    # Required: a missing code read as 0 would report the UID as VALID from a
+    # reply that carries no verdict - a false positive on a VAT check.
+    return_code: int = Field(validation_alias="rc")
     message: SoapText = Field(default="", validation_alias="msg")
     name: SoapText = ""
     line1: SoapText = Field(default="", validation_alias="adrz1")

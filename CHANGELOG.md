@@ -35,8 +35,8 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 - A SOAP reply with a return code that is not a number made login or the UID query fail with a bare
   `ValueError` (or `TypeError` for an empty code); it is now reported as a session or query error
   ("Malformed ... response"). The same error now refuses a fractional return code, which was cut to
-  a whole number, an empty reply, which read as a successful login or a valid UID, and a reply
-  whose text fields are not text. When the error diagnostics found a recorded SOAP exchange without
+  a whole number, an empty reply or one without a return code, both of which read as a successful
+  login or a valid UID, and a reply whose text fields are not text. When the error diagnostics found a recorded SOAP exchange without
   an envelope, the original error was replaced by a `KeyError`; it is kept now.
 - An `output_dir` that is not text (`true`, a non-empty list or table, a number with a fraction)
   crashed `check` with `AttributeError`; it now stops `check` with exit code 2 and "Invalid
