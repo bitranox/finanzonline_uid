@@ -199,15 +199,6 @@ def cli(ctx: click.Context, traceback: bool, profile: str | None) -> None:
     Loads configuration once with the profile and stores it in the Click context
     for all subcommands to access. Mirrors the traceback flag into
     ``lib_cli_exit_tools.config`` so downstream helpers observe the preference.
-
-    Example:
-        >>> from click.testing import CliRunner
-        >>> runner = CliRunner()
-        >>> result = runner.invoke(cli, ["hello"])
-        >>> result.exit_code
-        0
-        >>> "Hello World" in result.output
-        True
     """
     config = get_config(profile=profile)
     app_config = load_app_config(config)
