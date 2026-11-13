@@ -23,8 +23,21 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   `EmailNotificationAdapter.send_error` take a `CheckErrorInfo`; `Diagnostics.entries()` replaces
   `Diagnostics.as_dict()`; `setup_locale` takes a `Language`; `parse_float`, `parse_int` and
   `domain.soap_utils.extract_string_attr` are removed.
+- `check --format json` now writes a JSON error record to stdout for every failure (configuration,
+  authentication, session, query, validation and unexpected errors, argument refusals,
+  cancellation); stderr messages and exit codes are unchanged.
+- The CLI's collaborators (configuration loading, the FinanzOnline use case, the email sender, the
+  configuration deployer) can be replaced by passing a `finanzonline_uid.cli.CliDependencies` as
+  Click's `obj`; any other `obj` is refused with `TypeError`.
 
 ### Fixed
+
+- A cache or rate-limit file that is not valid JSON made `check` fail with exit code 2 after
+  FinanzOnline had already answered, so the result was lost and a retry cost another query. The
+  unreadable file is now kept beside it as `<name>.corrupt-<UTC timestamp>`, a fresh file is
+  started, and a warning names both paths.
+- A whitespace-only `finanzonline.output_dir` now switches result files off, like an empty one,
+  instead of writing them into the current directory.
 
 - `config-deploy --help` no longer prints a literal `\b` above the target list; the list keeps its
   line breaks.

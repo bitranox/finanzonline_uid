@@ -11,12 +11,16 @@ Tests cover:
 
 from __future__ import annotations
 
+import logging
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 import orjson
 import pytest
+from filelock import FileLock
 
 from finanzonline_uid.adapters.ratelimit import PerUidRateLimitStatus, RateLimitStatus, RateLimitTracker
 
@@ -759,11 +763,102 @@ class TestRateLimitMalformedContent:
 
         assert tracker.get_status().current_count == 1
 
-    def test_corrupt_json_on_record_raises(self, ratelimit_file: Path) -> None:
-        """An unparsable file is not silently overwritten by record_call."""
-        _write_raw(ratelimit_file, b"{ invalid json }")
 
-        with pytest.raises(orjson.JSONDecodeError):
-            _century_tracker(ratelimit_file).record_call("ATU33333333")
+# ============================================================================
+# A write to a file that is not valid JSON
+# ============================================================================
 
-        assert ratelimit_file.read_bytes() == b"{ invalid json }"
+_CORRUPT_BYTES = b"{ invalid json \xff"
+
+# What record_call writes into a fresh file: one call, in the form of _EXPECTED_AFTER_RECORD.
+_EXPECTED_FRESH_FILE = (
+    b"{\n"
+    b'  "api_calls": [\n'
+    b"    {\n"
+    b'      "timestamp": "__NEW_TIMESTAMP__",\n'
+    b'      "uid": "ATU33333333"\n'
+    b"    }\n"
+    b"  ],\n"
+    b'  "metadata": {\n'
+    b'    "last_cleanup": "__LAST_CLEANUP__"\n'
+    b"  }\n"
+    b"}"
+)
+
+
+def _aside_files(ratelimit_file: Path) -> list[Path]:
+    return sorted(ratelimit_file.parent.glob(f"{ratelimit_file.name}.corrupt-*"))
+
+
+def _aside_stamp(aside: Path, ratelimit_file: Path) -> datetime:
+    stamp = aside.name.removeprefix(f"{ratelimit_file.name}.corrupt-")
+    return datetime.strptime(stamp, "%Y-%m-%dT%H-%M-%S.%fZ").replace(tzinfo=timezone.utc)
+
+
+def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING]
+
+
+class TestRateLimitCorruptFileOnWrite:
+    """record_call keeps an unparsable file's bytes aside and starts a fresh file instead of failing."""
+
+    def test_record_keeps_the_bytes_aside_and_writes_the_new_call_alone(self, ratelimit_file: Path, caplog: pytest.LogCaptureFixture) -> None:
+        _write_raw(ratelimit_file, _CORRUPT_BYTES)
+        before = datetime.now(timezone.utc).replace(microsecond=0)
+
+        with caplog.at_level(logging.DEBUG):
+            status = _century_tracker(ratelimit_file).record_call("atu33333333")
+
+        after = datetime.now(timezone.utc)
+        data: dict[str, Any] = orjson.loads(ratelimit_file.read_bytes())
+        new_timestamp: str = data["api_calls"][0]["timestamp"]
+        last_cleanup: str = data["metadata"]["last_cleanup"]
+        expected = _EXPECTED_FRESH_FILE.replace(b"__NEW_TIMESTAMP__", new_timestamp.encode()).replace(b"__LAST_CLEANUP__", last_cleanup.encode())
+        assert ratelimit_file.read_bytes() == expected
+        assert status.current_count == 1
+        asides = _aside_files(ratelimit_file)
+        assert len(asides) == 1
+        assert asides[0].read_bytes() == _CORRUPT_BYTES
+        assert before <= _aside_stamp(asides[0], ratelimit_file) <= after
+        warnings = _warnings(caplog)
+        assert len(warnings) == 1
+        assert str(ratelimit_file) in warnings[0] and str(asides[0]) in warnings[0]
+
+    def test_a_second_record_sets_nothing_else_aside(self, ratelimit_file: Path) -> None:
+        _write_raw(ratelimit_file, _CORRUPT_BYTES)
+        tracker = _century_tracker(ratelimit_file)
+
+        tracker.record_call("ATU33333333")
+        status = tracker.record_call("DE222222222")
+
+        assert len(_aside_files(ratelimit_file)) == 1
+        assert [c["uid"] for c in _stored_calls(ratelimit_file)] == ["ATU33333333", "DE222222222"]
+        assert status.current_count == 2
+
+    def test_the_move_waits_for_the_rate_limit_lock(self, ratelimit_file: Path) -> None:
+        # Another writer holding the lock must see the file where it was until it lets go.
+        _write_raw(ratelimit_file, _CORRUPT_BYTES)
+        tracker = _century_tracker(ratelimit_file)
+        held = FileLock(ratelimit_file.with_suffix(".lock"))
+        held.acquire()
+        writer = threading.Thread(target=tracker.record_call, args=("ATU33333333",))
+        try:
+            writer.start()
+            time.sleep(0.3)
+            assert ratelimit_file.read_bytes() == _CORRUPT_BYTES
+            assert _aside_files(ratelimit_file) == []
+        finally:
+            held.release()
+            writer.join(timeout=30)
+
+        assert not writer.is_alive()
+        assert len(_aside_files(ratelimit_file)) == 1
+
+    def test_status_reads_still_count_zero_and_leave_the_file(self, ratelimit_file: Path) -> None:
+        _write_raw(ratelimit_file, _CORRUPT_BYTES)
+        tracker = _century_tracker(ratelimit_file)
+
+        assert tracker.get_status().current_count == 0
+        assert tracker.get_uid_status("ATU33333333").uid_count == 0
+        assert ratelimit_file.read_bytes() == _CORRUPT_BYTES
+        assert _aside_files(ratelimit_file) == []

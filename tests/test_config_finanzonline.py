@@ -592,6 +592,23 @@ class TestNumbersAndPaths:
         # The release read every falsy value as "off"; 0 must not become a directory named "0".
         assert load_finanzonline_config(_fo(output_dir=raw)).output_dir is None
 
+    @pytest.mark.parametrize("raw", ["   ", "\t", " \t\n "])
+    def test_a_whitespace_only_output_dir_turns_result_files_off(self, raw: str) -> None:
+        # Stripped, it would be Path("."), and result files would land in the current directory.
+        assert load_finanzonline_config(_fo(output_dir=raw)).output_dir is None
+
+    def test_surrounding_whitespace_is_stripped_from_every_path_setting(self, tmp_path: Path) -> None:
+        # One rule for all three: a stray space around a path in a config file is not part of the name.
+        result = load_finanzonline_config(
+            _fo(
+                output_dir=f"  {tmp_path / 'out'}\t",
+                cache_file=f" {tmp_path / 'c.json'} ",
+                ratelimit_file=f"\t{tmp_path / 'r.json'}  ",
+            )
+        )
+
+        assert (result.output_dir, result.cache_file, result.ratelimit_file) == (tmp_path / "out", tmp_path / "c.json", tmp_path / "r.json")
+
     def test_a_digit_only_output_dir_keeps_its_digits(self) -> None:
         assert load_finanzonline_config(_fo(output_dir=4711)).output_dir == Path("4711")
 

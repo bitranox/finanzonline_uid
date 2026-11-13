@@ -16,6 +16,8 @@ System Role:
     The cache file is a JSON object mapping each normalized UID to one entry.
     Installed versions of this tool read and rewrite the same file, so the
     entry shape (keys, key order, timestamp form) is a fixed wire format.
+    A file that is not valid JSON reads as a miss; a write keeps its bytes
+    aside (see :func:`set_aside_unreadable`) and starts the file afresh.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from filelock import FileLock, Timeout
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from finanzonline_uid._datetime_utils import WireDatetime, format_iso_datetime
+from finanzonline_uid.adapters._state_file import set_aside_unreadable
 from finanzonline_uid.domain.models import Address, UidCheckResult
 
 __all__ = ["AddressRecord", "CacheEntry", "UidResultCache"]
@@ -175,7 +178,8 @@ def _parse_entries(content: bytes) -> dict[str, CacheEntry]:
 
     A top-level value that is not an object reads as an empty cache, and an
     entry that fails validation is skipped, as installed versions do. Invalid
-    JSON raises so that a write never overwrites a file it could not read.
+    JSON raises, so a reader can report it and a writer can keep the bytes
+    aside instead of overwriting them.
 
     Args:
         content: Raw cache file bytes.
@@ -376,10 +380,19 @@ class UidResultCache:
             return _parse_entries(self._cache_file.read_bytes())
 
     def _read_locked_entries(self) -> dict[str, CacheEntry]:
-        """Read and validate the cache file within an already-acquired lock."""
+        """Read the cache file for a rewrite, within an already-acquired lock.
+
+        An unparsable file is moved aside and reads as empty: the result being
+        cached was already fetched, so refusing the write would turn a
+        successful check into a failure, and overwriting would lose the bytes.
+        """
         if not self._cache_file.exists():
             return {}
-        return _parse_entries(self._cache_file.read_bytes())
+        try:
+            return _parse_entries(self._cache_file.read_bytes())
+        except orjson.JSONDecodeError:
+            set_aside_unreadable(self._cache_file, now=datetime.now(timezone.utc))
+            return {}
 
     def _write_entry(self, uid: str, entry: CacheEntry) -> None:
         """Write entry to cache with locking, cleanup, and size limit enforcement."""

@@ -399,14 +399,20 @@ def _credential_text(raw: object) -> str:
 def _path_setting(raw: object) -> Path | None:
     """Return a path setting as a Path, or None when it names no path.
 
+    Text that is empty or only whitespace names no path: it would otherwise
+    normalise to ``Path(".")``, the current directory. Surrounding whitespace
+    of a real path is stripped by :func:`_normalize_path`, the same for every
+    path setting, because a stray space around a path in a TOML or ``.env``
+    file is far likelier than a directory whose name starts or ends with one.
+
     Examples:
-        >>> _path_setting("") is None, str(_path_setting(4711))
-        (True, '4711')
+        >>> _path_setting("") is None, _path_setting(" \t ") is None, str(_path_setting(4711))
+        (True, True, '4711')
     """
     if isinstance(raw, Path):
         return raw
     text = text_setting(raw)
-    return _normalize_path(text) if text else None
+    return _normalize_path(text) if text and text.strip() else None
 
 
 class FinanzOnlineSection(BaseModel):
@@ -484,8 +490,6 @@ class FinanzOnlineSection(BaseModel):
     @classmethod
     def _state_file(cls, raw: object) -> Path:
         # A blank path means "not configured", so the platform default applies.
-        if isinstance(raw, str) and not raw.strip():
-            raise PydanticUseDefault
         path = _path_setting(raw)
         if path is None:
             raise PydanticUseDefault
@@ -508,6 +512,7 @@ class FinanzOnlineSection(BaseModel):
                 "must be a directory path given as text, got {type_name}",
                 {"type_name": type(raw).__name__},
             )
+        # Whitespace-only text is "off" like an empty value; it must not become Path(".").
         return _path_setting(raw)
 
     @field_validator("output_format", mode="before")

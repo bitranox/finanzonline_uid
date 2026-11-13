@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
@@ -69,6 +70,66 @@ def _capture_run_cli(target: list[CapturedRun]) -> Callable[..., int]:
         return 42
 
     return _run
+
+
+def _dependencies(
+    *,
+    load_config: cli_mod.ConfigLoader | None = None,
+    deploy_configuration: cli_mod.ConfigDeployer | None = None,
+) -> cli_mod.CliDependencies:
+    """The production collaborators with the given ones swapped in, for Click's ``obj``."""
+    production = cli_mod.production_dependencies()
+    return dataclasses.replace(
+        production,
+        load_config=load_config or production.load_config,
+        deploy_configuration=deploy_configuration or production.deploy_configuration,
+    )
+
+
+def _fixed_config(config: Any) -> cli_mod.ConfigLoader:
+    """A configuration loader that returns ``config`` for every profile."""
+
+    def load(*, profile: str | None = None) -> Any:
+        return config
+
+    return load
+
+
+def _check_dependencies(
+    fo_config: Any,
+    use_case: Any,
+    *,
+    config: Config | None = None,
+    email_sender: Any = None,
+) -> cli_mod.CliDependencies:
+    """Collaborators for a ``check`` run that never reaches FinanzOnline.
+
+    Args:
+        fo_config: What reading ``[finanzonline]`` returns, or the exception it raises.
+        use_case: What every check attempt runs (its ``execute`` is called).
+        config: The layered configuration (empty when omitted).
+        email_sender: Replaces the email adapter; the real one when omitted.
+    """
+    production = cli_mod.production_dependencies()
+
+    def read_fo_config(_config: Config) -> Any:
+        if isinstance(fo_config, BaseException):
+            raise fo_config
+        return fo_config
+
+    def build_uid_checker(_fo_config: Any, _notifier: Any) -> Any:
+        return use_case
+
+    def build_email_sender(_email_config: Any) -> Any:
+        return email_sender
+
+    return dataclasses.replace(
+        production,
+        load_config=_fixed_config(config if config is not None else Config({}, {})),
+        load_finanzonline_config=read_fo_config,
+        build_uid_checker=build_uid_checker,
+        build_email_sender=build_email_sender if email_sender is not None else production.build_email_sender,
+    )
 
 
 @pytest.mark.os_agnostic
@@ -312,7 +373,6 @@ def test_when_config_is_invoked_with_nonexistent_section_it_fails(cli_runner: Cl
 @pytest.mark.os_agnostic
 def test_when_config_is_invoked_with_mocked_data_it_displays_sections(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_config_factory: Any,
     clear_config_cache: None,
 ) -> None:
@@ -328,10 +388,7 @@ def test_when_config_is_invoked_with_mocked_data_it_displays_sections(
     def get_mock(**_kwargs: Any) -> Any:
         return mock_config
 
-    # Patch get_config in cli module where it's imported and used
-    monkeypatch.setattr(cli_mod, "get_config", get_mock)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config"], obj=_dependencies(load_config=get_mock))
 
     assert result.exit_code == 0
     assert "test_section" in result.output
@@ -342,7 +399,6 @@ def test_when_config_is_invoked_with_mocked_data_it_displays_sections(
 @pytest.mark.os_agnostic
 def test_when_config_is_invoked_with_json_format_and_section_it_shows_section(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_config_factory: Any,
     clear_config_cache: None,
 ) -> None:
@@ -358,10 +414,7 @@ def test_when_config_is_invoked_with_json_format_and_section_it_shows_section(
     def get_mock(**_kwargs: Any) -> Any:
         return mock_config
 
-    # Patch get_config in cli module where it's imported and used
-    monkeypatch.setattr(cli_mod, "get_config", get_mock)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config", "--format", "json", "--section", "email"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config", "--format", "json", "--section", "email"], obj=_dependencies(load_config=get_mock))
 
     assert result.exit_code == 0
     assert json.loads(result.output)["email"]["smtp_hosts"] == ["smtp.test.com:587"]
@@ -370,7 +423,6 @@ def test_when_config_is_invoked_with_json_format_and_section_it_shows_section(
 @pytest.mark.os_agnostic
 def test_when_config_is_invoked_with_json_format_and_nonexistent_section_it_fails(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_config_factory: Any,
     clear_config_cache: None,
 ) -> None:
@@ -385,10 +437,7 @@ def test_when_config_is_invoked_with_json_format_and_nonexistent_section_it_fail
     def get_mock(**_kwargs: Any) -> Any:
         return mock_config
 
-    # Patch get_config in cli module where it's imported and used
-    monkeypatch.setattr(cli_mod, "get_config", get_mock)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config", "--format", "json", "--section", "nonexistent"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config", "--format", "json", "--section", "nonexistent"], obj=_dependencies(load_config=get_mock))
 
     assert result.exit_code != 0
     assert "not found or empty" in result.output
@@ -397,7 +446,6 @@ def test_when_config_is_invoked_with_json_format_and_nonexistent_section_it_fail
 @pytest.mark.os_agnostic
 def test_when_config_is_invoked_with_section_showing_complex_values(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_config_factory: Any,
     clear_config_cache: None,
 ) -> None:
@@ -415,10 +463,7 @@ def test_when_config_is_invoked_with_section_showing_complex_values(
     def get_mock(**_kwargs: Any) -> Any:
         return mock_config
 
-    # Patch get_config in cli module where it's imported and used
-    monkeypatch.setattr(cli_mod, "get_config", get_mock)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config", "--section", "email"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config", "--section", "email"], obj=_dependencies(load_config=get_mock))
 
     assert result.exit_code == 0
     assert "[email]" in result.output
@@ -432,7 +477,6 @@ def test_when_config_is_invoked_with_section_showing_complex_values(
 @pytest.mark.os_agnostic
 def test_when_config_shows_all_sections_with_complex_values(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_config_factory: Any,
     clear_config_cache: None,
 ) -> None:
@@ -452,10 +496,7 @@ def test_when_config_shows_all_sections_with_complex_values(
     def get_mock(**_kwargs: Any) -> Any:
         return mock_config
 
-    # Patch get_config in cli module where it's imported and used
-    monkeypatch.setattr(cli_mod, "get_config", get_mock)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config"], obj=_dependencies(load_config=get_mock))
 
     assert result.exit_code == 0
     assert "[email]" in result.output
@@ -478,7 +519,6 @@ def test_when_config_deploy_is_invoked_without_target_it_fails(cli_runner: CliRu
 def test_when_config_deploy_is_invoked_it_deploys_configuration(
     cli_runner: CliRunner,
     tmp_path: Any,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify config-deploy creates configuration files."""
     from pathlib import Path
@@ -489,9 +529,7 @@ def test_when_config_deploy_is_invoked_it_deploys_configuration(
     def mock_deploy(*, targets: Any, force: bool = False, profile: str | None = None) -> list[Path]:
         return [deployed_path]
 
-    monkeypatch.setattr(cli_mod, "deploy_configuration", mock_deploy)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config-deploy", "--target", "user"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config-deploy", "--target", "user"], obj=_dependencies(deploy_configuration=mock_deploy))
 
     assert result.exit_code == 0
     assert "Configuration deployed successfully" in result.output
@@ -501,7 +539,6 @@ def test_when_config_deploy_is_invoked_it_deploys_configuration(
 @pytest.mark.os_agnostic
 def test_when_config_deploy_finds_no_files_to_create_it_informs_user(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify config-deploy reports when no files are created."""
     from pathlib import Path
@@ -509,9 +546,7 @@ def test_when_config_deploy_finds_no_files_to_create_it_informs_user(
     def mock_deploy(*, targets: Any, force: bool = False, profile: str | None = None) -> list[Path]:
         return []
 
-    monkeypatch.setattr(cli_mod, "deploy_configuration", mock_deploy)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config-deploy", "--target", "user"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config-deploy", "--target", "user"], obj=_dependencies(deploy_configuration=mock_deploy))
 
     assert result.exit_code == 0
     assert "No files were created" in result.output
@@ -521,16 +556,13 @@ def test_when_config_deploy_finds_no_files_to_create_it_informs_user(
 @pytest.mark.os_agnostic
 def test_when_config_deploy_encounters_permission_error_it_handles_gracefully(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify config-deploy handles PermissionError gracefully."""
 
     def mock_deploy(*, targets: Any, force: bool = False, profile: str | None = None) -> list[Any]:
         raise PermissionError("Permission denied")
 
-    monkeypatch.setattr(cli_mod, "deploy_configuration", mock_deploy)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config-deploy", "--target", "app"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config-deploy", "--target", "app"], obj=_dependencies(deploy_configuration=mock_deploy))
 
     assert result.exit_code != 0
     assert "Permission denied" in result.output
@@ -541,7 +573,6 @@ def test_when_config_deploy_encounters_permission_error_it_handles_gracefully(
 def test_when_config_deploy_supports_multiple_targets(
     cli_runner: CliRunner,
     tmp_path: Any,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify config-deploy accepts multiple --target options."""
     from pathlib import Path
@@ -560,9 +591,9 @@ def test_when_config_deploy_supports_multiple_targets(
         assert "host" in target_values
         return [path1, path2]
 
-    monkeypatch.setattr(cli_mod, "deploy_configuration", mock_deploy)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config-deploy", "--target", "user", "--target", "host"])
+    result: Result = cli_runner.invoke(
+        cli_mod.cli, ["config-deploy", "--target", "user", "--target", "host"], obj=_dependencies(deploy_configuration=mock_deploy)
+    )
 
     assert result.exit_code == 0
     assert str(path1) in result.output
@@ -573,7 +604,6 @@ def test_when_config_deploy_supports_multiple_targets(
 def test_when_config_deploy_is_invoked_with_profile_it_passes_profile(
     cli_runner: CliRunner,
     tmp_path: Any,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify config-deploy passes profile to deploy_configuration."""
     from pathlib import Path
@@ -586,9 +616,9 @@ def test_when_config_deploy_is_invoked_with_profile_it_passes_profile(
         captured_profile.append(profile)
         return [deployed_path]
 
-    monkeypatch.setattr(cli_mod, "deploy_configuration", mock_deploy)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config-deploy", "--target", "user", "--profile", "production"])
+    result: Result = cli_runner.invoke(
+        cli_mod.cli, ["config-deploy", "--target", "user", "--profile", "production"], obj=_dependencies(deploy_configuration=mock_deploy)
+    )
 
     assert result.exit_code == 0
     assert captured_profile == ["production"]
@@ -598,7 +628,6 @@ def test_when_config_deploy_is_invoked_with_profile_it_passes_profile(
 @pytest.mark.os_agnostic
 def test_when_config_is_invoked_with_profile_it_passes_profile_to_get_config(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_config_factory: Any,
     clear_config_cache: None,
 ) -> None:
@@ -611,10 +640,7 @@ def test_when_config_is_invoked_with_profile_it_passes_profile_to_get_config(
         captured_profiles.append(profile)
         return mock_config
 
-    # Patch get_config in cli module where it's imported and used
-    monkeypatch.setattr(cli_mod, "get_config", get_mock)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config", "--profile", "staging"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config", "--profile", "staging"], obj=_dependencies(load_config=get_mock))
 
     assert result.exit_code == 0
     assert "staging" in captured_profiles
@@ -623,7 +649,6 @@ def test_when_config_is_invoked_with_profile_it_passes_profile_to_get_config(
 @pytest.mark.os_agnostic
 def test_when_config_is_invoked_without_profile_it_passes_none(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_config_factory: Any,
     clear_config_cache: None,
 ) -> None:
@@ -636,10 +661,7 @@ def test_when_config_is_invoked_without_profile_it_passes_none(
         captured_profiles.append(profile)
         return mock_config
 
-    # Patch get_config in cli module where it's imported and used
-    monkeypatch.setattr(cli_mod, "get_config", get_mock)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config"], obj=_dependencies(load_config=get_mock))
 
     assert result.exit_code == 0
     assert None in captured_profiles
@@ -649,7 +671,6 @@ def test_when_config_is_invoked_without_profile_it_passes_none(
 def test_when_config_deploy_is_invoked_without_profile_it_passes_none(
     cli_runner: CliRunner,
     tmp_path: Any,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify config-deploy passes None when no --profile specified."""
     from pathlib import Path
@@ -662,9 +683,7 @@ def test_when_config_deploy_is_invoked_without_profile_it_passes_none(
         captured_profiles.append(profile)
         return [deployed_path]
 
-    monkeypatch.setattr(cli_mod, "deploy_configuration", mock_deploy)
-
-    result: Result = cli_runner.invoke(cli_mod.cli, ["config-deploy", "--target", "user"])
+    result: Result = cli_runner.invoke(cli_mod.cli, ["config-deploy", "--target", "user"], obj=_dependencies(deploy_configuration=mock_deploy))
 
     assert result.exit_code == 0
     assert captured_profiles == [None]
@@ -674,7 +693,6 @@ def test_when_config_deploy_is_invoked_without_profile_it_passes_none(
 @pytest.mark.os_agnostic
 def test_when_config_command_profile_overrides_root_profile(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify command-level --profile overrides root --profile."""
     captured_profiles: list[str | None] = []
@@ -685,18 +703,49 @@ def test_when_config_command_profile_overrides_root_profile(
         captured_profiles.append(profile)
         return _original_get_config(profile=profile)
 
-    monkeypatch.setattr(cli_mod, "get_config", get_mock)
-
     # Root-level --profile is "root-profile", command-level is "command-profile"
     result: Result = cli_runner.invoke(
         cli_mod.cli,
         ["--profile", "root-profile", "config", "--profile", "command-profile"],
+        obj=_dependencies(load_config=get_mock),
     )
 
     assert result.exit_code == 0
     # Command-level profile should override root-level profile
     # The second call to get_config (from config command) should use "command-profile"
     assert "command-profile" in captured_profiles
+
+
+@pytest.mark.os_agnostic
+def test_a_click_obj_that_is_not_cli_dependencies_is_refused(cli_runner: CliRunner) -> None:
+    """A foreign ``obj`` would otherwise be ignored and the real collaborators run in its place."""
+    result: Result = cli_runner.invoke(cli_mod.cli, ["hello"], obj={"load_config": None})
+
+    assert isinstance(result.exception, TypeError)
+    assert "CliDependencies" in str(result.exception)
+
+
+@pytest.mark.os_agnostic
+def test_production_dependencies_are_the_real_collaborators() -> None:
+    """Without an injected ``obj`` the CLI runs with these, so each must be the production object."""
+    from finanzonline_uid import config as config_mod
+    from finanzonline_uid.adapters.notification import EmailNotificationAdapter
+    from finanzonline_uid.application.use_cases import CheckUidUseCase
+    from finanzonline_uid.config_deploy import deploy_configuration
+    from finanzonline_uid.domain.models import FinanzOnlineCredentials
+
+    deps = cli_mod.production_dependencies()
+    fo_config = config_mod.FinanzOnlineConfig(
+        credentials=FinanzOnlineCredentials(tid="123456789", benid="TESTUSER", pin="testpin", herstellerid="ATU12345678"),
+        uid_tn="ATU12345678",
+    )
+
+    assert deps.load_config is config_mod.get_config
+    assert deps.load_finanzonline_config is config_mod.load_finanzonline_config
+    assert deps.build_email_sender is EmailNotificationAdapter
+    assert deps.deploy_configuration is deploy_configuration
+    # Building the use case opens no connection: the SOAP clients connect on first use.
+    assert isinstance(deps.build_uid_checker(fo_config, lambda _status: None), CheckUidUseCase)
 
 
 @pytest.mark.os_agnostic
@@ -788,242 +837,192 @@ def mock_uid_result_invalid() -> Any:
 @pytest.mark.os_agnostic
 def test_when_check_succeeds_with_valid_uid_it_exits_zero(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify check command exits 0 for valid UID."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.return_value = mock_uid_result_valid
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE123456789", "--no-email"],
+        obj=deps,
+    )
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.return_value = mock_uid_result_valid
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "DE123456789", "--no-email"],
-                )
-
-                assert result.exit_code == 0
-                assert "VALID" in result.output
-                assert "DE123456789" in result.output
+    assert result.exit_code == 0
+    assert "VALID" in result.output
+    assert "DE123456789" in result.output
 
 
 @pytest.mark.os_agnostic
 def test_when_check_succeeds_with_invalid_uid_it_exits_one(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_invalid: Any,
 ) -> None:
     """Verify check command exits 1 for invalid UID."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.return_value = mock_uid_result_invalid
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "XX123456789", "--no-email"],
+        obj=deps,
+    )
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.return_value = mock_uid_result_invalid
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "XX123456789", "--no-email"],
-                )
-
-                assert result.exit_code == 1
-                assert "INVALID" in result.output
+    assert result.exit_code == 1
+    assert "INVALID" in result.output
 
 
 @pytest.mark.os_agnostic
 def test_when_check_uses_json_format_it_outputs_json(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify check command with --format json outputs JSON."""
     import json
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.return_value = mock_uid_result_valid
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE123456789", "--format", "json", "--no-email"],
+        obj=deps,
+    )
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.return_value = mock_uid_result_valid
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "DE123456789", "--format", "json", "--no-email"],
-                )
-
-                assert result.exit_code == 0
-                json_start = result.output.find("{")
-                assert json_start >= 0, f"No JSON object in output: {result.output!r}"
-                parsed = json.loads(result.output[json_start:])
-                assert parsed["uid"] == "DE123456789"
-                assert parsed["is_valid"] is True
+    assert result.exit_code == 0
+    json_start = result.output.find("{")
+    assert json_start >= 0, f"No JSON object in output: {result.output!r}"
+    parsed = json.loads(result.output[json_start:])
+    assert parsed["uid"] == "DE123456789"
+    assert parsed["is_valid"] is True
 
 
 @pytest.mark.os_agnostic
 def test_when_check_has_config_error_it_exits_two(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify check command exits 2 for ConfigurationError."""
-    from unittest.mock import patch
-
     from finanzonline_uid.domain.errors import ConfigurationError
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    deps = _check_dependencies(ConfigurationError("Missing TID"), None, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE123456789", "--no-email"],
+        obj=deps,
+    )
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.side_effect = ConfigurationError("Missing TID")
-
-            result: Result = cli_runner.invoke(
-                cli_mod.cli,
-                ["check", "DE123456789", "--no-email"],
-            )
-
-            assert result.exit_code == 2
-            assert "Missing TID" in result.output
+    assert result.exit_code == 2
+    assert "Missing TID" in result.output
 
 
 @pytest.mark.os_agnostic
 def test_when_check_has_auth_error_it_exits_three(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
 ) -> None:
     """Verify check command exits 3 for AuthenticationError."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     from finanzonline_uid.domain.errors import AuthenticationError
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.side_effect = AuthenticationError("Not authorized", return_code=-4)
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE123456789", "--no-email"],
+        obj=deps,
+    )
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.side_effect = AuthenticationError("Not authorized", return_code=-4)
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "DE123456789", "--no-email"],
-                )
-
-                assert result.exit_code == 3
-                assert "Authentication Error" in result.output
-                assert "Not authorized" in result.output
+    assert result.exit_code == 3
+    assert "Authentication Error" in result.output
+    assert "Not authorized" in result.output
 
 
 @pytest.mark.os_agnostic
 def test_when_check_has_session_error_it_exits_four(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
 ) -> None:
     """Verify check command exits 4 for SessionError."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     from finanzonline_uid.domain.errors import SessionError
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.side_effect = SessionError("Session expired", return_code=-1)
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE123456789", "--no-email"],
+        obj=deps,
+    )
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.side_effect = SessionError("Session expired", return_code=-1)
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "DE123456789", "--no-email"],
-                )
-
-                assert result.exit_code == 4
-                assert "Session Error" in result.output
+    assert result.exit_code == 4
+    assert "Session Error" in result.output
 
 
 @pytest.mark.os_agnostic
 def test_when_check_has_query_error_it_exits_four(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
 ) -> None:
     """Verify check command exits 4 for QueryError."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     from finanzonline_uid.domain.errors import QueryError
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.side_effect = QueryError("Rate limit exceeded", return_code=1513, retryable=True)
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE123456789", "--no-email"],
+        obj=deps,
+    )
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.side_effect = QueryError("Rate limit exceeded", return_code=1513, retryable=True)
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "DE123456789", "--no-email"],
-                )
-
-                assert result.exit_code == 4
-                assert "Query Error" in result.output
-                assert "temporary" in result.output.lower()
+    assert result.exit_code == 4
+    assert "Query Error" in result.output
+    assert "temporary" in result.output.lower()
 
 
 @pytest.mark.os_agnostic
 def test_when_check_sends_email_on_success(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify check command sends email notification on success."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config(
         {
@@ -1035,40 +1034,32 @@ def test_when_check_sends_email_on_success(
         {},
     )
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_fo_config.default_recipients = ["admin@example.com"]
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_fo_config.default_recipients = ["admin@example.com"]
-            mock_load_fo.return_value = mock_fo_config
+    mock_use_case = MagicMock()
+    mock_use_case.execute.return_value = mock_uid_result_valid
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.return_value = mock_uid_result_valid
-                mock_use_case_class.return_value = mock_use_case
+    mock_adapter = MagicMock()
+    mock_adapter.send_result.return_value = True
 
-                with patch("finanzonline_uid.cli.EmailNotificationAdapter") as mock_adapter_class:
-                    mock_adapter = MagicMock()
-                    mock_adapter.send_result.return_value = True
-                    mock_adapter_class.return_value = mock_adapter
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj, email_sender=mock_adapter)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE123456789"],
+        obj=deps,
+    )
 
-                    result: Result = cli_runner.invoke(
-                        cli_mod.cli,
-                        ["check", "DE123456789"],
-                    )
-
-                    assert result.exit_code == 0
-                    mock_adapter.send_result.assert_called_once()
+    assert result.exit_code == 0
+    mock_adapter.send_result.assert_called_once()
 
 
 @pytest.mark.os_agnostic
 def test_when_check_sends_error_email_on_failure(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
 ) -> None:
     """Verify check command sends error email notification on failure."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     from finanzonline_uid.domain.errors import SessionError
 
@@ -1082,72 +1073,57 @@ def test_when_check_sends_error_email_on_failure(
         {},
     )
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_fo_config.default_recipients = ["admin@example.com"]
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_fo_config.default_recipients = ["admin@example.com"]
-            mock_load_fo.return_value = mock_fo_config
+    mock_use_case = MagicMock()
+    mock_use_case.execute.side_effect = SessionError("Connection failed", return_code=-3)
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.side_effect = SessionError("Connection failed", return_code=-3)
-                mock_use_case_class.return_value = mock_use_case
+    mock_adapter = MagicMock()
+    mock_adapter.send_error.return_value = True
 
-                with patch("finanzonline_uid.cli.EmailNotificationAdapter") as mock_adapter_class:
-                    mock_adapter = MagicMock()
-                    mock_adapter.send_error.return_value = True
-                    mock_adapter_class.return_value = mock_adapter
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj, email_sender=mock_adapter)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE123456789"],
+        obj=deps,
+    )
 
-                    result: Result = cli_runner.invoke(
-                        cli_mod.cli,
-                        ["check", "DE123456789"],
-                    )
-
-                    assert result.exit_code == 4
-                    mock_adapter.send_error.assert_called_once()
+    assert result.exit_code == 4
+    mock_adapter.send_error.assert_called_once()
 
 
 @pytest.mark.os_agnostic
 def test_when_check_has_value_error_it_exits_two(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
 ) -> None:
     """Verify check command exits 2 for ValueError."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.side_effect = ValueError("Invalid UID format")
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "INVALID", "--no-email"],
+        obj=deps,
+    )
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.side_effect = ValueError("Invalid UID format")
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "INVALID", "--no-email"],
-                )
-
-                assert result.exit_code == 2
-                assert "Invalid" in result.output
+    assert result.exit_code == 2
+    assert "Invalid" in result.output
 
 
 @pytest.mark.os_agnostic
 def test_when_check_specifies_recipients_it_uses_them(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify check command uses specified recipients."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config(
         {
@@ -1159,33 +1135,25 @@ def test_when_check_specifies_recipients_it_uses_them(
         {},
     )
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.return_value = mock_uid_result_valid
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    mock_adapter = MagicMock()
+    mock_adapter.send_result.return_value = True
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.return_value = mock_uid_result_valid
-                mock_use_case_class.return_value = mock_use_case
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj, email_sender=mock_adapter)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE123456789", "--recipient", "custom@example.com"],
+        obj=deps,
+    )
 
-                with patch("finanzonline_uid.cli.EmailNotificationAdapter") as mock_adapter_class:
-                    mock_adapter = MagicMock()
-                    mock_adapter.send_result.return_value = True
-                    mock_adapter_class.return_value = mock_adapter
-
-                    result: Result = cli_runner.invoke(
-                        cli_mod.cli,
-                        ["check", "DE123456789", "--recipient", "custom@example.com"],
-                    )
-
-                    assert result.exit_code == 0
-                    mock_adapter.send_result.assert_called_once()
-                    # Verify custom recipient was used (passed as positional or keyword arg)
-                    call_args = mock_adapter.send_result.call_args
-                    recipients: list[str] = call_args.kwargs.get("recipients") or (call_args.args[1] if len(call_args.args) > 1 else [])
-                    assert "custom@example.com" in recipients
+    assert result.exit_code == 0
+    mock_adapter.send_result.assert_called_once()
+    # Verify custom recipient was used (passed as positional or keyword arg)
+    call_args = mock_adapter.send_result.call_args
+    recipients: list[str] = call_args.kwargs.get("recipients") or (call_args.args[1] if len(call_args.args) > 1 else [])
+    assert "custom@example.com" in recipients
 
 
 @pytest.mark.os_agnostic
@@ -1206,68 +1174,54 @@ def test_when_check_without_uid_and_not_interactive_it_exits_two(
 @pytest.mark.os_agnostic
 def test_when_check_with_interactive_prompts_for_uid(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify check command with --interactive prompts for UID."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.return_value = mock_uid_result_valid
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "--interactive", "--no-email"],
+        obj=deps,
+        input="DE123456789\n",  # Simulated user input
+    )
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.return_value = mock_uid_result_valid
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "--interactive", "--no-email"],
-                    input="DE123456789\n",  # Simulated user input
-                )
-
-                assert result.exit_code == 0
-                assert "VALID" in result.output
-                assert "Enter EU VAT ID" in result.output
+    assert result.exit_code == 0
+    assert "VALID" in result.output
+    assert "Enter EU VAT ID" in result.output
 
 
 @pytest.mark.os_agnostic
 def test_when_check_with_interactive_short_flag_prompts_for_uid(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify check command with -i prompts for UID."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.return_value = mock_uid_result_valid
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "-i", "--no-email"],
+        obj=deps,
+        input="DE123456789\n",  # Simulated user input
+    )
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.return_value = mock_uid_result_valid
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "-i", "--no-email"],
-                    input="DE123456789\n",  # Simulated user input
-                )
-
-                assert result.exit_code == 0
-                assert "VALID" in result.output
+    assert result.exit_code == 0
+    assert "VALID" in result.output
 
 
 # ======================== Retry Minutes Tests ========================
@@ -1290,34 +1244,27 @@ def test_when_retryminutes_used_without_interactive_it_exits_two(
 @pytest.mark.os_agnostic
 def test_when_retryminutes_with_interactive_is_accepted(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify --retryminutes with --interactive succeeds on first attempt."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config({}, {})
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
+    mock_use_case.execute.return_value = mock_uid_result_valid
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "--interactive", "--retryminutes", "1", "--no-email"],
+        obj=deps,
+        input="DE123456789\n",
+    )
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
-                mock_use_case.execute.return_value = mock_uid_result_valid
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "--interactive", "--retryminutes", "1", "--no-email"],
-                    input="DE123456789\n",
-                )
-
-                assert result.exit_code == 0
-                assert "VALID" in result.output
+    assert result.exit_code == 0
+    assert "VALID" in result.output
 
 
 # ======================== UID Sanitization Tests ========================
@@ -1326,117 +1273,96 @@ def test_when_retryminutes_with_interactive_is_accepted(
 @pytest.mark.os_agnostic
 def test_when_uid_has_spaces_it_is_sanitized(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify UID with spaces is sanitized before check."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config({}, {})
     captured_uid: list[str] = []
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    def capture_execute(*, credentials: Any, uid_tn: str, target_uid: str) -> Any:
+        captured_uid.append(target_uid)
+        return mock_uid_result_valid
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
+    mock_use_case.execute.side_effect = capture_execute
 
-                def capture_execute(*, credentials: Any, uid_tn: str, target_uid: str) -> Any:
-                    captured_uid.append(target_uid)
-                    return mock_uid_result_valid
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "DE 123 456 789", "--no-email"],
+        obj=deps,
+    )
 
-                mock_use_case.execute.side_effect = capture_execute
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "DE 123 456 789", "--no-email"],
-                )
-
-                assert result.exit_code == 0
-                assert captured_uid == ["DE123456789"]
+    assert result.exit_code == 0
+    assert captured_uid == ["DE123456789"]
 
 
 @pytest.mark.os_agnostic
 def test_when_uid_is_lowercase_it_is_uppercased(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify lowercase UID is uppercased before check."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config({}, {})
     captured_uid: list[str] = []
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    def capture_execute(*, credentials: Any, uid_tn: str, target_uid: str) -> Any:
+        captured_uid.append(target_uid)
+        return mock_uid_result_valid
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
+    mock_use_case.execute.side_effect = capture_execute
 
-                def capture_execute(*, credentials: Any, uid_tn: str, target_uid: str) -> Any:
-                    captured_uid.append(target_uid)
-                    return mock_uid_result_valid
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "de123456789", "--no-email"],
+        obj=deps,
+    )
 
-                mock_use_case.execute.side_effect = capture_execute
-                mock_use_case_class.return_value = mock_use_case
-
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "de123456789", "--no-email"],
-                )
-
-                assert result.exit_code == 0
-                assert captured_uid == ["DE123456789"]
+    assert result.exit_code == 0
+    assert captured_uid == ["DE123456789"]
 
 
 @pytest.mark.os_agnostic
 def test_when_interactive_uid_has_artifacts_it_is_sanitized(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """Verify interactive UID input with copy-paste artifacts is sanitized."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock
 
     mock_config_obj = Config({}, {})
     captured_uid: list[str] = []
 
-    with patch("finanzonline_uid.cli.get_config") as mock_get_config:
-        mock_get_config.return_value = mock_config_obj
+    mock_use_case = MagicMock()
 
-        with patch("finanzonline_uid.cli.load_finanzonline_config") as mock_load_fo:
-            mock_load_fo.return_value = mock_fo_config
+    def capture_execute(*, credentials: Any, uid_tn: str, target_uid: str) -> Any:
+        captured_uid.append(target_uid)
+        return mock_uid_result_valid
 
-            with patch("finanzonline_uid.cli.CheckUidUseCase") as mock_use_case_class:
-                mock_use_case = MagicMock()
+    mock_use_case.execute.side_effect = capture_execute
 
-                def capture_execute(*, credentials: Any, uid_tn: str, target_uid: str) -> Any:
-                    captured_uid.append(target_uid)
-                    return mock_uid_result_valid
+    # Simulate input with tabs and extra spaces (common PDF copy-paste)
+    deps = _check_dependencies(mock_fo_config, mock_use_case, config=mock_config_obj)
+    result: Result = cli_runner.invoke(
+        cli_mod.cli,
+        ["check", "--interactive", "--no-email"],
+        obj=deps,
+        input="  de 123\t456 789  \n",
+    )
 
-                mock_use_case.execute.side_effect = capture_execute
-                mock_use_case_class.return_value = mock_use_case
-
-                # Simulate input with tabs and extra spaces (common PDF copy-paste)
-                result: Result = cli_runner.invoke(
-                    cli_mod.cli,
-                    ["check", "--interactive", "--no-email"],
-                    input="  de 123\t456 789  \n",
-                )
-
-                assert result.exit_code == 0
-                assert captured_uid == ["DE123456789"]
+    assert result.exit_code == 0
+    assert captured_uid == ["DE123456789"]
 
 
 # --- Tests for _save_result_to_file ---
@@ -1592,31 +1518,21 @@ def test_when_logging_shutdown_fails_main_still_returns_the_command_exit_code(mo
 
 def _run_check(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     fo_config: Any,
     outcomes: list[object],
     args: list[str],
     *,
     stdin: str | None = None,
     config: Config | None = None,
+    email_sender: Any = None,
 ) -> Result:
     """Run ``check`` with each FinanzOnline call returning (or raising) the next of ``outcomes``."""
     from unittest.mock import MagicMock
 
-    loaded = config if config is not None else Config({}, {})
-
-    def fake_get_config(**_kwargs: object) -> Config:
-        return loaded
-
-    def fake_load_finanzonline_config(_config: Config) -> Any:
-        return fo_config
-
     use_case = MagicMock()
     use_case.execute.side_effect = outcomes
-    monkeypatch.setattr(cli_mod, "get_config", fake_get_config)
-    monkeypatch.setattr(cli_mod, "load_finanzonline_config", fake_load_finanzonline_config)
-    monkeypatch.setattr(cli_mod, "CheckUidUseCase", MagicMock(return_value=use_case))
-    return cli_runner.invoke(cli_mod.cli, ["check", *args], input=stdin)
+    deps = _check_dependencies(fo_config, use_case, config=config, email_sender=email_sender)
+    return cli_runner.invoke(cli_mod.cli, ["check", *args], input=stdin, obj=deps)
 
 
 def _error_cases() -> list[tuple[Exception, str, int]]:
@@ -1647,7 +1563,6 @@ def _error_cases() -> list[tuple[Exception, str, int]]:
 )
 def test_check_error_prints_and_logs_the_category_label_not_the_enum_member(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     caplog: pytest.LogCaptureFixture,
     error: Exception,
@@ -1657,7 +1572,7 @@ def test_check_error_prints_and_logs_the_category_label_not_the_enum_member(
     """The error line and the error log record carry the label, never ``ErrorKind.X``."""
     caplog.set_level("ERROR", logger="finanzonline_uid.cli")
 
-    result = _run_check(cli_runner, monkeypatch, mock_fo_config, [error], ["DE123456789", "--no-email"])
+    result = _run_check(cli_runner, mock_fo_config, [error], ["DE123456789", "--no-email"])
 
     assert result.exit_code == exit_code
     assert f"\n{label}: {error}" in result.stderr
@@ -1668,7 +1583,6 @@ def test_check_error_prints_and_logs_the_category_label_not_the_enum_member(
 @pytest.mark.os_agnostic
 def test_check_error_line_shows_the_return_code_and_retry_hint(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
 ) -> None:
     """A retryable error with a return code reports both, read straight off the exception."""
@@ -1676,7 +1590,7 @@ def test_check_error_line_shows_the_return_code_and_retry_hint(
 
     error = QueryError("Rate limit exceeded", return_code=1513, retryable=True)
 
-    result = _run_check(cli_runner, monkeypatch, mock_fo_config, [error], ["DE123456789", "--no-email"])
+    result = _run_check(cli_runner, mock_fo_config, [error], ["DE123456789", "--no-email"])
 
     assert result.exit_code == 4
     assert "Return code: 1513" in result.stderr
@@ -1686,13 +1600,11 @@ def test_check_error_line_shows_the_return_code_and_retry_hint(
 @pytest.mark.os_agnostic
 def test_retry_mode_cancelled_before_any_attempt_finished_reports_cancelled(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
 ) -> None:
     """Ctrl+C during the first attempt ends with the Cancelled error."""
     result = _run_check(
         cli_runner,
-        monkeypatch,
         mock_fo_config,
         [KeyboardInterrupt()],
         ["--interactive", "--retryminutes", "0", "--no-email"],
@@ -1706,7 +1618,6 @@ def test_retry_mode_cancelled_before_any_attempt_finished_reports_cancelled(
 @pytest.mark.os_agnostic
 def test_retry_mode_cancelled_after_a_retryable_error_reports_that_error(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
 ) -> None:
     """Ctrl+C after a retryable error ends with that error, not with Cancelled."""
@@ -1715,7 +1626,6 @@ def test_retry_mode_cancelled_after_a_retryable_error_reports_that_error(
     retryable = QueryError("Rate limit exceeded", return_code=1513, retryable=True)
     result = _run_check(
         cli_runner,
-        monkeypatch,
         mock_fo_config,
         [retryable, KeyboardInterrupt()],
         ["--interactive", "--retryminutes", "0", "--no-email"],
@@ -1730,7 +1640,6 @@ def test_retry_mode_cancelled_after_a_retryable_error_reports_that_error(
 @pytest.mark.os_agnostic
 def test_retry_mode_cancelled_after_a_retryable_result_reports_that_result(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
 ) -> None:
     """Ctrl+C after a result with a retryable return code ends with that result."""
@@ -1746,7 +1655,6 @@ def test_retry_mode_cancelled_after_a_retryable_result_reports_that_result(
     )
     result = _run_check(
         cli_runner,
-        monkeypatch,
         mock_fo_config,
         [retryable_result, KeyboardInterrupt()],
         ["--interactive", "--retryminutes", "0", "--no-email"],
@@ -1762,7 +1670,6 @@ def test_retry_mode_cancelled_after_a_retryable_result_reports_that_result(
 @pytest.mark.parametrize(("cli_value", "extension"), [("JSON", "json"), ("Txt", "txt"), ("html", "html"), (None, "html")])
 def test_outputformat_is_case_insensitive_and_names_the_file_by_its_value(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
     tmp_path: Any,
@@ -1774,7 +1681,7 @@ def test_outputformat_is_case_insensitive_and_names_the_file_by_its_value(
     if cli_value is not None:
         args += ["--outputformat", cli_value]
 
-    result = _run_check(cli_runner, monkeypatch, mock_fo_config, [mock_uid_result_valid], args)
+    result = _run_check(cli_runner, mock_fo_config, [mock_uid_result_valid], args)
 
     assert result.exit_code == 0
     assert [path.name for path in tmp_path.iterdir()] == [f"DE123456789_2025-01-01.{extension}"]
@@ -1783,12 +1690,11 @@ def test_outputformat_is_case_insensitive_and_names_the_file_by_its_value(
 @pytest.mark.os_agnostic
 def test_format_option_is_case_insensitive(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
 ) -> None:
     """``--format JSON`` selects JSON output as ``--format json`` does."""
-    result = _run_check(cli_runner, monkeypatch, mock_fo_config, [mock_uid_result_valid], ["DE123456789", "--no-email", "--format", "JSON"])
+    result = _run_check(cli_runner, mock_fo_config, [mock_uid_result_valid], ["DE123456789", "--no-email", "--format", "JSON"])
 
     assert result.exit_code == 0
     assert json.loads(result.stdout)["uid"] == "DE123456789"
@@ -1801,7 +1707,6 @@ def test_format_option_is_case_insensitive(
 )
 def test_skipped_notification_is_logged_with_the_kind_label(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
     mock_uid_result_valid: Any,
     caplog: pytest.LogCaptureFixture,
@@ -1814,7 +1719,7 @@ def test_skipped_notification_is_logged_with_the_kind_label(
     caplog.set_level("WARNING", logger="finanzonline_uid.cli")
     outcome: object = SessionError("session gone") if outcome_is_error else mock_uid_result_valid
 
-    _run_check(cli_runner, monkeypatch, mock_fo_config, [outcome], ["DE123456789"])
+    _run_check(cli_runner, mock_fo_config, [outcome], ["DE123456789"])
 
     assert expected in [record.getMessage() for record in caplog.records]
 
@@ -1822,7 +1727,6 @@ def test_skipped_notification_is_logged_with_the_kind_label(
 @pytest.mark.os_agnostic
 def test_error_email_receives_the_check_error_info(
     cli_runner: CliRunner,
-    monkeypatch: pytest.MonkeyPatch,
     mock_fo_config: Any,
 ) -> None:
     """The error email is sent with the typed error record and the resolved recipients."""
@@ -1832,10 +1736,9 @@ def test_error_email_receives_the_check_error_info(
 
     adapter = MagicMock()
     adapter.send_error.return_value = True
-    monkeypatch.setattr(cli_mod, "EmailNotificationAdapter", MagicMock(return_value=adapter))
     config = Config({"email": {"smtp_hosts": ["smtp.test.com:587"], "from_address": "test@example.com", "default_recipients": ["ops@example.com"]}}, {})
 
-    _run_check(cli_runner, monkeypatch, mock_fo_config, [SessionError("session gone", return_code=-1)], ["DE123456789"], config=config)
+    _run_check(cli_runner, mock_fo_config, [SessionError("session gone", return_code=-1)], ["DE123456789"], config=config, email_sender=adapter)
 
     info, uid, recipients = adapter.send_error.call_args.args
     assert isinstance(info, CheckErrorInfo)

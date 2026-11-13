@@ -17,6 +17,8 @@ System Role:
 
     Installed versions of this tool read and rewrite the same file, so its
     shape (keys, key order, timestamp form) is a fixed wire format.
+    A file that is not valid JSON counts no calls; a write keeps its bytes
+    aside (see :func:`set_aside_unreadable`) and starts the file afresh.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from filelock import FileLock, Timeout
 from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
 
 from finanzonline_uid._datetime_utils import WireDatetime
+from finanzonline_uid.adapters._state_file import set_aside_unreadable
 
 __all__ = [
     "PerUidRateLimitStatus",
@@ -170,8 +173,8 @@ def _parse_file_content(content: bytes) -> RateLimitFile:
     """Validate the rate-limit file content.
 
     Empty content and a top-level value that is not an object read as an
-    empty file, as installed versions do. Invalid JSON raises so that a write
-    never overwrites a file it could not read.
+    empty file, as installed versions do. Invalid JSON raises, so a reader can
+    report it and a writer can keep the bytes aside instead of overwriting them.
 
     Args:
         content: Raw file bytes.
@@ -451,10 +454,19 @@ class RateLimitTracker:
             return _parse_file_content(self._ratelimit_file.read_bytes())
 
     def _read_locked_data(self) -> RateLimitFile:
-        """Read and validate the rate limit file within an already-acquired lock."""
+        """Read the rate limit file for a rewrite, within an already-acquired lock.
+
+        An unparsable file is moved aside and reads as empty: the call being
+        recorded already reached FinanzOnline, so refusing the write would turn
+        a successful check into a failure, and overwriting would lose the bytes.
+        """
         if not self._ratelimit_file.exists():
             return RateLimitFile()
-        return _parse_file_content(self._ratelimit_file.read_bytes())
+        try:
+            return _parse_file_content(self._ratelimit_file.read_bytes())
+        except orjson.JSONDecodeError:
+            set_aside_unreadable(self._ratelimit_file, now=datetime.now(timezone.utc))
+            return RateLimitFile()
 
     def _cleanup_and_append(
         self,

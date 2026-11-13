@@ -11,11 +11,15 @@ Tests cover:
 
 from __future__ import annotations
 
+import logging
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import orjson
 import pytest
+from filelock import FileLock
 
 from finanzonline_uid.adapters.cache import UidResultCache
 from finanzonline_uid.domain.models import Address, UidCheckResult
@@ -757,12 +761,107 @@ class TestCacheMalformedContent:
         assert cached is not None
         assert cached.timestamp == datetime(2025, 1, 1, tzinfo=timezone.utc)
 
-    def test_corrupt_json_on_put_raises(self, cache_file: Path, cache: UidResultCache) -> None:
-        """An unparsable cache file is not silently overwritten by put."""
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        cache_file.write_text("{ invalid json }")
 
-        with pytest.raises(orjson.JSONDecodeError):
+# ============================================================================
+# A write to a file that is not valid JSON
+# ============================================================================
+
+_CORRUPT_BYTES = b"{ invalid json \xff"
+
+# What put writes into a fresh file for _new_result(): the same form as the
+# appended entry in _EXPECTED_AFTER_PUT, alone in the object.
+_EXPECTED_FRESH_FILE = (
+    b"{\n"
+    b'  "ATU33333333": {\n'
+    b'    "uid": "ATU33333333",\n'
+    b'    "return_code": 0,\n'
+    b'    "message": "ok",\n'
+    b'    "name": "Neu",\n'
+    b'    "address": {\n'
+    b'      "line1": "Neu",\n'
+    b'      "line2": "",\n'
+    b'      "line3": "8010 Graz",\n'
+    b'      "line4": "",\n'
+    b'      "line5": "",\n'
+    b'      "line6": ""\n'
+    b"    },\n"
+    b'    "queried_at": "2025-02-01T12:00:00Z",\n'
+    b'    "expires_at": "__EXPIRES__"\n'
+    b"  }\n"
+    b"}"
+)
+
+
+def _aside_files(cache_file: Path) -> list[Path]:
+    return sorted(cache_file.parent.glob(f"{cache_file.name}.corrupt-*"))
+
+
+def _aside_stamp(aside: Path, cache_file: Path) -> datetime:
+    stamp = aside.name.removeprefix(f"{cache_file.name}.corrupt-")
+    return datetime.strptime(stamp, "%Y-%m-%dT%H-%M-%S.%fZ").replace(tzinfo=timezone.utc)
+
+
+def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING]
+
+
+class TestCacheCorruptFileOnWrite:
+    """put keeps an unparsable file's bytes aside and starts a fresh file instead of failing."""
+
+    def test_put_keeps_the_bytes_aside_and_writes_the_new_entry_alone(self, cache_file: Path, cache: UidResultCache, caplog: pytest.LogCaptureFixture) -> None:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(_CORRUPT_BYTES)
+        before = datetime.now(timezone.utc).replace(microsecond=0)
+
+        with caplog.at_level(logging.DEBUG):
             cache.put(_new_result())
 
-        assert cache_file.read_text() == "{ invalid json }"
+        after = datetime.now(timezone.utc)
+        expires = _stored_entry(cache_file, "ATU33333333")["expires_at"]
+        assert isinstance(expires, str)
+        assert cache_file.read_bytes() == _EXPECTED_FRESH_FILE.replace(b"__EXPIRES__", expires.encode())
+        asides = _aside_files(cache_file)
+        assert len(asides) == 1
+        assert asides[0].read_bytes() == _CORRUPT_BYTES
+        assert before <= _aside_stamp(asides[0], cache_file) <= after
+        warnings = _warnings(caplog)
+        assert len(warnings) == 1
+        assert str(cache_file) in warnings[0] and str(asides[0]) in warnings[0]
+        assert cache.get("ATU33333333") is not None
+
+    def test_a_second_put_sets_nothing_else_aside(self, cache_file: Path, cache: UidResultCache) -> None:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(_CORRUPT_BYTES)
+
+        cache.put(_new_result())
+        cache.put(UidCheckResult(uid="DE222222222", return_code=0, message="ok", timestamp=datetime.now(timezone.utc)))
+
+        assert len(_aside_files(cache_file)) == 1
+        assert list(orjson.loads(cache_file.read_bytes())) == ["ATU33333333", "DE222222222"]
+
+    def test_the_move_waits_for_the_cache_lock(self, cache_file: Path, cache: UidResultCache) -> None:
+        # Another writer holding the lock must see the file where it was until it lets go.
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(_CORRUPT_BYTES)
+        held = FileLock(cache_file.with_suffix(".lock"))
+        held.acquire()
+        writer = threading.Thread(target=cache.put, args=(_new_result(),))
+        try:
+            writer.start()
+            time.sleep(0.3)
+            assert cache_file.read_bytes() == _CORRUPT_BYTES
+            assert _aside_files(cache_file) == []
+        finally:
+            held.release()
+            writer.join(timeout=30)
+
+        assert not writer.is_alive()
+        assert len(_aside_files(cache_file)) == 1
+
+    def test_get_still_reads_a_corrupt_file_as_a_miss_and_leaves_it(self, cache_file: Path, cache: UidResultCache) -> None:
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(_CORRUPT_BYTES)
+
+        assert cache.get("ATU33333333") is None
+        assert cache_file.read_bytes() == _CORRUPT_BYTES
+        assert _aside_files(cache_file) == []
