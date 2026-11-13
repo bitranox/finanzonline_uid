@@ -63,6 +63,18 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   instead of being read with the value turned into text or truncated.
   A timestamp without a timezone is read as UTC. A `config` section that is a single value instead
   of a table no longer crashes `config` or the logging setup.
+- `[finanzonline].email_format` now takes effect: result and error emails are sent as `plain`,
+  `html` or `both` as configured. It was ignored and every email went out as HTML; the default stays
+  HTML (the configuration and API references wrongly named `both` as the default).
+- `check --format json` now writes only the JSON document to stdout: the `--interactive` prompt, the
+  retry countdown and the `Result saved to` note go to stderr in JSON mode. Human output is unchanged.
+- `check --outputdir` with an empty or whitespace-only value now counts as not given, so the configured
+  `finanzonline.output_dir` applies; it used to save into the current directory or create a folder
+  named with spaces. The option now follows the same rule as `finanzonline.output_dir`: surrounding
+  whitespace is stripped and a leading `~` is expanded.
+- `config --format json` now also writes a JSON error record (`error`, `error_type`, `message`,
+  `timestamp`) to stdout when `--section` names a missing or empty section; the stderr message and
+  exit code are unchanged.
 
 ## [2.7.15] - 2026-11-12
 

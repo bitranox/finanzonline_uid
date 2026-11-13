@@ -81,7 +81,8 @@ def _check(
     return CliRunner().invoke(cli_mod.cli, ["check", *args, "--no-email", "--format", output_format], obj=deps, input=stdin)
 
 
-#: click.prompt writes the prompt to stdout, and CliRunner echoes the typed input after it.
+#: The --interactive prompt with the typed input CliRunner echoes after it: on stdout with
+#: --format human, on stderr with --format json (stdout then carries only the JSON document).
 _PROMPT_ECHO = re.compile(r"\AEnter EU VAT ID to verify: [^\n]*\n")
 #: The console log handler writes to the stderr of the first run in this process only, so log
 #: lines say nothing about one run against another and are left out of the comparison.
@@ -89,7 +90,7 @@ _LOG_LINE = re.compile(r"^\[\d{2}:\d{2}:\d{2}\]\[[A-Z]+\]: .*\n", re.MULTILINE)
 
 
 def _stdout_after_prompt(result: Result) -> str:
-    """Stdout without the interactive prompt line (present only with ``--interactive``)."""
+    """Stdout without the interactive prompt line (present only with ``--interactive --format human``)."""
     return _PROMPT_ECHO.sub("", result.stdout)
 
 
@@ -99,8 +100,8 @@ def _stderr_without_log_lines(result: Result) -> str:
 
 
 def _record(result: Result) -> dict[str, Any]:
-    """The one JSON document on stdout (``json.loads`` refuses a second one)."""
-    parsed: dict[str, Any] = json.loads(_stdout_after_prompt(result))
+    """The one JSON document on stdout, parsed whole (``json.loads`` refuses anything beside it)."""
+    parsed: dict[str, Any] = json.loads(result.stdout)
     return parsed
 
 
@@ -202,11 +203,15 @@ def test_human_failure_leaves_stdout_empty(args: list[str], outcomes: list[UidCh
 @pytest.mark.os_agnostic
 @pytest.mark.parametrize(("args", "outcomes", "stdin"), [case[1:] for case in _FAILURES], ids=[case[0] for case in _FAILURES])
 def test_json_failure_keeps_the_human_stderr_and_exit_code(args: list[str], outcomes: list[UidCheckResult | BaseException], stdin: str | None) -> None:
-    """``--format json`` only adds the stdout record: stderr, exit code and exception match the human run."""
+    """``--format json`` only adds the stdout record: stderr, exit code and exception match the human run.
+
+    The one difference is the --interactive prompt, which the json run writes to stderr so
+    stdout stays a single JSON document.
+    """
     human = _check(args, "human", outcomes=list(outcomes), stdin=stdin)
     machine = _check(args, "json", outcomes=list(outcomes), stdin=stdin)
 
-    assert (_stderr_without_log_lines(machine), machine.exit_code, type(machine.exception)) == (
+    assert (_PROMPT_ECHO.sub("", _stderr_without_log_lines(machine)), machine.exit_code, type(machine.exception)) == (
         _stderr_without_log_lines(human),
         human.exit_code,
         type(human.exception),

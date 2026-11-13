@@ -64,7 +64,7 @@ fo_config = load_finanzonline_config(config)
 | `session_timeout`     | `float`                   | `30.0`   | Timeout for session operations (seconds) |
 | `query_timeout`       | `float`                   | `30.0`   | Timeout for query operations (seconds)   |
 | `default_recipients`  | `list[str] \| None`       | `None`   | Default email recipients                 |
-| `email_format`        | `EmailFormat`             | `BOTH`   | Email body format                        |
+| `email_format`        | `EmailFormat`             | `HTML`   | Email body format                        |
 | `cache_results_hours` | `float`                   | `48.0`   | Hours to cache valid results             |
 | `cache_file`          | `Path \| None`            | `None`   | Path to cache JSON file                  |
 | `ratelimit_queries`   | `int`                     | `50`     | Max queries in time window               |
@@ -150,16 +150,16 @@ result.has_company_info  # True if name or address present
 
 **Attributes:**
 
-| Attribute     | Type               | Default   | Description                              |
-|---------------|--------------------|-----------|------------------------------------------|
-| `uid`         | `str`              | Required  | The VAT ID that was verified             |
-| `return_code` | `int`              | Required  | FinanzOnline return code                 |
-| `message`     | `str`              | Required  | Human-readable status message            |
-| `name`        | `str`              | `""`      | Company name (if UID valid)              |
-| `address`     | `Address \| None`  | `None`    | Company address (if UID valid)           |
-| `timestamp`   | `datetime`         | Now (UTC) | When verification was performed          |
-| `from_cache`  | `bool`             | `False`   | Whether result was retrieved from cache  |
-| `cached_at`   | `datetime \| None` | `None`    | Original query timestamp if from cache   |
+| Attribute     | Type               | Default   | Description                             |
+|---------------|--------------------|-----------|-----------------------------------------|
+| `uid`         | `str`              | Required  | The VAT ID that was verified            |
+| `return_code` | `int`              | Required  | FinanzOnline return code                |
+| `message`     | `str`              | Required  | Human-readable status message           |
+| `name`        | `str`              | `""`      | Company name (if UID valid)             |
+| `address`     | `Address \| None`  | `None`    | Company address (if UID valid)          |
+| `timestamp`   | `datetime`         | Now (UTC) | When verification was performed         |
+| `from_cache`  | `bool`             | `False`   | Whether result was retrieved from cache |
+| `cached_at`   | `datetime \| None` | `None`    | Original query timestamp if from cache  |
 
 ---
 

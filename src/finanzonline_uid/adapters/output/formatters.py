@@ -12,6 +12,7 @@ Contents
 * :func:`format_html` - HTML document output
 * :func:`format_error_human` - Human-readable error output
 * :func:`format_error_json` - JSON error output
+* :func:`format_command_error_json` - JSON error output of a command without a UID
 
 System Role
 -----------
@@ -58,6 +59,7 @@ if TYPE_CHECKING:
     from finanzonline_uid.domain.models import Diagnostics, UidCheckResult
 
 __all__ = [
+    "format_command_error_json",
     "format_error_human",
     "format_error_json",
     "format_html",
@@ -179,6 +181,22 @@ class _ErrorOut(BaseModel):
     meaning: str | None = None
     severity: Severity | None = None
     diagnostics: _DiagnosticsOut | None = None
+
+
+class _CommandErrorOut(BaseModel):
+    """The error JSON of a command that checks no UID (``config --format json``).
+
+    Its fields carry the same names, types and meaning as the matching
+    fields of :class:`_ErrorOut`, so a caller reads both records with one
+    rule; every field about a UID or a FinanzOnline reply is left out.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    error: bool = True
+    error_type: ErrorKind
+    message: str
+    timestamp: str
 
 
 def _dump_json(model: BaseModel) -> str:
@@ -451,4 +469,23 @@ def format_error_json(info: CheckErrorInfo, uid: str) -> str:
         severity=code_info.severity if code_info is not None else None,
         diagnostics=_diagnostics_out(info.diagnostics),
     )
+    return _dump_json(out)
+
+
+def format_command_error_json(error_type: ErrorKind, message: str) -> str:
+    """Format the error of a command that checks no UID as JSON.
+
+    Args:
+        error_type: Category of the failure; its value is the ``error_type``.
+        message: Human-readable error description.
+
+    Returns:
+        JSON string with ``error``, ``error_type``, ``message`` and ``timestamp``.
+
+    Examples:
+        >>> record = json.loads(format_command_error_json(ErrorKind.VALIDATION, "Section 'x' not found or empty"))
+        >>> sorted(record), record["error_type"]
+        (['error', 'error_type', 'message', 'timestamp'], 'Validation Error')
+    """
+    out = _CommandErrorOut(error_type=error_type, message=message, timestamp=datetime.now(timezone.utc).isoformat())
     return _dump_json(out)

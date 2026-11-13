@@ -6,14 +6,14 @@ This document describes all configuration options for `finanzonline_uid`.
 
 Configuration can be provided through multiple sources. Later sources override earlier ones:
 
-| Priority | Source      | Description                               |
-|----------|-------------|-------------------------------------------|
-| 1        | defaults    | Bundled `defaultconfig.toml`              |
-| 2        | app         | System-wide application config            |
-| 3        | host        | Host-specific config                      |
-| 4        | user        | User-specific config                      |
-| 5        | .env        | Environment file in current/parent dirs   |
-| 6        | env vars    | Environment variables (highest priority)  |
+| Priority | Source   | Description                              |
+|----------|----------|------------------------------------------|
+| 1        | defaults | Bundled `defaultconfig.toml`             |
+| 2        | app      | System-wide application config           |
+| 3        | host     | Host-specific config                     |
+| 4        | user     | User-specific config                     |
+| 5        | .env     | Environment file in current/parent dirs  |
+| 6        | env vars | Environment variables (highest priority) |
 
 **Environment Variable Naming:**
 
@@ -27,11 +27,11 @@ FINANZONLINE_UID___SECTION__KEY=value
 
 **Configuration File Locations:**
 
-| Target | Linux                                          | macOS                                                       | Windows                                     |
-|--------|------------------------------------------------|-------------------------------------------------------------|---------------------------------------------|
+| Target | Linux                                         | macOS                                                      | Windows                                    |
+|--------|-----------------------------------------------|------------------------------------------------------------|--------------------------------------------|
 | `user` | `~/.config/finanzonline-uid/`                 | `~/Library/Application Support/bitranox/FinanzOnline UID/` | `%APPDATA%\bitranox\FinanzOnline UID\`     |
 | `app`  | `/etc/xdg/finanzonline-uid/`                  | `/Library/Application Support/bitranox/FinanzOnline UID/`  | `%PROGRAMDATA%\bitranox\FinanzOnline UID\` |
-| `host` | `/etc/finanzonline-uid/hosts/{hostname}.toml` | Same as app                                                 | Same as app                                 |
+| `host` | `/etc/finanzonline-uid/hosts/{hostname}.toml` | Same as app                                                | Same as app                                |
 
 **Configuration Directory Structure:**
 
@@ -80,9 +80,9 @@ This pattern ensures painless updates - when default configurations (`20-email.t
 
 All user-facing messages, CLI output, and email notifications can be displayed in multiple languages.
 
-| Key            | Type  | Default | Description                                      |
-|----------------|-------|---------|--------------------------------------------------|
-| `app.language` | `str` | `"en"`  | Language code for messages and email content     |
+| Key            | Type  | Default | Description                                  |
+|----------------|-------|---------|----------------------------------------------|
+| `app.language` | `str` | `"en"`  | Language code for messages and email content |
 
 **Supported Languages:**
 
@@ -130,7 +130,7 @@ Authentication credentials for the FinanzOnline web service.
 | `finanzonline.session_timeout`    | `float`     | `30.0`   | Session timeout in seconds                    |
 | `finanzonline.query_timeout`      | `float`     | `30.0`   | Query timeout in seconds                      |
 | `finanzonline.default_recipients` | `list[str]` | `[]`     | Default email recipients for notifications    |
-| `finanzonline.email_format`       | `str`       | `"both"` | Email format: `html`, `plain`, or `both`      |
+| `finanzonline.email_format`       | `str`       | `"html"` | Email format: `html`, `plain`, or `both`      |
 | `finanzonline.output_dir`         | `str`       | `""`     | Directory to save valid results as files      |
 | `finanzonline.output_format`      | `str`       | `"html"` | Output file format: `json`, `txt`, or `html`  |
 
@@ -152,15 +152,15 @@ FINANZONLINE__OUTPUT_DIR=/var/log/uid-checks/
 
 When a valid UID check is performed, the result can be saved to a file.
 
-| Key                           | Type  | Default | Description                                       |
-|-------------------------------|-------|---------|---------------------------------------------------|
-| `finanzonline.output_dir`     | `str` | `""`    | Directory for result files (empty = disabled)     |
-| `finanzonline.output_format`  | `str` | `"html"`| Output file format: `json`, `txt`, or `html`      |
+| Key                          | Type  | Default  | Description                                   |
+|------------------------------|-------|----------|-----------------------------------------------|
+| `finanzonline.output_dir`    | `str` | `""`     | Directory for result files (empty = disabled) |
+| `finanzonline.output_format` | `str` | `"html"` | Output file format: `json`, `txt`, or `html`  |
 
 **Output formats:**
 
 | Format | Extension | Description                                        |
-|--------|-----------|---------------------------------------------------|
+|--------|-----------|----------------------------------------------------|
 | `html` | `.html`   | Styled HTML document (default, best for archiving) |
 | `json` | `.json`   | Structured JSON data (for programmatic use)        |
 | `txt`  | `.txt`    | Plain text, human-readable                         |

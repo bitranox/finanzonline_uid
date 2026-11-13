@@ -6,12 +6,12 @@ Dieses Dokument beschreibt alle CLI-Befehle und Optionen für `finanzonline_uid`
 
 Diese Optionen gelten für alle Befehle:
 
-| Option                         | Standard         | Beschreibung                                                           |
-|--------------------------------|------------------|------------------------------------------------------------------------|
-| `--traceback / --no-traceback` | `--no-traceback` | Vollständigen Python-Traceback bei Fehlern anzeigen                    |
-| `--profile NAME`               | `None`           | Konfiguration aus benanntem Profil laden (z.B. 'production', 'test')   |
-| `--version`                    | -                | Version anzeigen und beenden                                           |
-| `-h, --help`                   | -                | Hilfe anzeigen und beenden                                             |
+| Option                         | Standard         | Beschreibung                                                         |
+|--------------------------------|------------------|----------------------------------------------------------------------|
+| `--traceback / --no-traceback` | `--no-traceback` | Vollständigen Python-Traceback bei Fehlern anzeigen                  |
+| `--profile NAME`               | `None`           | Konfiguration aus benanntem Profil laden (z.B. 'production', 'test') |
+| `--version`                    | -                | Version anzeigen und beenden                                         |
+| `-h, --help`                   | -                | Hilfe anzeigen und beenden                                           |
 
 ## Befehle
 
@@ -27,33 +27,33 @@ finanzonline-uid check [OPTIONEN] [UID]
 
 **Argumente:**
 
-| Argument | Erforderlich | Beschreibung                                                                  |
-|----------|--------------|-------------------------------------------------------------------------------|
+| Argument | Erforderlich | Beschreibung                                                                         |
+|----------|--------------|--------------------------------------------------------------------------------------|
 | `UID`    | Ja*          | EU-UID zur Verifizierung (z.B. DE123456789). *Nicht erforderlich mit `--interactive` |
 
 **Optionen:**
 
-| Option            | Kurz  | Standard        | Beschreibung                                                              |
-|-------------------|-------|-----------------|---------------------------------------------------------------------------|
-| `--interactive`   | `-i`  | `False`         | Interaktiver Modus: UID eingeben                                          |
-| `--no-email`      | -     | `False`         | E-Mail-Benachrichtigung deaktivieren (Standard: aktiviert)                |
-| `--format`        | -     | `human`         | Ausgabeformat: `human` oder `json`                                        |
-| `--recipient`     | -     | Konfig-Standard | E-Mail-Empfänger (kann mehrfach angegeben werden)                         |
-| `--retryminutes`  | -     | `None`          | Wiederholungsintervall in Minuten (nur mit `--interactive`)               |
-| `--outputdir`     | `-o`  | Konfig-Standard | Verzeichnis zum Speichern gültiger Ergebnisse als Dateien                 |
-| `--outputformat`  | -     | `html`          | Ausgabedateiformat: `json`, `txt` oder `html`                             |
+| Option           | Kurz | Standard        | Beschreibung                                                |
+|------------------|------|-----------------|-------------------------------------------------------------|
+| `--interactive`  | `-i` | `False`         | Interaktiver Modus: UID eingeben                            |
+| `--no-email`     | -    | `False`         | E-Mail-Benachrichtigung deaktivieren (Standard: aktiviert)  |
+| `--format`       | -    | `human`         | Ausgabeformat: `human` oder `json`                          |
+| `--recipient`    | -    | Konfig-Standard | E-Mail-Empfänger (kann mehrfach angegeben werden)           |
+| `--retryminutes` | -    | `None`          | Wiederholungsintervall in Minuten (nur mit `--interactive`) |
+| `--outputdir`    | `-o` | Konfig-Standard | Verzeichnis zum Speichern gültiger Ergebnisse als Dateien   |
+| `--outputformat` | -    | `html`          | Ausgabedateiformat: `json`, `txt` oder `html`               |
 
 > **Hinweis:** UID-Eingaben werden automatisch bereinigt: Leerzeichen, unsichtbare Zeichen werden entfernt und in Großbuchstaben umgewandelt.
 
 **Exit-Codes:**
 
-| Code | Bedeutung                 |
-|------|---------------------------|
-| 0    | UID ist gültig            |
-| 1    | UID ist ungültig          |
-| 2    | Konfigurationsfehler      |
-| 3    | Authentifizierungsfehler  |
-| 4    | Abfragefehler             |
+| Code | Bedeutung                |
+|------|--------------------------|
+| 0    | UID ist gültig           |
+| 1    | UID ist ungültig         |
+| 2    | Konfigurationsfehler     |
+| 3    | Authentifizierungsfehler |
+| 4    | Abfragefehler            |
 
 **Beispiele:**
 
@@ -98,14 +98,16 @@ Wenn `--outputdir` angegeben ist und die UID-Prüfung gültig ist (return_code=0
 - Überschreibt vorhandene Datei (eine Datei pro UID pro Tag pro Format)
 - Verzeichnis wird automatisch erstellt, falls nicht vorhanden
 - Kann auch über `finanzonline.output_dir` und `finanzonline.output_format` in der Konfigurationsdatei konfiguriert werden
+- Ein leeres oder nur aus Leerzeichen bestehendes `--outputdir` gilt als nicht angegeben, dann gilt das konfigurierte `finanzonline.output_dir`
+- Mit `--format json` geht der Hinweis `Result saved to` nach stderr, stdout enthält nur das JSON-Dokument
 
 **Ausgabeformate:**
 
-| Format | Erweiterung | Beschreibung                                              |
-|--------|-------------|-----------------------------------------------------------|
+| Format | Erweiterung | Beschreibung                                                 |
+|--------|-------------|--------------------------------------------------------------|
 | `html` | `.html`     | Gestaltetes HTML-Dokument (Standard, ideal zur Archivierung) |
-| `json` | `.json`     | Strukturierte JSON-Daten (für programmatische Verwendung) |
-| `txt`  | `.txt`      | Klartext, menschenlesbar                                  |
+| `json` | `.json`     | Strukturierte JSON-Daten (für programmatische Verwendung)    |
+| `txt`  | `.txt`      | Klartext, menschenlesbar                                     |
 
 **Wiederholungsmodus (`--retryminutes`):**
 
@@ -116,6 +118,7 @@ Der Wiederholungsmodus wiederholt die Prüfung automatisch bei temporären Fehle
 - Bricht sofort ab bei permanenten Fehlern (ungültige UID, Authentifizierung)
 - E-Mail wird nur bei Erfolg oder endgültigem Fehler gesendet
 - Abbruch jederzeit mit Ctrl+C möglich
+- Mit `--format json` gehen die interaktive Eingabeaufforderung und der Countdown nach stderr, stdout enthält nur das JSON-Dokument
 
 ---
 
@@ -127,11 +130,11 @@ finanzonline-uid config [OPTIONEN]
 
 **Optionen:**
 
-| Option      | Standard | Beschreibung                                                                    |
-|-------------|----------|---------------------------------------------------------------------------------|
-| `--format`  | `human`  | Ausgabeformat: `human` oder `json`                                              |
-| `--section` | `None`   | Nur bestimmten Abschnitt anzeigen (z.B. 'finanzonline', 'email', 'lib_log_rich')|
-| `--profile` | `None`   | Profil vom Root-Befehl überschreiben                                            |
+| Option      | Standard | Beschreibung                                                                     |
+|-------------|----------|----------------------------------------------------------------------------------|
+| `--format`  | `human`  | Ausgabeformat: `human` oder `json`                                               |
+| `--section` | `None`   | Nur bestimmten Abschnitt anzeigen (z.B. 'finanzonline', 'email', 'lib_log_rich') |
+| `--profile` | `None`   | Profil vom Root-Befehl überschreiben                                             |
 
 **Beispiele:**
 
@@ -159,11 +162,11 @@ finanzonline-uid config-deploy [OPTIONEN]
 
 **Optionen:**
 
-| Option      | Erforderlich | Standard | Beschreibung                                                    |
-|-------------|--------------|----------|-----------------------------------------------------------------|
+| Option      | Erforderlich | Standard | Beschreibung                                                          |
+|-------------|--------------|----------|-----------------------------------------------------------------------|
 | `--target`  | Ja           | -        | Zielebene: `user`, `app` oder `host` (kann mehrfach angegeben werden) |
-| `--force`   | Nein         | `False`  | Bestehende Konfigurationsdateien überschreiben                  |
-| `--profile` | Nein         | `None`   | In bestimmtes Profilverzeichnis bereitstellen                   |
+| `--force`   | Nein         | `False`  | Bestehende Konfigurationsdateien überschreiben                        |
+| `--profile` | Nein         | `None`   | In bestimmtes Profilverzeichnis bereitstellen                         |
 
 **Beispiele:**
 

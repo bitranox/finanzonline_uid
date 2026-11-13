@@ -34,10 +34,10 @@ config = get_config(start_dir="/path/to/project")
 
 **Parameter:**
 
-| Parameter   | Typ           | Standard | Beschreibung                              |
-|-------------|---------------|----------|-------------------------------------------|
-| `profile`   | `str \| None` | `None`   | Profilname für Umgebungsisolierung        |
-| `start_dir` | `str \| None` | `None`   | Verzeichnis für .env-Dateierkennung       |
+| Parameter   | Typ           | Standard | Beschreibung                        |
+|-------------|---------------|----------|-------------------------------------|
+| `profile`   | `str \| None` | `None`   | Profilname für Umgebungsisolierung  |
+| `start_dir` | `str \| None` | `None`   | Verzeichnis für .env-Dateierkennung |
 
 **Rückgabe:** `Config` - Unveränderliches Konfigurationsobjekt
 
@@ -57,19 +57,19 @@ fo_config = load_finanzonline_config(config)
 
 **Attribute:**
 
-| Attribut              | Typ                       | Standard     | Beschreibung                                |
-|-----------------------|---------------------------|--------------|---------------------------------------------|
-| `credentials`         | `FinanzOnlineCredentials` | Erforderlich | Authentifizierungsdaten                     |
+| Attribut              | Typ                       | Standard     | Beschreibung                                       |
+|-----------------------|---------------------------|--------------|----------------------------------------------------|
+| `credentials`         | `FinanzOnlineCredentials` | Erforderlich | Authentifizierungsdaten                            |
 | `uid_tn`              | `str`                     | Erforderlich | Eigene österreichische UID (muss mit ATU beginnen) |
-| `session_timeout`     | `float`                   | `30.0`       | Timeout für Session-Operationen (Sekunden)  |
-| `query_timeout`       | `float`                   | `30.0`       | Timeout für Abfrage-Operationen (Sekunden)  |
-| `default_recipients`  | `list[str] \| None`       | `None`       | Standard-E-Mail-Empfänger                   |
-| `email_format`        | `EmailFormat`             | `BOTH`       | E-Mail-Body-Format                          |
-| `cache_results_hours` | `float`                   | `48.0`       | Stunden für Cache gültiger Ergebnisse       |
-| `cache_file`          | `Path \| None`            | `None`       | Pfad zur Cache-JSON-Datei                   |
-| `ratelimit_queries`   | `int`                     | `50`         | Max. Abfragen im Zeitfenster                |
-| `ratelimit_hours`     | `float`                   | `24.0`       | Gleitendes Zeitfenster in Stunden           |
-| `ratelimit_file`      | `Path \| None`            | `None`       | Pfad zur Ratenlimit-Tracking-Datei          |
+| `session_timeout`     | `float`                   | `30.0`       | Timeout für Session-Operationen (Sekunden)         |
+| `query_timeout`       | `float`                   | `30.0`       | Timeout für Abfrage-Operationen (Sekunden)         |
+| `default_recipients`  | `list[str] \| None`       | `None`       | Standard-E-Mail-Empfänger                          |
+| `email_format`        | `EmailFormat`             | `HTML`       | E-Mail-Body-Format                                 |
+| `cache_results_hours` | `float`                   | `48.0`       | Stunden für Cache gültiger Ergebnisse              |
+| `cache_file`          | `Path \| None`            | `None`       | Pfad zur Cache-JSON-Datei                          |
+| `ratelimit_queries`   | `int`                     | `50`         | Max. Abfragen im Zeitfenster                       |
+| `ratelimit_hours`     | `float`                   | `24.0`       | Gleitendes Zeitfenster in Stunden                  |
+| `ratelimit_file`      | `Path \| None`            | `None`       | Pfad zur Ratenlimit-Tracking-Datei                 |
 
 ---
 
@@ -92,12 +92,12 @@ credentials = FinanzOnlineCredentials(
 
 **Validierungsregeln (gemäß login.xsd):**
 
-| Feld           | Muster              | Beschreibung                   |
-|----------------|---------------------|--------------------------------|
-| `tid`          | 8-12 alphanumerisch | Teilnehmer-ID                  |
-| `benid`        | 5-12 Zeichen        | Benutzer-ID                    |
-| `pin`          | 5-128 Zeichen       | Passwort/PIN                   |
-| `herstellerid` | 10-24 alphanumerisch| UID des Software-Herstellers   |
+| Feld           | Muster               | Beschreibung                 |
+|----------------|----------------------|------------------------------|
+| `tid`          | 8-12 alphanumerisch  | Teilnehmer-ID                |
+| `benid`        | 5-12 Zeichen         | Benutzer-ID                  |
+| `pin`          | 5-128 Zeichen        | Passwort/PIN                 |
+| `herstellerid` | 10-24 alphanumerisch | UID des Software-Herstellers |
 
 ---
 
@@ -117,11 +117,11 @@ request = UidCheckRequest(
 
 **Attribute:**
 
-| Attribut  | Typ   | Standard     | Beschreibung                                   |
-|-----------|-------|--------------|------------------------------------------------|
-| `uid_tn`  | `str` | Erforderlich | Eigene österreichische UID (muss mit ATU beginnen) |
-| `uid`     | `str` | Erforderlich | Ziel-EU-UID zur Verifizierung                  |
-| `stufe`   | `int` | `2`          | Abfragestufe (nur 2 unterstützt)               |
+| Attribut | Typ   | Standard     | Beschreibung                                       |
+|----------|-------|--------------|----------------------------------------------------|
+| `uid_tn` | `str` | Erforderlich | Eigene österreichische UID (muss mit ATU beginnen) |
+| `uid`    | `str` | Erforderlich | Ziel-EU-UID zur Verifizierung                      |
+| `stufe`  | `int` | `2`          | Abfragestufe (nur 2 unterstützt)                   |
 
 ---
 
@@ -150,16 +150,16 @@ result.has_company_info  # True wenn Name oder Adresse vorhanden
 
 **Attribute:**
 
-| Attribut      | Typ                | Standard    | Beschreibung                                    |
-|---------------|--------------------|--------------|-------------------------------------------------|
-| `uid`         | `str`              | Erforderlich | Die verifizierte UID                            |
-| `return_code` | `int`              | Erforderlich | FinanzOnline-Rückgabecode                       |
-| `message`     | `str`              | Erforderlich | Menschenlesbare Statusmeldung                   |
-| `name`        | `str`              | `""`         | Firmenname (wenn UID gültig)                    |
-| `address`     | `Address \| None`  | `None`       | Firmenadresse (wenn UID gültig)                 |
-| `timestamp`   | `datetime`         | Jetzt (UTC)  | Wann die Verifizierung durchgeführt wurde       |
-| `from_cache`  | `bool`             | `False`      | Ob das Ergebnis aus dem Cache stammt            |
-| `cached_at`   | `datetime \| None` | `None`       | Ursprünglicher Abfragezeitstempel wenn aus Cache|
+| Attribut      | Typ                | Standard     | Beschreibung                                     |
+|---------------|--------------------|--------------|--------------------------------------------------|
+| `uid`         | `str`              | Erforderlich | Die verifizierte UID                             |
+| `return_code` | `int`              | Erforderlich | FinanzOnline-Rückgabecode                        |
+| `message`     | `str`              | Erforderlich | Menschenlesbare Statusmeldung                    |
+| `name`        | `str`              | `""`         | Firmenname (wenn UID gültig)                     |
+| `address`     | `Address \| None`  | `None`       | Firmenadresse (wenn UID gültig)                  |
+| `timestamp`   | `datetime`         | Jetzt (UTC)  | Wann die Verifizierung durchgeführt wurde        |
+| `from_cache`  | `bool`             | `False`      | Ob das Ergebnis aus dem Cache stammt             |
+| `cached_at`   | `datetime \| None` | `None`       | Ursprünglicher Abfragezeitstempel wenn aus Cache |
 
 ---
 
@@ -181,9 +181,9 @@ address.is_empty  # False
 
 **Attribute:**
 
-| Attribut          | Typ   | Standard | Beschreibung       |
-|-------------------|-------|----------|--------------------|
-| `line1` - `line6` | `str` | `""`     | Adresszeilen 1-6   |
+| Attribut          | Typ   | Standard | Beschreibung     |
+|-------------------|-------|----------|------------------|
+| `line1` - `line6` | `str` | `""`     | Adresszeilen 1-6 |
 
 ---
 
@@ -216,11 +216,11 @@ print(f"Firma: {result.name}")
 
 **Parameter für `execute()`:**
 
-| Parameter     | Typ                       | Beschreibung                 |
-|---------------|---------------------------|------------------------------|
-| `credentials` | `FinanzOnlineCredentials` | Authentifizierungsdaten      |
-| `uid_tn`      | `str`                     | Eigene österreichische UID   |
-| `target_uid`  | `str`                     | Ziel-UID zur Verifizierung   |
+| Parameter     | Typ                       | Beschreibung               |
+|---------------|---------------------------|----------------------------|
+| `credentials` | `FinanzOnlineCredentials` | Authentifizierungsdaten    |
+| `uid_tn`      | `str`                     | Eigene österreichische UID |
+| `target_uid`  | `str`                     | Ziel-UID zur Verifizierung |
 
 **Rückgabe:** `UidCheckResult`
 
@@ -255,17 +255,17 @@ config = EmailConfig(
 
 **Attribute:**
 
-| Attribut                       | Typ           | Standard              | Beschreibung                         |
-|--------------------------------|---------------|-----------------------|--------------------------------------|
-| `smtp_hosts`                   | `list[str]`   | `[]`                  | SMTP-Server im 'host:port'-Format    |
-| `from_address`                 | `str`         | `"noreply@localhost"` | Standard-Absenderadresse             |
-| `smtp_username`                | `str \| None` | `None`                | SMTP-Authentifizierungsbenutzername  |
-| `smtp_password`                | `str \| None` | `None`                | SMTP-Authentifizierungspasswort      |
-| `use_starttls`                 | `bool`        | `True`                | STARTTLS aktivieren                  |
-| `timeout`                      | `float`       | `30.0`                | Socket-Timeout (Sekunden)            |
-| `raise_on_missing_attachments` | `bool`        | `True`                | Exception bei fehlenden Dateien      |
-| `raise_on_invalid_recipient`   | `bool`        | `True`                | Exception bei ungültigen Adressen    |
-| `default_recipients`           | `list[str]`   | `[]`                  | Standard-Empfänger                   |
+| Attribut                       | Typ           | Standard              | Beschreibung                        |
+|--------------------------------|---------------|-----------------------|-------------------------------------|
+| `smtp_hosts`                   | `list[str]`   | `[]`                  | SMTP-Server im 'host:port'-Format   |
+| `from_address`                 | `str`         | `"noreply@localhost"` | Standard-Absenderadresse            |
+| `smtp_username`                | `str \| None` | `None`                | SMTP-Authentifizierungsbenutzername |
+| `smtp_password`                | `str \| None` | `None`                | SMTP-Authentifizierungspasswort     |
+| `use_starttls`                 | `bool`        | `True`                | STARTTLS aktivieren                 |
+| `timeout`                      | `float`       | `30.0`                | Socket-Timeout (Sekunden)           |
+| `raise_on_missing_attachments` | `bool`        | `True`                | Exception bei fehlenden Dateien     |
+| `raise_on_invalid_recipient`   | `bool`        | `True`                | Exception bei ungültigen Adressen   |
+| `default_recipients`           | `list[str]`   | `[]`                  | Standard-Empfänger                  |
 
 ---
 
@@ -325,12 +325,12 @@ send_notification(config=config, recipients="admin@beispiel.at", subject="System
 
 **Parameter:**
 
-| Parameter    | Typ                    | Standard     | Beschreibung           |
-|--------------|------------------------|--------------|------------------------|
-| `config`     | `EmailConfig`          | Erforderlich | E-Mail-Konfiguration   |
-| `recipients` | `str \| Sequence[str]` | Erforderlich | Empfängeradresse(n)    |
-| `subject`    | `str`                  | Erforderlich | Betreffzeile           |
-| `message`    | `str`                  | Erforderlich | Benachrichtigungstext  |
+| Parameter    | Typ                    | Standard     | Beschreibung          |
+|--------------|------------------------|--------------|-----------------------|
+| `config`     | `EmailConfig`          | Erforderlich | E-Mail-Konfiguration  |
+| `recipients` | `str \| Sequence[str]` | Erforderlich | Empfängeradresse(n)   |
+| `subject`    | `str`                  | Erforderlich | Betreffzeile          |
+| `message`    | `str`                  | Erforderlich | Benachrichtigungstext |
 
 **Rückgabe:** `bool` - True bei Erfolg
 
@@ -364,13 +364,13 @@ from finanzonline_uid.domain.errors import (
 )
 ```
 
-| Exception             | Attribute                                            | Beschreibung                                  |
-|-----------------------|------------------------------------------------------|-----------------------------------------------|
-| `UidCheckError`       | `message`                                            | Basis-Exception für alle UID-Prüfungsfehler   |
-| `ConfigurationError`  | `message`                                            | Fehlende oder ungültige Konfiguration         |
-| `AuthenticationError` | `message`, `return_code`, `diagnostics`              | Login fehlgeschlagen                          |
-| `SessionError`        | `message`, `return_code`, `diagnostics`              | Session-Verwaltung fehlgeschlagen             |
-| `QueryError`          | `message`, `return_code`, `retryable`, `diagnostics` | Abfrageausführung fehlgeschlagen              |
+| Exception             | Attribute                                            | Beschreibung                                |
+|-----------------------|------------------------------------------------------|---------------------------------------------|
+| `UidCheckError`       | `message`                                            | Basis-Exception für alle UID-Prüfungsfehler |
+| `ConfigurationError`  | `message`                                            | Fehlende oder ungültige Konfiguration       |
+| `AuthenticationError` | `message`, `return_code`, `diagnostics`              | Login fehlgeschlagen                        |
+| `SessionError`        | `message`, `return_code`, `diagnostics`              | Session-Verwaltung fehlgeschlagen           |
+| `QueryError`          | `message`, `return_code`, `retryable`, `diagnostics` | Abfrageausführung fehlgeschlagen            |
 
 ---
 

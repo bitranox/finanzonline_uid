@@ -33,15 +33,15 @@ finanzonline-uid check [OPTIONS] [UID]
 
 **Options:**
 
-| Option           | Short | Default        | Description                                             |
-|------------------|-------|----------------|---------------------------------------------------------|
-| `--interactive`  | `-i`  | `False`        | Interactive mode: prompt for UID                        |
-| `--no-email`     | -     | `False`        | Disable email notification (email enabled by default)   |
-| `--format`       | -     | `human`        | Output format: `human` or `json`                        |
-| `--recipient`    | -     | Config default | Email recipient (can specify multiple times)            |
-| `--retryminutes` | -     | `None`         | Retry interval in minutes (requires `--interactive`)    |
-| `--outputdir`    | `-o`  | Config default | Directory to save valid results as files                |
-| `--outputformat` | -     | `html`         | Output file format: `json`, `txt`, or `html`            |
+| Option           | Short | Default        | Description                                           |
+|------------------|-------|----------------|-------------------------------------------------------|
+| `--interactive`  | `-i`  | `False`        | Interactive mode: prompt for UID                      |
+| `--no-email`     | -     | `False`        | Disable email notification (email enabled by default) |
+| `--format`       | -     | `human`        | Output format: `human` or `json`                      |
+| `--recipient`    | -     | Config default | Email recipient (can specify multiple times)          |
+| `--retryminutes` | -     | `None`         | Retry interval in minutes (requires `--interactive`)  |
+| `--outputdir`    | `-o`  | Config default | Directory to save valid results as files              |
+| `--outputformat` | -     | `html`         | Output file format: `json`, `txt`, or `html`          |
 
 > **Note:** UID inputs are automatically sanitized: whitespace and invisible characters are removed, and converted to uppercase.
 
@@ -98,11 +98,13 @@ When `--outputdir` is specified and the UID check is valid (return_code=0), the 
 - Overwrites existing file if present (one file per UID per day per format)
 - Directory is created automatically if it doesn't exist
 - Can also be configured via `finanzonline.output_dir` and `finanzonline.output_format` in config file
+- An empty or whitespace-only `--outputdir` counts as not given, so the configured `finanzonline.output_dir` applies
+- With `--format json` the `Result saved to` note goes to stderr, so stdout holds only the JSON document
 
 **Output formats:**
 
 | Format | Extension | Description                                        |
-|--------|-----------|---------------------------------------------------|
+|--------|-----------|----------------------------------------------------|
 | `html` | `.html`   | Styled HTML document (default, best for archiving) |
 | `json` | `.json`   | Structured JSON data (for programmatic use)        |
 | `txt`  | `.txt`    | Plain text, human-readable                         |
@@ -116,6 +118,7 @@ The retry mode automatically retries the check on transient errors:
 - Aborts immediately on permanent errors (invalid UID, authentication)
 - Email is only sent on success or final error
 - Can be cancelled anytime with Ctrl+C
+- With `--format json` the interactive prompt and the countdown go to stderr, so stdout holds only the JSON document
 
 ---
 

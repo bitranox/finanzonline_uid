@@ -15,7 +15,7 @@ from lib_layered_config import Config
 
 from finanzonline_uid import __init__conf__
 from finanzonline_uid import cli as cli_mod
-from finanzonline_uid.enums import FileFormat
+from finanzonline_uid.enums import FileFormat, OutputFormat
 
 
 @dataclass(slots=True)
@@ -120,7 +120,7 @@ def _check_dependencies(
     def build_uid_checker(_fo_config: Any, _notifier: Any) -> Any:
         return use_case
 
-    def build_email_sender(_email_config: Any) -> Any:
+    def build_email_sender(_email_config: Any, _email_format: Any) -> Any:
         return email_sender
 
     return dataclasses.replace(
@@ -1375,7 +1375,7 @@ def test_save_result_to_file_creates_txt_file(
 ) -> None:
     """Verify _save_result_to_file creates a txt file with the result."""
     output_dir = tmp_path / "output"
-    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.TXT)  # pyright: ignore[reportPrivateUsage]
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.TXT, output_format=OutputFormat.HUMAN)  # pyright: ignore[reportPrivateUsage]
 
     # Check file was created with correct extension
     expected_date = mock_uid_result_valid.timestamp.strftime("%Y-%m-%d")
@@ -1396,7 +1396,7 @@ def test_save_result_to_file_creates_json_file(
     import json
 
     output_dir = tmp_path / "output"
-    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.JSON)  # pyright: ignore[reportPrivateUsage]
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.JSON, output_format=OutputFormat.HUMAN)  # pyright: ignore[reportPrivateUsage]
 
     # Check file was created with correct extension
     expected_date = mock_uid_result_valid.timestamp.strftime("%Y-%m-%d")
@@ -1416,7 +1416,7 @@ def test_save_result_to_file_creates_html_file(
 ) -> None:
     """Verify _save_result_to_file creates an html file with the result."""
     output_dir = tmp_path / "output"
-    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML)  # pyright: ignore[reportPrivateUsage]
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML, output_format=OutputFormat.HUMAN)  # pyright: ignore[reportPrivateUsage]
 
     # Check file was created with correct extension
     expected_date = mock_uid_result_valid.timestamp.strftime("%Y-%m-%d")
@@ -1438,7 +1438,7 @@ def test_save_result_to_file_creates_directory(
     output_dir = tmp_path / "nested" / "output" / "dir"
     assert not output_dir.exists()
 
-    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML)  # pyright: ignore[reportPrivateUsage]
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML, output_format=OutputFormat.HUMAN)  # pyright: ignore[reportPrivateUsage]
 
     assert output_dir.exists()
 
@@ -1458,7 +1458,7 @@ def test_save_result_to_file_handles_permission_error(
     # Simulate permission error on mkdir
     with patch.object(Path, "mkdir", side_effect=PermissionError("Permission denied")):
         # Should not raise - just print warning
-        cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML)  # pyright: ignore[reportPrivateUsage]
+        cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML, output_format=OutputFormat.HUMAN)  # pyright: ignore[reportPrivateUsage]
 
     captured = capsys.readouterr()
     assert "Warning" in captured.err or "Could not save" in captured.err
@@ -1480,7 +1480,7 @@ def test_save_result_to_file_handles_write_error(
     # Simulate write error
     with patch.object(Path, "write_text", side_effect=OSError("Disk full")):
         # Should not raise - just print warning
-        cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML)  # pyright: ignore[reportPrivateUsage]
+        cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML, output_format=OutputFormat.HUMAN)  # pyright: ignore[reportPrivateUsage]
 
     captured = capsys.readouterr()
     assert "Warning" in captured.err or "Could not save" in captured.err

@@ -396,7 +396,7 @@ def _credential_text(raw: object) -> str:
     return str(raw) if raw else ""
 
 
-def _path_setting(raw: object) -> Path | None:
+def path_setting(raw: object) -> Path | None:
     """Return a path setting as a Path, or None when it names no path.
 
     Text that is empty or only whitespace names no path: it would otherwise
@@ -404,15 +404,65 @@ def _path_setting(raw: object) -> Path | None:
     of a real path is stripped by :func:`_normalize_path`, the same for every
     path setting, because a stray space around a path in a TOML or ``.env``
     file is far likelier than a directory whose name starts or ends with one.
+    ``check --outputdir`` reads its value through this function too, so the
+    option and ``finanzonline.output_dir`` cannot disagree about a blank value.
 
     Examples:
-        >>> _path_setting("") is None, _path_setting(" \t ") is None, str(_path_setting(4711))
+        >>> path_setting("") is None, path_setting(" \t ") is None, str(path_setting(4711))
         (True, True, '4711')
     """
     if isinstance(raw, Path):
         return raw
     text = text_setting(raw)
     return _normalize_path(text) if text and text.strip() else None
+
+
+#: Email body format used when ``[finanzonline].email_format`` names none.
+_DEFAULT_EMAIL_FORMAT = EmailFormat.HTML
+
+
+def _email_format_setting(raw: object) -> EmailFormat | None:
+    """Return the email format a setting names, or None when it names none.
+
+    Case and surrounding whitespace are ignored.
+
+    Examples:
+        >>> _email_format_setting(" Plain "), _email_format_setting("pdf"), _email_format_setting(1)
+        (<EmailFormat.PLAIN: 'plain'>, None, None)
+    """
+    if isinstance(raw, EmailFormat):
+        return raw
+    if isinstance(raw, str):
+        try:
+            return EmailFormat(raw.lower().strip())
+        except ValueError:
+            return None
+    return None
+
+
+def load_email_format(config: Config) -> EmailFormat:
+    """Read ``[finanzonline].email_format`` on its own, falling back to HTML.
+
+    The error email of a run whose ``[finanzonline]`` section could not be
+    loaded (missing credentials, say) has no :class:`FinanzOnlineConfig` to
+    take the format from; reading the one key here keeps that email in the
+    format the user configured. It never raises: an unusable value means the
+    default, as it does for :class:`FinanzOnlineSection`.
+
+    Args:
+        config: Loaded layered configuration.
+
+    Returns:
+        The configured email body format, HTML when none is configured.
+
+    Examples:
+        >>> load_email_format(Config({"finanzonline": {"email_format": "BOTH"}}, {}))
+        <EmailFormat.BOTH: 'both'>
+        >>> load_email_format(Config({}, {}))
+        <EmailFormat.HTML: 'html'>
+    """
+    configured = _email_format_setting(read_config_section(config, ConfigSection.FINANZONLINE).get("email_format"))
+    return configured if configured is not None else _DEFAULT_EMAIL_FORMAT
 
 
 class FinanzOnlineSection(BaseModel):
@@ -445,7 +495,7 @@ class FinanzOnlineSection(BaseModel):
     session_timeout: float = 30.0
     query_timeout: float = 30.0
     default_recipients: list[str] = Field(default_factory=empty_text_list)
-    email_format: EmailFormat = EmailFormat.HTML
+    email_format: EmailFormat = _DEFAULT_EMAIL_FORMAT
     cache_results_hours: float = 48.0
     cache_file: Path = Field(default_factory=_get_default_cache_path)
     ratelimit_queries: int = 50
@@ -477,20 +527,16 @@ class FinanzOnlineSection(BaseModel):
     @field_validator("email_format", mode="before")
     @classmethod
     def _email_format(cls, raw: object) -> EmailFormat:
-        if isinstance(raw, EmailFormat):
-            return raw
-        if isinstance(raw, str):
-            try:
-                return EmailFormat(raw.lower().strip())
-            except ValueError:
-                pass
-        raise PydanticUseDefault
+        configured = _email_format_setting(raw)
+        if configured is None:
+            raise PydanticUseDefault
+        return configured
 
     @field_validator("cache_file", "ratelimit_file", mode="before")
     @classmethod
     def _state_file(cls, raw: object) -> Path:
         # A blank path means "not configured", so the platform default applies.
-        path = _path_setting(raw)
+        path = path_setting(raw)
         if path is None:
             raise PydanticUseDefault
         return path
@@ -513,7 +559,7 @@ class FinanzOnlineSection(BaseModel):
                 {"type_name": type(raw).__name__},
             )
         # Whitespace-only text is "off" like an empty value; it must not become Path(".").
-        return _path_setting(raw)
+        return path_setting(raw)
 
     @field_validator("output_format", mode="before")
     @classmethod
@@ -562,7 +608,7 @@ class FinanzOnlineConfig:
     session_timeout: float = 30.0
     query_timeout: float = 30.0
     default_recipients: list[str] | None = None
-    email_format: EmailFormat = EmailFormat.HTML
+    email_format: EmailFormat = _DEFAULT_EMAIL_FORMAT
     cache_results_hours: float = 48.0
     cache_file: Path | None = None
     ratelimit_queries: int = 50
@@ -657,9 +703,11 @@ __all__ = [
     "get_config",
     "get_default_config_path",
     "load_app_config",
+    "load_email_format",
     "load_finanzonline_config",
     "number_or_default",
     "parse_string_list",
+    "path_setting",
     "read_config_section",
     "text_setting",
 ]

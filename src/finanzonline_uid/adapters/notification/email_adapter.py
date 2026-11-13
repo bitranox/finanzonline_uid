@@ -33,6 +33,8 @@ from finanzonline_uid.i18n import _
 from finanzonline_uid.mail import EmailConfig, send_email
 
 if TYPE_CHECKING:
+    from btx_lib_mail.lib_mail import Transport
+
     from finanzonline_uid.adapters.ratelimit import RateLimitStatus
     from finanzonline_uid.domain.errors import CheckErrorInfo
     from finanzonline_uid.domain.models import UidCheckResult
@@ -87,21 +89,29 @@ class EmailNotificationAdapter:
     Attributes:
         _config: Email configuration settings.
         _email_format: Email body format (html, text, or both).
+        _transport: Delivery seam handed to :func:`send_email`.
     """
 
     def __init__(
         self,
         config: EmailConfig,
         email_format: EmailFormat = EmailFormat.HTML,
+        *,
+        transport: Transport | None = None,
     ) -> None:
         """Initialize email notification adapter.
 
         Args:
             config: Email configuration with SMTP settings.
             email_format: Email body format - html, text, or both.
+            transport: Delivery seam forwarded to :func:`send_email`. ``None``
+                delivers over SMTP; another transport receives the composed
+                message instead, which is how a whole CLI run is checked down
+                to the bytes it would send.
         """
         self._config = config
         self._email_format = email_format
+        self._transport = transport
 
     def _get_body_parts(self, plain_body: str, html_body: str) -> _BodyParts:
         """Get body parts based on configured email format.
@@ -159,6 +169,7 @@ class EmailNotificationAdapter:
                 subject=subject,
                 body=bodies.plain,
                 body_html=bodies.html,
+                transport=self._transport,
             )
         except Exception as e:  # noqa: BLE001 - email delivery is non-fatal, degrade to a bool result
             logger.error("Failed to send notification: %s", e)
@@ -206,6 +217,7 @@ class EmailNotificationAdapter:
                 subject=subject,
                 body=bodies.plain,
                 body_html=bodies.html,
+                transport=self._transport,
             )
         except Exception as e:  # noqa: BLE001 - email delivery is non-fatal, degrade to a bool result
             logger.error("Failed to send error notification: %s", e)
@@ -251,6 +263,7 @@ class EmailNotificationAdapter:
                 subject=subject,
                 body=bodies.plain,
                 body_html=bodies.html,
+                transport=self._transport,
             )
         except Exception as e:  # noqa: BLE001 - email delivery is non-fatal, degrade to a bool result
             logger.error("Failed to send rate limit warning: %s", e)

@@ -22,6 +22,8 @@ from typing import cast
 from lib_layered_config import Config
 
 from . import safe_console
+from .adapters.output import format_command_error_json
+from .domain.errors import ErrorKind
 from .enums import OutputFormat
 
 
@@ -47,7 +49,9 @@ def display_config(
 
     Side Effects:
         Writes formatted configuration to stdout via safe_console.echo().
-        Raises SystemExit(1) if requested section doesn't exist.
+        Raises SystemExit(1) if requested section doesn't exist; with
+        ``OutputFormat.JSON`` that failure also writes one JSON error record
+        to stdout (the stderr line and the exit code are the same).
 
     Note:
         The human-readable format mimics TOML syntax for consistency with the
@@ -78,12 +82,17 @@ def display_config(
         _display_human(config, section)
 
 
-def _require_section(config: Config, section: str) -> object:
+def _require_section(config: Config, section: str, *, format: OutputFormat) -> object:
     """Return a section's data, exiting with status 1 when it is missing or empty.
+
+    The refusal line always goes to stderr. A JSON caller parses stdout, so
+    with ``OutputFormat.JSON`` the refusal reaches it there as an error record
+    as well; the human format leaves stdout empty, as it always has.
 
     Args:
         config: Loaded layered configuration.
         section: Name of the section to look up.
+        format: Output format of this run.
 
     Returns:
         The section's data (never empty): a table, or a scalar set at top level.
@@ -93,7 +102,12 @@ def _require_section(config: Config, section: str) -> object:
     """
     section_data: object = config.get(section, default={})
     if not section_data:
-        safe_console.echo(f"Section '{section}' not found or empty", err=True)
+        message = f"Section '{section}' not found or empty"
+        safe_console.echo(message, err=True)
+        if format == OutputFormat.JSON:
+            # A section the configuration does not hold is a bad --section
+            # argument, the category check uses for its own argument refusals.
+            safe_console.echo(format_command_error_json(ErrorKind.VALIDATION, message))
         raise SystemExit(1)
     return section_data
 
@@ -107,7 +121,7 @@ def _display_json(config: Config, section: str | None) -> None:
     """
     if section:
         # Show specific section as JSON
-        section_data = _require_section(config, section)
+        section_data = _require_section(config, section, format=OutputFormat.JSON)
         safe_console.echo(json.dumps({section: section_data}, indent=2))
     else:
         # Use lib_layered_config's built-in to_json method
@@ -123,7 +137,7 @@ def _display_human(config: Config, section: str | None) -> None:
     """
     if section:
         # Show specific section
-        section_data = _require_section(config, section)
+        section_data = _require_section(config, section, format=OutputFormat.HUMAN)
         safe_console.echo(f"\n[{section}]")
         _echo_section_body(section_data)
     else:

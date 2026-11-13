@@ -27,11 +27,11 @@ FINANZONLINE_UID___SECTION__KEY=value
 
 **Speicherorte der Konfigurationsdateien:**
 
-| Ziel   | Linux                                          | macOS                                                       | Windows                                     |
-|--------|------------------------------------------------|-------------------------------------------------------------|---------------------------------------------|
+| Ziel   | Linux                                         | macOS                                                      | Windows                                    |
+|--------|-----------------------------------------------|------------------------------------------------------------|--------------------------------------------|
 | `user` | `~/.config/finanzonline-uid/`                 | `~/Library/Application Support/bitranox/FinanzOnline UID/` | `%APPDATA%\bitranox\FinanzOnline UID\`     |
 | `app`  | `/etc/xdg/finanzonline-uid/`                  | `/Library/Application Support/bitranox/FinanzOnline UID/`  | `%PROGRAMDATA%\bitranox\FinanzOnline UID\` |
-| `host` | `/etc/finanzonline-uid/hosts/{hostname}.toml` | Wie app                                                     | Wie app                                     |
+| `host` | `/etc/finanzonline-uid/hosts/{hostname}.toml` | Wie app                                                    | Wie app                                    |
 
 **Konfigurationsverzeichnisstruktur:**
 
@@ -80,19 +80,19 @@ Dieses Muster gewährleistet problemlose Updates - wenn Standardkonfigurationen 
 
 Alle benutzerorientierten Meldungen, CLI-Ausgaben und E-Mail-Benachrichtigungen können in mehreren Sprachen angezeigt werden.
 
-| Schlüssel      | Typ   | Standard | Beschreibung                                     |
-|----------------|-------|----------|--------------------------------------------------|
-| `app.language` | `str` | `"en"`   | Sprachcode für Meldungen und E-Mail-Inhalte      |
+| Schlüssel      | Typ   | Standard | Beschreibung                                |
+|----------------|-------|----------|---------------------------------------------|
+| `app.language` | `str` | `"en"`   | Sprachcode für Meldungen und E-Mail-Inhalte |
 
 **Unterstützte Sprachen:**
 
-| Code | Sprache            |
-|------|--------------------|
-| `en` | Englisch (Standard)|
-| `de` | Deutsch            |
-| `es` | Spanisch (Español) |
-| `fr` | Französisch        |
-| `ru` | Russisch (Русский) |
+| Code | Sprache             |
+|------|---------------------|
+| `en` | Englisch (Standard) |
+| `de` | Deutsch             |
+| `es` | Spanisch (Español)  |
+| `fr` | Französisch         |
+| `ru` | Russisch (Русский)  |
 
 **Was wird übersetzt:**
 - CLI-Ausgabe (Statusmeldungen, Fehlermeldungen, Eingabeaufforderungen)
@@ -130,7 +130,7 @@ Authentifizierungsdaten für den FinanzOnline-Webservice.
 | `finanzonline.session_timeout`    | `float`     | `30.0`       | Session-Timeout in Sekunden                               |
 | `finanzonline.query_timeout`      | `float`     | `30.0`       | Abfrage-Timeout in Sekunden                               |
 | `finanzonline.default_recipients` | `list[str]` | `[]`         | Standard-E-Mail-Empfänger für Benachrichtigungen          |
-| `finanzonline.email_format`       | `str`       | `"both"`     | E-Mail-Format: `html`, `plain` oder `both`                |
+| `finanzonline.email_format`       | `str`       | `"html"`     | E-Mail-Format: `html`, `plain` oder `both`                |
 | `finanzonline.output_dir`         | `str`       | `""`         | Verzeichnis zum Speichern gültiger Ergebnisse als Dateien |
 | `finanzonline.output_format`      | `str`       | `"html"`     | Ausgabedateiformat: `json`, `txt` oder `html`             |
 
@@ -152,18 +152,18 @@ FINANZONLINE__OUTPUT_DIR=/var/log/uid-checks/
 
 Bei einer gültigen UID-Prüfung kann das Ergebnis in einer Datei gespeichert werden.
 
-| Schlüssel                     | Typ   | Standard | Beschreibung                                         |
-|-------------------------------|-------|----------|------------------------------------------------------|
-| `finanzonline.output_dir`     | `str` | `""`     | Verzeichnis für Ergebnisdateien (leer = deaktiviert) |
-| `finanzonline.output_format`  | `str` | `"html"` | Ausgabedateiformat: `json`, `txt` oder `html`        |
+| Schlüssel                    | Typ   | Standard | Beschreibung                                         |
+|------------------------------|-------|----------|------------------------------------------------------|
+| `finanzonline.output_dir`    | `str` | `""`     | Verzeichnis für Ergebnisdateien (leer = deaktiviert) |
+| `finanzonline.output_format` | `str` | `"html"` | Ausgabedateiformat: `json`, `txt` oder `html`        |
 
 **Ausgabeformate:**
 
-| Format | Erweiterung | Beschreibung                                              |
-|--------|-------------|-----------------------------------------------------------|
+| Format | Erweiterung | Beschreibung                                                 |
+|--------|-------------|--------------------------------------------------------------|
 | `html` | `.html`     | Gestaltetes HTML-Dokument (Standard, ideal zur Archivierung) |
-| `json` | `.json`     | Strukturierte JSON-Daten (für programmatische Verwendung) |
-| `txt`  | `.txt`      | Klartext, menschenlesbar                                  |
+| `json` | `.json`     | Strukturierte JSON-Daten (für programmatische Verwendung)    |
+| `txt`  | `.txt`      | Klartext, menschenlesbar                                     |
 
 **Verhalten:**
 - Nur gültige Ergebnisse (return_code=0) werden gespeichert
@@ -213,11 +213,11 @@ FINANZONLINE__CACHE_FILE=/shared/network/uid_cache.json
 
 Integriertes Ratenlimit-Tracking warnt, wenn die API-Nutzung sich den Limits nähert. Dies ist eine lokale Schutzmaßnahme - die tatsächliche Ratenbegrenzung wird von den BMF-Servern durchgesetzt.
 
-| Schlüssel                        | Typ     | Standard           | Beschreibung                                             |
-|----------------------------------|---------|--------------------|----------------------------------------------------------|
-| `finanzonline.ratelimit_queries` | `int`   | `50`               | Max. Abfragen im Zeitfenster (0 = Tracking deaktiviert)  |
-| `finanzonline.ratelimit_hours`   | `float` | `24.0`             | Gleitendes Zeitfenster in Stunden                        |
-| `finanzonline.ratelimit_file`    | `str`   | Plattformspezifisch| Pfad zur Ratenlimit-Tracking-JSON-Datei                  |
+| Schlüssel                        | Typ     | Standard            | Beschreibung                                            |
+|----------------------------------|---------|---------------------|---------------------------------------------------------|
+| `finanzonline.ratelimit_queries` | `int`   | `50`                | Max. Abfragen im Zeitfenster (0 = Tracking deaktiviert) |
+| `finanzonline.ratelimit_hours`   | `float` | `24.0`              | Gleitendes Zeitfenster in Stunden                       |
+| `finanzonline.ratelimit_file`    | `str`   | Plattformspezifisch | Pfad zur Ratenlimit-Tracking-JSON-Datei                 |
 
 **Standard-Ratenlimit-Dateispeicherorte:**
 - Linux: `~/.cache/finanzonline-uid/rate_limits.json`
@@ -274,12 +274,12 @@ EMAIL__DEFAULT_RECIPIENTS=["admin@beispiel.at"]
 
 Alle Logging-Einstellungen verwenden lib_layered_config-Benennung:
 
-| Schlüssel                            | Typ   | Standard     | Beschreibung                                  |
-|--------------------------------------|-------|--------------|-----------------------------------------------|
-| `lib_log_rich.console_level`         | `str` | `"INFO"`     | Konsolen-Loglevel                             |
-| `lib_log_rich.console_format_preset` | `str` | `"full"`     | Format: full, short, full_loc, short_loc      |
-| `lib_log_rich.service`               | `str` | Paketname    | Dienstname in Logs                            |
-| `lib_log_rich.environment`           | `str` | `"prod"`     | Umgebungskennzeichnung                        |
+| Schlüssel                            | Typ   | Standard  | Beschreibung                             |
+|--------------------------------------|-------|-----------|------------------------------------------|
+| `lib_log_rich.console_level`         | `str` | `"INFO"`  | Konsolen-Loglevel                        |
+| `lib_log_rich.console_format_preset` | `str` | `"full"`  | Format: full, short, full_loc, short_loc |
+| `lib_log_rich.service`               | `str` | Paketname | Dienstname in Logs                       |
+| `lib_log_rich.environment`           | `str` | `"prod"`  | Umgebungskennzeichnung                   |
 
 **.env-Beispiel:**
 ```bash

@@ -12,9 +12,11 @@ Contents:
     * :func:`cli` - root command group wiring global options.
     * :func:`main` - entry point for console scripts and ``python -m`` execution.
 
-    With ``check --format json`` every failure the command reports also writes
-    one JSON error record to stdout; the stderr text and exit codes are the same
-    as with ``--format human``.
+    With ``check --format json`` stdout carries exactly one JSON document: the
+    result, or the error record of a failure the command reports (the stderr
+    text and exit codes are the same as with ``--format human``). The
+    ``--interactive`` prompt, the retry countdown and the "Result saved to"
+    note go to stderr in that mode, so they never land in the parsed stream.
 
 System Role:
     The CLI is the primary adapter for local development workflows; packaging
@@ -40,6 +42,7 @@ from click.core import ParameterSource
 from click.exceptions import Abort, ClickException
 from lib_cli_exit_tools.adapters.signals import SigIntInterrupt
 from lib_layered_config import Config
+from rich.console import Console
 from rich.live import Live
 from rich.panel import Panel
 from rich.text import Text
@@ -52,7 +55,7 @@ from .adapters.output import format_error_json, format_html, format_human, forma
 from .adapters.ratelimit import RateLimitStatus, RateLimitTracker
 from .application.use_cases import CheckUidUseCase
 from .behaviors import emit_greeting, noop_main, raise_intentional_failure
-from .config import FinanzOnlineConfig, get_config, load_app_config, load_finanzonline_config
+from .config import FinanzOnlineConfig, get_config, load_app_config, load_email_format, load_finanzonline_config, path_setting
 from .config_deploy import deploy_configuration
 from .config_show import display_config
 from .domain.errors import (
@@ -67,7 +70,7 @@ from .domain.errors import (
 )
 from .domain.models import FinanzOnlineCredentials, UidCheckResult, sanitize_uid
 from .domain.return_codes import CliExitCode, get_return_code_info, is_retryable
-from .enums import DeployTarget, FileFormat, NotificationKind, OutputFormat
+from .enums import DeployTarget, EmailFormat, FileFormat, NotificationKind, OutputFormat
 from .i18n import _, setup_locale
 from .logging_setup import init_logging
 from .mail import EmailConfig, load_email_config
@@ -195,14 +198,15 @@ class CliDependencies:
         load_finanzonline_config: Reads the ``[finanzonline]`` section.
         build_uid_checker: Builds the use case for one check attempt from the
             FinanzOnline settings and the rate limit callback.
-        build_email_sender: Builds the email sender from the ``[email]`` settings.
+        build_email_sender: Builds the email sender from the ``[email]`` settings
+            and the email body format (``[finanzonline].email_format``).
         deploy_configuration: Writes the default configuration files.
     """
 
     load_config: ConfigLoader
     load_finanzonline_config: Callable[[Config], FinanzOnlineConfig]
     build_uid_checker: Callable[[FinanzOnlineConfig, RateLimitNotifier], UidChecker]
-    build_email_sender: Callable[[EmailConfig], EmailSender]
+    build_email_sender: Callable[[EmailConfig, EmailFormat], EmailSender]
     deploy_configuration: ConfigDeployer
 
 
@@ -671,6 +675,20 @@ def _refuse_check(message: str, *, output_format: OutputFormat, uid: str) -> NoR
     raise SystemExit(info.exit_code)
 
 
+def _notes_to_stderr(output_format: OutputFormat) -> bool:
+    """Whether progress text (prompt, countdown, file notes) goes to stderr.
+
+    A JSON caller parses stdout as one document, so in that mode nothing but
+    the document may reach it. The human format keeps these lines on stdout,
+    where they have always been.
+
+    Examples:
+        >>> _notes_to_stderr(OutputFormat.JSON), _notes_to_stderr(OutputFormat.HUMAN)
+        (True, False)
+    """
+    return output_format == OutputFormat.JSON
+
+
 def _resolve_uid_input(uid: str | None, interactive: bool, *, output_format: OutputFormat) -> str:
     """Resolve UID from argument or interactive prompt.
 
@@ -680,7 +698,8 @@ def _resolve_uid_input(uid: str | None, interactive: bool, *, output_format: Out
     Args:
         uid: UID argument from CLI (may be None).
         interactive: Whether to prompt interactively.
-        output_format: Console output format, for the refusal record.
+        output_format: Console output format: picks the prompt's stream and
+            shapes the refusal record.
 
     Returns:
         The sanitized UID string (uppercase, no whitespace).
@@ -693,7 +712,7 @@ def _resolve_uid_input(uid: str | None, interactive: bool, *, output_format: Out
         'DE123456789'
     """
     if interactive:
-        raw_uid = click.prompt(_("Enter EU VAT ID to verify"), type=str)
+        raw_uid = click.prompt(_("Enter EU VAT ID to verify"), type=str, err=_notes_to_stderr(output_format))
     elif uid is None:
         _refuse_check(_("Error: UID argument is required (or use --interactive)"), output_format=output_format, uid="")
     else:
@@ -732,7 +751,7 @@ def _render_result_file(result: UidCheckResult, file_format: FileFormat) -> str:
     return _strip_ansi(format_human(result))
 
 
-def _save_result_to_file(result: UidCheckResult, outputdir: Path, file_format: FileFormat) -> None:
+def _save_result_to_file(result: UidCheckResult, outputdir: Path, file_format: FileFormat, *, output_format: OutputFormat) -> None:
     """Save valid UID result to file in the output directory.
 
     Creates a file named <UID>_<YYYY-MM-DD>.<ext> with the result in the
@@ -747,6 +766,8 @@ def _save_result_to_file(result: UidCheckResult, outputdir: Path, file_format: F
         result: UidCheckResult to save.
         outputdir: Directory to save the file in.
         file_format: Format of the file content; its value is also the extension.
+        output_format: Console output format; picks the stream of the
+            "Result saved to" note.
     """
     date_str = result.timestamp.strftime("%Y-%m-%d")
     filename = f"{result.uid}_{date_str}.{file_format.value}"
@@ -757,7 +778,7 @@ def _save_result_to_file(result: UidCheckResult, outputdir: Path, file_format: F
         outputdir.mkdir(parents=True, exist_ok=True)
         filepath.write_text(_render_result_file(result, file_format), encoding="utf-8")
 
-        safe_console.echo(_("Result saved to: {filepath}").format(filepath=filepath))
+        safe_console.echo(_("Result saved to: {filepath}").format(filepath=filepath), err=_notes_to_stderr(output_format))
     except OSError as exc:
         # Log warning but don't fail - the UID check itself succeeded
         warning_msg = _("Warning: Could not save result to {filepath}: {error}").format(filepath=filepath, error=exc)
@@ -775,7 +796,7 @@ def _emit_check_result(result: UidCheckResult, *, output_format: OutputFormat, o
     """
     _output_check_result(result, output_format)
     if outputdir and result.is_valid:
-        _save_result_to_file(result, outputdir, file_format)
+        _save_result_to_file(result, outputdir, file_format, output_format=output_format)
 
 
 def _handle_check_error(
@@ -853,21 +874,25 @@ def _format_countdown(seconds_remaining: int, attempt: int, uid: str) -> Panel:
     return Panel(text, title=title, border_style="blue")
 
 
-def _wait_with_countdown(seconds: float, attempt: int, uid: str) -> bool:
+def _wait_with_countdown(seconds: float, attempt: int, uid: str, *, output_format: OutputFormat) -> bool:
     """Wait with animated countdown display.
 
     Args:
         seconds: Total seconds to wait.
         attempt: Current attempt number for display.
         uid: The UID being checked (displayed in countdown).
+        output_format: Console output format; picks the countdown's stream.
 
     Returns:
         True if wait completed, False if interrupted by Ctrl+C.
     """
     end_time = time.time() + seconds
+    # None keeps rich's global console (stdout), where the human format has
+    # always drawn the countdown.
+    console = Console(stderr=True) if _notes_to_stderr(output_format) else None
 
     try:
-        with Live(_format_countdown(int(seconds), attempt, uid), refresh_per_second=1) as live:
+        with Live(_format_countdown(int(seconds), attempt, uid), console=console, refresh_per_second=1) as live:
             while True:
                 remaining = int(end_time - time.time())
                 if remaining <= 0:
@@ -904,7 +929,7 @@ def _announce_retry(attempt: int, message: str, retry_minutes: float) -> None:
         )
 
 
-def _wait_for_next_attempt(attempt: int, message: str, *, retry_minutes: float, uid: str) -> bool:
+def _wait_for_next_attempt(attempt: int, message: str, *, retry_minutes: float, uid: str, output_format: OutputFormat) -> bool:
     """Announce a retryable failure and count down to the next attempt.
 
     Args:
@@ -912,6 +937,7 @@ def _wait_for_next_attempt(attempt: int, message: str, *, retry_minutes: float, 
         message: Why the attempt did not produce a final result.
         retry_minutes: Minutes between retry attempts.
         uid: The UID being checked (displayed in countdown).
+        output_format: Console output format; picks the countdown's stream.
 
     Returns:
         True to retry, False if the user cancelled during the countdown
@@ -919,7 +945,7 @@ def _wait_for_next_attempt(attempt: int, message: str, *, retry_minutes: float, 
     """
     _announce_retry(attempt, message, retry_minutes)
     # Animated countdown (handles Ctrl+C internally)
-    if _wait_with_countdown(retry_minutes * 60, attempt, uid):
+    if _wait_with_countdown(retry_minutes * 60, attempt, uid, output_format=output_format):
         return True
     _echo_cancelled(attempt)
     return False
@@ -990,7 +1016,7 @@ def _execute_retry_loop(
                 return result  # Final result (success or non-retryable)
 
             # Retryable return code (e.g., 1511 Service Unavailable) - continue loop
-            if not _wait_for_next_attempt(attempt, result.message, retry_minutes=retry_minutes, uid=uid):
+            if not _wait_for_next_attempt(attempt, result.message, retry_minutes=retry_minutes, uid=uid, output_format=run.output_format):
                 # User cancelled during wait - return last result
                 return result
 
@@ -1010,9 +1036,35 @@ def _execute_retry_loop(
 
             # Retryable error - show message and wait
             last_error = error_info
-            if not _wait_for_next_attempt(attempt, error_info.message, retry_minutes=retry_minutes, uid=uid):
+            if not _wait_for_next_attempt(attempt, error_info.message, retry_minutes=retry_minutes, uid=uid, output_format=run.output_format):
                 # User cancelled during wait
                 return last_error
+
+
+def _outputdir_option(value: str | None) -> Path | None:
+    """Turn the ``--outputdir`` text into a directory, None when it names none.
+
+    The value goes through :func:`finanzonline_uid.config.path_setting`, the
+    rule ``finanzonline.output_dir`` is read with, so an empty or
+    whitespace-only argument means "not given" (the configured directory
+    applies) instead of a directory named with spaces or the current one.
+
+    Args:
+        value: The option's text, or None when the option was not given.
+
+    Returns:
+        The directory, or None when the option names none.
+
+    Examples:
+        >>> _outputdir_option("   ") is None, _outputdir_option("") is None, _outputdir_option("out").name
+        (True, True, 'out')
+    """
+    return None if value is None else path_setting(value)
+
+
+def _outputdir_callback(_ctx: click.Context, _param: click.Parameter, value: str | None) -> Path | None:
+    """Click callback of ``--outputdir``; see :func:`_outputdir_option`."""
+    return _outputdir_option(value)
 
 
 @cli.command("check", context_settings=CLICK_CONTEXT_SETTINGS)
@@ -1052,8 +1104,11 @@ def _execute_retry_loop(
 @option(
     "--outputdir",
     "-o",
-    type=click.Path(file_okay=False, dir_okay=True, path_type=Path),
+    # Read as text, not path_type=Path: Path("") is Path("."), so a converted
+    # value could no longer tell an empty argument from an explicit ".".
+    type=click.Path(file_okay=False, dir_okay=True),
     default=None,
+    callback=_outputdir_callback,
     help=_("Directory to save valid UID results as files (overrides config)"),
 )
 @option(
@@ -1389,7 +1444,25 @@ def _prepare_notification(
         logger.warning("%s notification skipped: no recipients configured", kind.value)
         return None
 
-    return PreparedNotification(adapter=run.dependencies.build_email_sender(email_config), recipients=final_recipients)
+    email_format = _notification_email_format(run, fo_config)
+    return PreparedNotification(adapter=run.dependencies.build_email_sender(email_config, email_format), recipients=final_recipients)
+
+
+def _notification_email_format(run: CheckInvocation, fo_config: FinanzOnlineConfig | None) -> EmailFormat:
+    """Return the email body format a notification of this run is sent in.
+
+    Args:
+        run: The check invocation (its configuration).
+        fo_config: FinanzOnline configuration, or None when it failed to load.
+
+    Returns:
+        ``fo_config.email_format``; when the section failed to load (the error
+        email of a missing-credentials run, say), the format read from the
+        configuration on its own, so that email still honours the setting.
+    """
+    if fo_config is not None:
+        return fo_config.email_format
+    return load_email_format(run.config)
 
 
 def _send_check_notification(run: CheckInvocation, *, fo_config: FinanzOnlineConfig, result: UidCheckResult) -> None:
