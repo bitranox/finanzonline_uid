@@ -1,14 +1,15 @@
-# Translations template for PROJECT.
-# Copyright (C) 2025 ORGANIZATION
-# This file is distributed under the same license as the PROJECT project.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+# Translations template for finanzonline_uid.
+# Copyright (C) 2026 Robert Nowotny
+# This file is distributed under the same license as the finanzonline_uid
+# project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
 #
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: PROJECT VERSION\n"
+"Project-Id-Version: finanzonline_uid 2.7.15\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-12-18 21:27+0100\n"
+"POT-Creation-Date: 2026-11-13 17:20+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,4 +17,434 @@ msgstr ""
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.17.0\n"
+
+msgid "Show full Python traceback on errors"
+msgstr ""
+
+msgid "Load configuration from a named profile (e.g., 'production', 'test')"
+msgstr ""
+
+msgid "Output format (human-readable or JSON)"
+msgstr ""
+
+msgid "Show only a specific configuration section (e.g., 'lib_log_rich')"
+msgstr ""
+
+msgid "Override profile from root command (e.g., 'production', 'test')"
+msgstr ""
+
+msgid "profile"
+msgstr ""
+
+msgid "Configuration deployed successfully"
+msgstr ""
+
+msgid "All configuration files are already up to date (content unchanged)."
+msgstr ""
+
+msgid "No files were created (all target files already exist)."
+msgstr ""
+
+msgid "Use --force to overwrite existing configuration files."
+msgstr ""
+
+#, python-brace-format
+msgid "Error: {detail}"
+msgstr ""
+
+msgid "Permission denied."
+msgstr ""
+
+msgid "Hint: System-wide deployment (--target app/host) may require sudo."
+msgstr ""
+
+msgid "Failed to deploy configuration:"
+msgstr ""
+
+msgid "Target configuration layer(s) to deploy to (can specify multiple)"
+msgstr ""
+
+msgid "Overwrite existing configuration files"
+msgstr ""
+
+msgid "Error: UID argument is required (or use --interactive)"
+msgstr ""
+
+msgid "UID argument is required (or use --interactive)"
+msgstr ""
+
+msgid "Error: --retryminutes requires --interactive mode"
+msgstr ""
+
+msgid "--retryminutes requires --interactive mode"
+msgstr ""
+
+msgid "Enter EU VAT ID to verify"
+msgstr ""
+
+#, python-brace-format
+msgid "Result saved to: {filepath}"
+msgstr ""
+
+#, python-brace-format
+msgid "Warning: Could not save result to {filepath}: {error}"
+msgstr ""
+
+msgid "Return code:"
+msgstr ""
+
+msgid "This error may be temporary. Try again later."
+msgstr ""
+
+msgid "Checking"
+msgstr ""
+
+msgid "Next attempt in"
+msgstr ""
+
+msgid "Attempts so far"
+msgstr ""
+
+msgid "Retries indefinitely"
+msgstr ""
+
+msgid "Ctrl+C to stop"
+msgstr ""
+
+msgid "Retry Mode (unlimited)"
+msgstr ""
+
+msgid "Cancelled by user after"
+msgstr ""
+
+msgid "attempt(s)"
+msgstr ""
+
+msgid "Attempt"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Retry mode: Will keep retrying every {minutes} min with no limit — only "
+"stops on success or Ctrl+C."
+msgstr ""
+
+msgid "Check cancelled by user"
+msgstr ""
+
+msgid "Interactive mode: prompt for UID to check"
+msgstr ""
+
+msgid "Disable email notification (default: email enabled)"
+msgstr ""
+
+msgid "Output format (default: human)"
+msgstr ""
+
+msgid ""
+"Email recipient (can specify multiple, uses config default if not "
+"specified)"
+msgstr ""
+
+msgid ""
+"Retry interval in minutes until check succeeds or canceled (interactive "
+"mode only)"
+msgstr ""
+
+msgid "Directory to save valid UID results as files (overrides config)"
+msgstr ""
+
+msgid "Output file format: json, txt, or html (default: html)"
+msgstr ""
+
+msgid ""
+"Configure FinanzOnline credentials in your config file or via environment"
+" variables:"
+msgstr ""
+
+msgid "8-12 alphanumeric"
+msgstr ""
+
+msgid "5-12 chars"
+msgstr ""
+
+msgid "5-128 chars"
+msgstr ""
+
+msgid "10-24 alphanumeric"
+msgstr ""
+
+#, python-brace-format
+msgid "Warning: Email notification failed: {error}"
+msgstr ""
+
+#, python-brace-format
+msgid "Warning: Error notification failed: {error}"
+msgstr ""
+
+#, python-brace-format
+msgid ""
+"Warning: logging did not shut down cleanly, some log events may be lost: "
+"{error}"
+msgstr ""
+
+msgid "VALID"
+msgstr ""
+
+msgid "INVALID"
+msgstr ""
+
+msgid "UNAVAILABLE"
+msgstr ""
+
+msgid "RATE LIMITED"
+msgstr ""
+
+msgid "ERROR"
+msgstr ""
+
+msgid "This is an automated message from finanzonline-uid."
+msgstr ""
+
+msgid "Address:"
+msgstr ""
+
+msgid "Company Information"
+msgstr ""
+
+msgid "Name:"
+msgstr ""
+
+msgid "Cached Result"
+msgstr ""
+
+msgid "This result was retrieved from cache."
+msgstr ""
+
+msgid "Originally queried:"
+msgstr ""
+
+msgid "UID:"
+msgstr ""
+
+msgid "Query Level:"
+msgstr ""
+
+msgid "Stufe 2 (with name/address verification)"
+msgstr ""
+
+msgid "Status:"
+msgstr ""
+
+msgid "Return Code:"
+msgstr ""
+
+msgid "Message:"
+msgstr ""
+
+msgid "Severity:"
+msgstr ""
+
+msgid "Retryable:"
+msgstr ""
+
+msgid "Yes"
+msgstr ""
+
+msgid "No"
+msgstr ""
+
+msgid "Timestamp:"
+msgstr ""
+
+msgid "UID Verification Result (Stufe 2)"
+msgstr ""
+
+msgid "Valid"
+msgstr ""
+
+msgid "Invalid"
+msgstr ""
+
+msgid "Service Unavailable"
+msgstr ""
+
+msgid "Rate Limited"
+msgstr ""
+
+msgid "Meaning:"
+msgstr ""
+
+msgid "Raw SOAP Response"
+msgstr ""
+
+msgid "Diagnostic Information"
+msgstr ""
+
+msgid "Error Type:"
+msgstr ""
+
+msgid "Yes - try again later"
+msgstr ""
+
+msgid "UID Check Error"
+msgstr ""
+
+msgid "UID Check ERROR"
+msgstr ""
+
+msgid "This is an automated error notification from finanzonline-uid."
+msgstr ""
+
+msgid "NOTE: This is a CACHED result"
+msgstr ""
+
+msgid "Query Level: Stufe 2 (with name/address verification)"
+msgstr ""
+
+msgid "UID Check ERROR Notification"
+msgstr ""
+
+msgid "UID Check Austria - Rate Limit Warning"
+msgstr ""
+
+msgid "WARNING: Your query rate has exceeded the configured limit."
+msgstr ""
+
+msgid "Current Status"
+msgstr ""
+
+msgid "Queries in window:"
+msgstr ""
+
+msgid "Maximum allowed:"
+msgstr ""
+
+msgid "Window duration:"
+msgstr ""
+
+msgid "hours"
+msgstr ""
+
+msgid "Fair Use Policy Notice"
+msgstr ""
+
+msgid ""
+"\"UID verifications should only be requested at the time when intra-"
+"Community tax-exempt supplies or other services are provided to customers"
+" in other EU member states - not in advance or in bulk.\""
+msgstr ""
+
+msgid "Important"
+msgstr ""
+
+msgid "You are probably not using this program in the right way."
+msgstr ""
+
+msgid "UID queries should be made at the time of transaction, not:"
+msgstr ""
+
+msgid "In advance for potential future transactions"
+msgstr ""
+
+msgid "In bulk for database validation"
+msgstr ""
+
+msgid "For speculative or exploratory purposes"
+msgstr ""
+
+msgid ""
+"This warning is logged locally. The actual BMF service may enforce its "
+"own rate limits independently."
+msgstr ""
+
+msgid "This is an automated warning from finanzonline-uid."
+msgstr ""
+
+msgid "Rate Limit Exceeded"
+msgstr ""
+
+msgid "Your query rate has exceeded the configured limit."
+msgstr ""
+
+msgid "UID Check Rate Limit Warning"
+msgstr ""
+
+msgid "Rate Limit Warning"
+msgstr ""
+
+msgid "UID Check Result"
+msgstr ""
+
+msgid "UID is valid"
+msgstr ""
+
+msgid "UID is invalid"
+msgstr ""
+
+msgid "Session invalid or expired"
+msgstr ""
+
+msgid "System maintenance"
+msgstr ""
+
+msgid "Technical error"
+msgstr ""
+
+msgid "The access codes are not valid"
+msgstr ""
+
+msgid "User locked due to incorrect login attempts"
+msgstr ""
+
+msgid "User is locked"
+msgstr ""
+
+msgid "User is not a web service user"
+msgstr ""
+
+msgid "Participant locked or not authorized for web service"
+msgstr ""
+
+msgid "Wrong UID format"
+msgstr ""
+
+msgid "Invalid requester UID"
+msgstr ""
+
+msgid "Member state forbids query"
+msgstr ""
+
+msgid "Not authorized for requester UID"
+msgstr ""
+
+msgid "UID not yet queryable"
+msgstr ""
+
+msgid "UID doesn't start with ATU"
+msgstr ""
+
+msgid "VAT group (CZ) - special handling required"
+msgstr ""
+
+msgid "VAT group (SK) - special handling required"
+msgstr ""
+
+msgid "Must query via FinanzOnline portal directly"
+msgstr ""
+
+msgid "Service unavailable"
+msgstr ""
+
+msgid "Too many queries (server load)"
+msgstr ""
+
+msgid "Rate limit: 2 queries per UID per day exceeded"
+msgstr ""
+
+msgid "Rate limit: requester limit exceeded"
+msgstr ""
+
+msgid "Unknown return code"
+msgstr ""
 

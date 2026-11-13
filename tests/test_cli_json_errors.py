@@ -256,6 +256,27 @@ def test_every_refusal_has_a_distinct_record_message_in_every_locale(language: L
         assert refusal.stderr_line().endswith(refusal.record_message())
 
 
+#: The "Error:" lead-in per locale, punctuation included: French puts a space before the colon.
+_ERROR_LEAD_INS = {
+    "en": "Error: ",
+    "de": "Fehler: ",
+    "es": "Error: ",
+    "fr": "Erreur : ",
+    "ru": "\N{CYRILLIC CAPITAL LETTER O}\N{CYRILLIC SMALL LETTER SHA}\N{CYRILLIC SMALL LETTER I}"
+    "\N{CYRILLIC SMALL LETTER BE}\N{CYRILLIC SMALL LETTER KA}\N{CYRILLIC SMALL LETTER A}: ",
+}
+
+
+@pytest.mark.os_agnostic
+@pytest.mark.usefixtures("english_afterwards")
+@pytest.mark.parametrize(("language", "lead_in"), list(_ERROR_LEAD_INS.items()))
+def test_configuration_error_line_uses_the_locale_s_own_lead_in(language: str, lead_in: str) -> None:
+    result = _check(["DE123456789"], "human", fo_config_error=ConfigurationError("Missing TID"), language=language)
+
+    assert result.exit_code == 2
+    assert f"{lead_in}Missing TID" in result.stderr.splitlines()
+
+
 @pytest.mark.os_agnostic
 def test_json_cancellation_in_the_retry_loop_is_one_record() -> None:
     result = _check(["--interactive", "--retryminutes", "0"], "json", outcomes=[KeyboardInterrupt()], stdin="DE123456789\n")

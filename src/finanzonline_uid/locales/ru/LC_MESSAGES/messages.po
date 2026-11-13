@@ -197,6 +197,9 @@ msgstr "Значение:"
 msgid "Diagnostic Information"
 msgstr "Диагностическая информация"
 
+msgid "Raw SOAP Response"
+msgstr "Необработанный ответ SOAP"
+
 msgid "This is an automated error notification from finanzonline-uid."
 msgstr "Это автоматическое уведомление об ошибке от finanzonline-uid."
 
@@ -321,9 +324,6 @@ msgstr "Все конфигурационные файлы уже актуаль
 msgid "Use --force to overwrite existing configuration files."
 msgstr "Используйте --force для перезаписи существующих файлов конфигурации."
 
-msgid "Error"
-msgstr "Ошибка"
-
 msgid "Permission denied."
 msgstr "Доступ запрещён."
 
@@ -382,9 +382,6 @@ msgstr "Следующая попытка через"
 msgid "Attempts so far"
 msgstr "Попыток выполнено"
 
-msgid "Retry Mode"
-msgstr "Режим повтора"
-
 msgid "Retry Mode (unlimited)"
 msgstr "Режим повтора (без ограничений)"
 
@@ -431,3 +428,6 @@ msgstr "Результат сохранён в: {filepath}"
 
 msgid "Warning: Could not save result to {filepath}: {error}"
 msgstr "Предупреждение: Не удалось сохранить результат в {filepath}: {error}"
+
+msgid "Error: {detail}"
+msgstr "Ошибка: {detail}"

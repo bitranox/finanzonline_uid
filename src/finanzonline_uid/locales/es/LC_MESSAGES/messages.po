@@ -197,6 +197,9 @@ msgstr "Significado:"
 msgid "Diagnostic Information"
 msgstr "Información de diagnóstico"
 
+msgid "Raw SOAP Response"
+msgstr "Respuesta SOAP sin procesar"
+
 msgid "This is an automated error notification from finanzonline-uid."
 msgstr "Esta es una notificación de error automática de finanzonline-uid."
 
@@ -321,9 +324,6 @@ msgstr "Todos los archivos de configuración ya están actualizados (contenido s
 msgid "Use --force to overwrite existing configuration files."
 msgstr "Use --force para sobrescribir archivos de configuración existentes."
 
-msgid "Error"
-msgstr "Error"
-
 msgid "Permission denied."
 msgstr "Permiso denegado."
 
@@ -382,9 +382,6 @@ msgstr "Próximo intento en"
 msgid "Attempts so far"
 msgstr "Intentos hasta ahora"
 
-msgid "Retry Mode"
-msgstr "Modo de reintento"
-
 msgid "Retry Mode (unlimited)"
 msgstr "Modo de reintento (ilimitado)"
 
@@ -431,3 +428,6 @@ msgstr "Resultado guardado en: {filepath}"
 
 msgid "Warning: Could not save result to {filepath}: {error}"
 msgstr "Advertencia: No se pudo guardar el resultado en {filepath}: {error}"
+
+msgid "Error: {detail}"
+msgstr "Error: {detail}"

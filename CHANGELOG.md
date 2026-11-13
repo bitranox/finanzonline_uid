@@ -76,6 +76,12 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 - `config --format json` now also writes a JSON error record (`error`, `error_type`, `message`,
   `timestamp`) to stdout when `--section` names a missing or empty section; the stderr message and
   exit code are unchanged.
+- In French, the configuration-error and `config-deploy` error lines now read `Erreur : ...` with
+  the space French puts before a colon; they printed `Erreur: ...`.
+- The "Raw SOAP Response" heading of error diagnostics (console, plain and HTML email) is now
+  translated; it printed in English in every language.
+- The translation template `locales/messages.pot` is generated from the source again; it held
+  only its header.
 
 ## [2.7.15] - 2026-11-12
 

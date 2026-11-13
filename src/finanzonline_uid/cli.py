@@ -537,15 +537,39 @@ def _display_deploy_result(deployed_paths: list[Path], effective_profile: str | 
         safe_console.echo(_("Use --force to overwrite existing configuration files."))
 
 
+def _error_line(detail: str) -> str:
+    """Return ``detail`` behind the translated "Error:" lead-in.
+
+    The lead-in and its punctuation come from one msgid rather than
+    ``_("Error") + ": "``, because locales punctuate it differently:
+    French writes "Erreur : " with a space before the colon.
+
+    Args:
+        detail: The already translated text that follows the lead-in.
+
+    Returns:
+        The full error line in the current language.
+
+    Examples:
+        >>> _error_line("Permission denied.")
+        'Error: Permission denied.'
+        >>> _error_line("{not a placeholder}")
+        'Error: {not a placeholder}'
+    """
+    return _("Error: {detail}").format(detail=detail)
+
+
 def _handle_deploy_error(exc: Exception) -> None:
     """Handle deployment errors with appropriate logging and messages."""
     if isinstance(exc, PermissionError):
         logger.error("Permission denied when deploying configuration", extra={"error": str(exc)})
-        safe_console.echo(f"\n{_('Error')}: {_('Permission denied.')} {exc}", err=True)
+        detail = f"{_('Permission denied.')} {exc}"
+        safe_console.echo(f"\n{_error_line(detail)}", err=True)
         safe_console.echo(_("Hint: System-wide deployment (--target app/host) may require sudo."), err=True)
     else:
         logger.error("Failed to deploy configuration", extra={"error": str(exc), "error_type": type(exc).__name__})
-        safe_console.echo(f"\n{_('Error')}: {_('Failed to deploy configuration:')} {exc}", err=True)
+        detail = f"{_('Failed to deploy configuration:')} {exc}"
+        safe_console.echo(f"\n{_error_line(detail)}", err=True)
     raise SystemExit(1)
 
 
@@ -1450,7 +1474,7 @@ def _show_config_help(error_message: str) -> None:
     Args:
         error_message: The configuration error message.
     """
-    safe_console.echo(f"\n{_('Error')}: {error_message}", err=True)
+    safe_console.echo(f"\n{_error_line(error_message)}", err=True)
     safe_console.echo(f"\n{_('Configure FinanzOnline credentials in your config file or via environment variables:')}", err=True)
     safe_console.echo(f"  FINANZONLINE_UID___FINANZONLINE__TID=... ({_('8-12 alphanumeric')})", err=True)
     safe_console.echo(f"  FINANZONLINE_UID___FINANZONLINE__BENID=... ({_('5-12 chars')})", err=True)

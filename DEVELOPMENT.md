@@ -22,8 +22,8 @@
 ### Target Parameters (env vars)
 
 - **Global**
-  - `PY` (default: `python3`) — interpreter used to run scripts
-  - `PIP` (default: `pip`) — pip executable used by bootstrap/install
+  - `PY` (default: `python3`) - interpreter used to run scripts
+  - `PIP` (default: `pip`) - pip executable used by bootstrap/install
 
 - **install**
   - No specific parameters (respects `PY`, `PIP`).
@@ -32,9 +32,9 @@
   - No specific parameters (respects `PY`, `PIP`).
 
 - **test**
-  - `COVERAGE=on|auto|off` (default: `on`) — controls pytest coverage run and Codecov upload
-  - `SKIP_BOOTSTRAP=1` — skip auto-install of dev tools if missing
-  - `TEST_VERBOSE=1` — echo each command executed by the test harness
+  - `COVERAGE=on|auto|off` (default: `on`) - controls pytest coverage run and Codecov upload
+  - `SKIP_BOOTSTRAP=1` - skip auto-install of dev tools if missing
+  - `TEST_VERBOSE=1` - echo each command executed by the test harness
   - Also respects `CODECOV_TOKEN` when uploading to Codecov
 
 - **run**
@@ -44,8 +44,8 @@
   - No parameters
 
 - **bump**
-  - `VERSION=X.Y.Z` — explicit target version
-  - `PART=major|minor|patch` — semantic part to bump (default if `VERSION` not set: `patch`)
+  - `VERSION=X.Y.Z` - explicit target version
+  - `PART=major|minor|patch` - semantic part to bump (default if `VERSION` not set: `patch`)
 
 - **bump-patch** / **bump-minor** / **bump-major**
   - No parameters; shorthand for `make bump PART=...`
@@ -54,21 +54,21 @@
   - No parameters
 
 - **push**
-  - `REMOTE=<name>` (default: `origin`) — git remote to push to
-  - `COMMIT_MESSAGE="..."` — optional commit message used by the automation; if unset, the target prompts (or uses the default `chore: update` when non-interactive).
+  - `REMOTE=<name>` (default: `origin`) - git remote to push to
+  - `COMMIT_MESSAGE="..."` - optional commit message used by the automation; if unset, the target prompts (or uses the default `chore: update` when non-interactive).
 
 - **build**
   - No parameters via `make`. Advanced: call the script directly, e.g. `python scripts/build.py --no-conda --no-nix`.
 
 - **release**
-  - `REMOTE=<name>` (default: `origin`) — git remote to push to
+  - `REMOTE=<name>` (default: `origin`) - git remote to push to
   - Advanced (via script): `python scripts/release.py --retries 5 --retry-wait 3.0`
 
 ## Interactive Menu (Textual)
 
 `make menu` launches a Textual-powered TUI to browse targets, edit parameters, and run them with live output.
 
-Install dev extras if you haven’t:
+Install dev extras if you haven't:
 
 ```bash
 pip install -e .[dev]
@@ -82,7 +82,7 @@ make menu
 
 ### Target Details
 
-- `test`: single entry point for local CI — runs ruff lint + format check, pyright, pytest (including doctests) with coverage (enabled by default), and uploads coverage to Codecov if configured (reads `.env`).
+- `test`: single entry point for local CI - runs ruff lint + format check, pyright, pytest (including doctests) with coverage (enabled by default), and uploads coverage to Codecov if configured (reads `.env`).
   - Auto-bootstrap: `make test` will try to install dev tools (`pip install -e .[dev]`) if `ruff`/`pyright`/`pytest` are missing. Set `SKIP_BOOTSTRAP=1` to skip this behavior.
 - `build`: creates wheel/sdist artifacts.
 - `version-current`: prints current version from `pyproject.toml`.
@@ -105,8 +105,24 @@ COVERAGE=on make test        # force coverage and generate coverage.xml/codecov.
 ### Versioning & Metadata
 
 - Single source of truth for package metadata is `pyproject.toml` (`[project]`).
-- The library reads its own installed metadata at runtime via `importlib.metadata` (see `src/finanzonline_uid/__init__conf__.py`).
-- Do not duplicate the version in code; bump only `pyproject.toml` and update `CHANGELOG.md`.
+- Runtime code reads the package metadata from the generated constants in `src/finanzonline_uid/__init__conf__.py`, which bmk regenerates from `pyproject.toml`; never edit that file by hand.
+- Do not duplicate the version in code; bump with `make bump` and write the `CHANGELOG.md` entry under `[Unreleased]` first.
+
+### Translations
+
+User-facing texts are marked with `_()` (translated where they are used) or `N_()` (marked only, translated later). After adding or changing such a text:
+
+```bash
+uvx --from 'babel==2.17.0' pybabel extract -F babel.cfg --no-location \
+  --project finanzonline_uid -o src/finanzonline_uid/locales/messages.pot .
+# add or update the msgid/msgstr pair in every src/finanzonline_uid/locales/<lang>/LC_MESSAGES/messages.po, then:
+for lang in de es fr ru; do
+  msgfmt --check-format -o src/finanzonline_uid/locales/$lang/LC_MESSAGES/messages.mo \
+    src/finanzonline_uid/locales/$lang/LC_MESSAGES/messages.po
+done
+```
+
+gettext reads only the `.mo` files. `tests/test_i18n.py` fails when the template no longer matches the source, when a catalog misses a template text or keeps a dead one, and when a `.mo` lacks a `.po` translation.
 - Console script name is discovered from entry points; defaults to `finanzonline_uid`.
 
 ### Dependency Auditing
@@ -117,8 +133,8 @@ COVERAGE=on make test        # force coverage and generate coverage.xml/codecov.
 
 GitHub Actions workflows are included:
 
-- `.github/workflows/ci.yml` — lint/type/test, build wheel/sdist, and verify pipx and uv installs (CI-only; no local install required).
-- `.github/workflows/release.yml` — on tags `v*.*.*`, builds artifacts and publishes to PyPI when `PYPI_API_TOKEN` secret is set.
+- `.github/workflows/ci.yml` - lint/type/test, build wheel/sdist, and verify pipx and uv installs (CI-only; no local install required).
+- `.github/workflows/release.yml` - on tags `v*.*.*`, builds artifacts and publishes to PyPI when `PYPI_API_TOKEN` secret is set.
 
 To publish a release:
 1. Bump `pyproject.toml` version and update `CHANGELOG.md`.

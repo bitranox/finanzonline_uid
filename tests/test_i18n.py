@@ -257,3 +257,53 @@ def test_compiled_catalog_carries_every_po_translation(language: Language) -> No
 
     assert len(entries) > 100, "the .po parser read almost nothing; the check would pass vacuously"
     assert missing == []
+
+
+_PACKAGE_DIR = Path(i18n_module.__file__).parent
+_MARKERS = frozenset({"_", "N_"})
+
+
+def _source_msgids() -> set[str]:
+    """Return every literal passed to ``_()`` or ``N_()`` in the package source.
+
+    ``ast.walk`` reaches calls nested inside f-strings too, which is where most
+    of the CLI's ``_('...')`` calls sit.
+    """
+    msgids: set[str] = set()
+    for source in _PACKAGE_DIR.rglob("*.py"):
+        for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in _MARKERS and node.args):
+                continue
+            first = node.args[0]
+            if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                msgids.add(first.value)
+    return msgids
+
+
+def test_template_lists_exactly_the_source_msgids() -> None:
+    """messages.pot must match what the code marks for translation.
+
+    Regenerate it with ``pybabel extract -F babel.cfg --no-location -o
+    src/finanzonline_uid/locales/messages.pot .`` after adding or changing a
+    ``_()``/``N_()`` text. Measured: the template held only its header while the
+    code marked 136 texts.
+    """
+    template = set(_po_entries(_PACKAGE_DIR / "locales" / "messages.pot"))
+    source = _source_msgids()
+
+    assert len(source) > 100, "the source scan found almost nothing; the check would pass vacuously"
+    assert (sorted(source - template), sorted(template - source)) == ([], [])
+
+
+@pytest.mark.parametrize("language", [lang for lang in SUPPORTED_LANGUAGES if lang != DEFAULT_LANGUAGE])
+def test_catalog_translates_exactly_the_template_msgids(language: Language) -> None:
+    """Each .po must translate every template text and carry no dead entry.
+
+    Measured: "Raw SOAP Response" was in no catalog, so that heading printed in
+    English in every locale.
+    """
+    template = set(_po_entries(_PACKAGE_DIR / "locales" / "messages.pot"))
+    entries = _po_entries(_PACKAGE_DIR / "locales" / language.value / "LC_MESSAGES" / "messages.po")
+    untranslated = sorted(msgid for msgid in template if not entries.get(msgid))
+
+    assert (untranslated, sorted(set(entries) - template)) == ([], [])

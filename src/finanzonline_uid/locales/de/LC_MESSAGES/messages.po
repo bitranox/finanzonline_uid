@@ -197,6 +197,9 @@ msgstr "Bedeutung:"
 msgid "Diagnostic Information"
 msgstr "Diagnoseinformationen"
 
+msgid "Raw SOAP Response"
+msgstr "Rohe SOAP-Antwort"
+
 msgid "This is an automated error notification from finanzonline-uid."
 msgstr "Dies ist eine automatische Fehlerbenachrichtigung von finanzonline-uid."
 
@@ -321,9 +324,6 @@ msgstr "Alle Konfigurationsdateien sind bereits aktuell (Inhalt unverändert)."
 msgid "Use --force to overwrite existing configuration files."
 msgstr "Verwenden Sie --force um vorhandene Konfigurationsdateien zu überschreiben."
 
-msgid "Error"
-msgstr "Fehler"
-
 msgid "Permission denied."
 msgstr "Zugriff verweigert."
 
@@ -382,9 +382,6 @@ msgstr "Nächster Versuch in"
 msgid "Attempts so far"
 msgstr "Bisherige Versuche"
 
-msgid "Retry Mode"
-msgstr "Wiederholungsmodus"
-
 msgid "Retry Mode (unlimited)"
 msgstr "Wiederholungsmodus (unbegrenzt)"
 
@@ -431,3 +428,6 @@ msgstr "Ergebnis gespeichert in: {filepath}"
 
 msgid "Warning: Could not save result to {filepath}: {error}"
 msgstr "Warnung: Ergebnis konnte nicht in {filepath} gespeichert werden: {error}"
+
+msgid "Error: {detail}"
+msgstr "Fehler: {detail}"
