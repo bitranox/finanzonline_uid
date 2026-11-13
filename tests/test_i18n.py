@@ -23,6 +23,8 @@ from pathlib import Path
 import pytest
 
 from finanzonline_uid import i18n as i18n_module
+from finanzonline_uid.config import AppSection
+from finanzonline_uid.enums import Language
 from finanzonline_uid.i18n import (
     DEFAULT_LANGUAGE,
     N_,
@@ -38,52 +40,39 @@ class TestSetupLocale:
 
     def test_default_language_is_english(self) -> None:
         """Default language should be English."""
-        assert DEFAULT_LANGUAGE == "en"
+        assert DEFAULT_LANGUAGE == Language.EN
 
     def test_supported_languages(self) -> None:
-        """All expected languages should be supported."""
-        expected = ("en", "de", "es", "fr", "ru")
-        assert SUPPORTED_LANGUAGES == expected
+        """All expected languages should be supported, in this order."""
+        assert [language.value for language in SUPPORTED_LANGUAGES] == ["en", "de", "es", "fr", "ru"]
 
-    def test_setup_english(self) -> None:
-        """Setting up English locale should work."""
-        setup_locale("en")
-        assert get_current_language() == "en"
+    @pytest.mark.parametrize("language", list(Language))
+    def test_setup_language(self, language: Language) -> None:
+        """Every supported language ships its catalog and becomes the current one."""
+        setup_locale(language)
+        assert get_current_language() == language
 
-    def test_setup_german(self) -> None:
-        """Setting up German locale should work."""
-        setup_locale("de")
-        assert get_current_language() == "de"
+    def test_setup_without_argument_is_english(self) -> None:
+        """Calling setup_locale() without a language selects English."""
+        setup_locale(Language.DE)
+        setup_locale()
+        assert get_current_language() == Language.EN
 
-    def test_setup_spanish(self) -> None:
-        """Setting up Spanish locale should work."""
-        setup_locale("es")
-        assert get_current_language() == "es"
 
-    def test_setup_french(self) -> None:
-        """Setting up French locale should work."""
-        setup_locale("fr")
-        assert get_current_language() == "fr"
-
-    def test_setup_russian(self) -> None:
-        """Setting up Russian locale should work."""
-        setup_locale("ru")
-        assert get_current_language() == "ru"
+class TestLanguageFromConfiguration:
+    """The configured text becomes a Language at the configuration boundary."""
 
     def test_unsupported_language_falls_back_to_english(self) -> None:
-        """Unsupported language should fall back to English."""
-        setup_locale("xx")  # Nonexistent language
-        assert get_current_language() == "en"
+        """An unsupported language code selects English."""
+        assert AppSection.model_validate({"language": "xx"}).language == Language.EN
 
     def test_case_insensitive(self) -> None:
-        """Language codes should be case-insensitive."""
-        setup_locale("DE")
-        assert get_current_language() == "de"
+        """Language codes are case-insensitive."""
+        assert AppSection.model_validate({"language": "DE"}).language == Language.DE
 
     def test_strips_whitespace(self) -> None:
-        """Language codes should have whitespace stripped."""
-        setup_locale("  de  ")
-        assert get_current_language() == "de"
+        """Language codes have surrounding whitespace stripped."""
+        assert AppSection.model_validate({"language": "  de  "}).language == Language.DE
 
 
 class TestTranslation:
@@ -91,40 +80,40 @@ class TestTranslation:
 
     def test_english_returns_original(self) -> None:
         """English locale should return original strings."""
-        setup_locale("en")
+        setup_locale(Language.EN)
         assert _("UID is valid") == "UID is valid"
 
     def test_german_translation(self) -> None:
         """German locale should translate strings."""
-        setup_locale("de")
+        setup_locale(Language.DE)
         assert _("UID is valid") == "UID ist gültig"
         assert _("Yes") == "Ja"
         assert _("No") == "Nein"
 
     def test_spanish_translation(self) -> None:
         """Spanish locale should translate strings."""
-        setup_locale("es")
+        setup_locale(Language.ES)
         assert _("UID is valid") == "UID es válido"
         assert _("Yes") == "Sí"
         assert _("No") == "No"
 
     def test_french_translation(self) -> None:
         """French locale should translate strings."""
-        setup_locale("fr")
+        setup_locale(Language.FR)
         assert _("UID is valid") == "L'UID est valide"
         assert _("Yes") == "Oui"
         assert _("No") == "Non"
 
     def test_russian_translation(self) -> None:
         """Russian locale should translate strings."""
-        setup_locale("ru")
+        setup_locale(Language.RU)
         assert _("UID is valid") == "UID действителен"
         assert _("Yes") == "Да"
         assert _("No") == "Нет"
 
     def test_unknown_string_returns_original(self) -> None:
         """Unknown strings should return the original."""
-        setup_locale("de")
+        setup_locale(Language.DE)
         unknown = "This string does not exist in translations"
         assert _(unknown) == unknown
 
@@ -139,7 +128,7 @@ class TestMarkerFunction:
 
     def test_n_does_not_translate(self) -> None:
         """N_() should not translate, just mark for extraction."""
-        setup_locale("de")
+        setup_locale(Language.DE)
         # N_() should NOT translate
         assert N_("UID is valid") == "UID is valid"
         # _() should translate
@@ -154,17 +143,17 @@ class TestReturnCodeTranslations:
         from finanzonline_uid.domain.return_codes import get_return_code_info
 
         # First in English
-        setup_locale("en")
+        setup_locale(Language.EN)
         info_en = get_return_code_info(0)
         assert info_en.meaning == "UID is valid"
 
         # Then in German
-        setup_locale("de")
+        setup_locale(Language.DE)
         info_de = get_return_code_info(0)
         assert info_de.meaning == "UID ist gültig"
 
         # And Spanish
-        setup_locale("es")
+        setup_locale(Language.ES)
         info_es = get_return_code_info(0)
         assert info_es.meaning == "UID es válido"
 
@@ -187,23 +176,37 @@ class TestFormatterTranslations:
         )
 
         # English
-        setup_locale("en")
+        setup_locale(Language.EN)
         output_en = format_human(result)
         assert "VALID" in output_en
         assert "UID Check Result" in output_en
 
         # German
-        setup_locale("de")
+        setup_locale(Language.DE)
         output_de = format_human(result)
         assert "GÜLTIG" in output_de
         assert "UID-Prüfungsergebnis" in output_de
+
+    def test_result_status_labels_translated(self) -> None:
+        """The status badge of the email bodies is translated per ResultStatus."""
+        from datetime import datetime, timezone
+
+        from finanzonline_uid.adapters.formatting.html_templates import ResultStatus, classify_result, result_status_label
+        from finanzonline_uid.adapters.notification.plain_formatter import format_result_plain
+        from finanzonline_uid.domain.models import UidCheckResult
+
+        setup_locale(Language.DE)
+        assert result_status_label(ResultStatus.VALID) == "G\u00dcLTIG"
+        assert result_status_label(classify_result(1513)) == "RATENLIMIT"
+        result = UidCheckResult(uid="ATU1", return_code=1, message="m", timestamp=datetime.now(timezone.utc))
+        assert result_status_label(ResultStatus.INVALID) in format_result_plain(result)
 
 
 @pytest.fixture(autouse=True)
 def reset_locale() -> Generator[None, None, None]:
     """Reset locale to English after each test."""
     yield
-    setup_locale("en")
+    setup_locale(Language.EN)
 
 
 def _po_entries(po_path: Path) -> dict[str, str]:
@@ -239,13 +242,13 @@ def _po_entries(po_path: Path) -> dict[str, str]:
 
 
 @pytest.mark.parametrize("language", [lang for lang in SUPPORTED_LANGUAGES if lang != DEFAULT_LANGUAGE])
-def test_compiled_catalog_carries_every_po_translation(language: str) -> None:
+def test_compiled_catalog_carries_every_po_translation(language: Language) -> None:
     """The shipped .mo must hold every translation its .po declares.
 
     Measured: four retry-mode strings were translated in the .po files and never
     compiled, so those lines stayed English in every non-English locale.
     """
-    locale_dir = Path(i18n_module.__file__).parent / "locales" / language / "LC_MESSAGES"
+    locale_dir = Path(i18n_module.__file__).parent / "locales" / language.value / "LC_MESSAGES"
     entries = _po_entries(locale_dir / "messages.po")
     with (locale_dir / "messages.mo").open("rb") as mo_file:
         catalog = gettext.GNUTranslations(mo_file)

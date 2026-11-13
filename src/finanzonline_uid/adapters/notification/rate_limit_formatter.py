@@ -17,7 +17,7 @@ Adapters layer - rate limit warning email body formatting.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from finanzonline_uid._datetime_utils import format_local_time
@@ -32,6 +32,8 @@ from finanzonline_uid.i18n import _
 if TYPE_CHECKING:
     from finanzonline_uid.adapters.ratelimit import RateLimitStatus
 
+__all__ = ["format_rate_limit_warning_html", "format_rate_limit_warning_plain"]
+
 
 def format_rate_limit_warning_plain(status: RateLimitStatus) -> str:
     """Format rate limit warning as plain text.
@@ -42,8 +44,6 @@ def format_rate_limit_warning_plain(status: RateLimitStatus) -> str:
     Returns:
         Plain text rate limit warning message.
     """
-    from datetime import timezone
-
     timestamp = format_local_time(datetime.now(timezone.utc))
 
     lines = [
@@ -92,8 +92,6 @@ def format_rate_limit_warning_html(status: RateLimitStatus) -> str:
     Returns:
         HTML rate limit warning message.
     """
-    from datetime import timezone
-
     timestamp = format_local_time(datetime.now(timezone.utc))
 
     status_rows = f"""

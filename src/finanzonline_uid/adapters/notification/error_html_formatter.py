@@ -16,7 +16,7 @@ Adapters layer - HTML email body formatting for errors.
 from __future__ import annotations
 
 import html
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from finanzonline_uid._datetime_utils import format_local_time
@@ -30,7 +30,10 @@ from finanzonline_uid.domain.return_codes import get_return_code_info
 from finanzonline_uid.i18n import _
 
 if TYPE_CHECKING:
+    from finanzonline_uid.domain.errors import CheckErrorInfo
     from finanzonline_uid.domain.models import Diagnostics
+
+__all__ = ["format_error_html"]
 
 
 def _format_return_code_section_html(return_code: int) -> str:
@@ -39,7 +42,7 @@ def _format_return_code_section_html(return_code: int) -> str:
     return f"""
         <tr><td style="padding: 8px 15px; font-weight: bold;">{_("Return Code:")}</td><td style="padding: 8px 15px;">{return_code}</td></tr>
         <tr><td style="padding: 8px 15px; font-weight: bold;">{_("Meaning:")}</td><td style="padding: 8px 15px;">{html.escape(info.meaning)}</td></tr>
-        <tr><td style="padding: 8px 15px; font-weight: bold;">{_("Severity:")}</td><td style="padding: 8px 15px;"><span style="color: #dc3545; font-weight: bold;">{html.escape(info.severity.upper())}</span></td></tr>"""
+        <tr><td style="padding: 8px 15px; font-weight: bold;">{_("Severity:")}</td><td style="padding: 8px 15px;"><span style="color: #dc3545; font-weight: bold;">{html.escape(info.severity.value.upper())}</span></td></tr>"""
 
 
 def _format_raw_response_block_html(raw_response: str) -> str:
@@ -58,9 +61,9 @@ def _format_raw_response_block_html(raw_response: str) -> str:
 def _format_diagnostics_section_html(diagnostics: Diagnostics) -> str:
     """Format diagnostics section as HTML."""
     rows = "".join(
-        f'<tr><td style="padding: 6px 15px; font-weight: bold; color: #666; font-size: 0.9em;">{html.escape(k.replace("_", " ").title())}:</td>'
-        f'<td style="padding: 6px 15px; font-family: monospace; font-size: 0.85em; word-break: break-all;">{html.escape(str(v))}</td></tr>'
-        for k, v in diagnostics.as_dict().items()
+        f'<tr><td style="padding: 6px 15px; font-weight: bold; color: #666; font-size: 0.9em;">{html.escape(entry.field.label)}:</td>'
+        f'<td style="padding: 6px 15px; font-family: monospace; font-size: 0.85em; word-break: break-all;">{html.escape(entry.value)}</td></tr>'
+        for entry in diagnostics.entries()
     )
     table = (
         f'<h3 style="color: #856404; border-bottom: 1px solid #ffc107; padding-bottom: 8px; margin-top: 30px;">{_("Diagnostic Information")}</h3>'
@@ -69,7 +72,7 @@ def _format_diagnostics_section_html(diagnostics: Diagnostics) -> str:
     return table + _format_raw_response_block_html(diagnostics.raw_response)
 
 
-def _build_error_table_rows(uid: str, error_type: str, error_message: str, return_code: int | None, retryable: bool, timestamp: str) -> str:
+def _build_error_table_rows(info: CheckErrorInfo, uid: str, timestamp: str) -> str:
     """Build HTML table rows for error display."""
     error_span = (
         f'<span style="background-color: #dc3545; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold;">{html.escape(_("ERROR"))}</span>'
@@ -77,45 +80,34 @@ def _build_error_table_rows(uid: str, error_type: str, error_message: str, retur
     rows = [
         html_row(_("UID:"), uid, " font-family: monospace; font-size: 1.1em;"),
         html_row(_("Status:"), error_span, escape_value=False),
-        html_row(_("Error Type:"), error_type, " color: #dc3545; font-weight: bold;"),
-        html_row(_("Message:"), error_message),
+        html_row(_("Error Type:"), info.error_type.value, " color: #dc3545; font-weight: bold;"),
+        html_row(_("Message:"), info.message),
     ]
-    if return_code is not None:
-        rows.append(_format_return_code_section_html(return_code))
+    if info.return_code is not None:
+        rows.append(_format_return_code_section_html(info.return_code))
     rows.extend(
         [
-            html_row(_("Retryable:"), _("Yes - try again later") if retryable else _("No")),
+            html_row(_("Retryable:"), _("Yes - try again later") if info.retryable else _("No")),
             html_row(_("Timestamp:"), timestamp),
         ]
     )
     return "".join(rows)
 
 
-def format_error_html(
-    error_type: str,
-    error_message: str,
-    uid: str,
-    return_code: int | None = None,
-    retryable: bool = False,
-    diagnostics: Diagnostics | None = None,
-) -> str:
+def format_error_html(info: CheckErrorInfo, uid: str) -> str:
     """Format error notification as HTML.
 
     Args:
-        error_type: Type of error (e.g., "Authentication Error").
-        error_message: Error message details.
+        info: The failure to report: kind, message, return code,
+            retryability and diagnostics.
         uid: The UID that was being checked.
-        return_code: Optional return code from BMF.
-        retryable: Whether the error is retryable.
-        diagnostics: Optional Diagnostics object for debugging.
 
     Returns:
         HTML error notification.
     """
-    from datetime import timezone
-
     timestamp = format_local_time(datetime.now(timezone.utc))
-    rows = _build_error_table_rows(uid, error_type, error_message, return_code, retryable, timestamp)
+    rows = _build_error_table_rows(info, uid, timestamp)
+    diagnostics = info.diagnostics
     diag_section = _format_diagnostics_section_html(diagnostics) if diagnostics and not diagnostics.is_empty else ""
     title = _("UID Check Error")
     header = _("UID Check ERROR")

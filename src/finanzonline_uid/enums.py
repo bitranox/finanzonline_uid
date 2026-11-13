@@ -6,6 +6,11 @@ and other fixed string values used throughout the application.
 Contents:
     * :class:`OutputFormat` - Output format options for config display
     * :class:`DeployTarget` - Configuration deployment target layers
+    * :class:`EmailFormat` - Email body format options
+    * :class:`FileFormat` - File format for saved check results
+    * :class:`Language` - Supported interface languages
+    * :class:`NotificationKind` - Kind of notification email being sent
+    * :class:`ConfigSection` - Top-level sections of the layered configuration
 
 System Role:
     Acts as the single source of truth for fixed string values, eliminating
@@ -84,8 +89,69 @@ class EmailFormat(str, Enum):
     BOTH = "both"
 
 
+class FileFormat(str, Enum):
+    """File format for check results saved with ``--outputdir``.
+
+    The value is also the file extension.
+
+    Example:
+        >>> FileFormat.TXT.value
+        'txt'
+    """
+
+    JSON = "json"
+    TXT = "txt"
+    HTML = "html"
+
+
+class Language(str, Enum):
+    """Interface language; the value is the gettext locale code.
+
+    Example:
+        >>> Language("de") is Language.DE
+        True
+    """
+
+    EN = "en"
+    DE = "de"
+    ES = "es"
+    FR = "fr"
+    RU = "ru"
+
+
+class NotificationKind(str, Enum):
+    """Kind of notification email, as named in log messages.
+
+    Example:
+        >>> NotificationKind.RATE_LIMIT_WARNING.value
+        'Rate limit warning'
+    """
+
+    RESULT = "Email"
+    ERROR = "Error"
+    RATE_LIMIT_WARNING = "Rate limit warning"
+
+
+class ConfigSection(str, Enum):
+    """Top-level section of the layered configuration; the value is the section name.
+
+    Example:
+        >>> ConfigSection.LIB_LOG_RICH.value
+        'lib_log_rich'
+    """
+
+    APP = "app"
+    FINANZONLINE = "finanzonline"
+    EMAIL = "email"
+    LIB_LOG_RICH = "lib_log_rich"
+
+
 __all__ = [
+    "ConfigSection",
     "DeployTarget",
     "EmailFormat",
+    "FileFormat",
+    "Language",
+    "NotificationKind",
     "OutputFormat",
 ]

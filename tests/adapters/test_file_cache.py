@@ -470,3 +470,299 @@ class TestCachedResultTimestamp:
         assert cached.timestamp == cached.cached_at
         # And should match the original result's timestamp
         assert cached.timestamp == valid_result.timestamp
+
+
+# ============================================================================
+# On-disk wire format (shared with already-installed versions)
+# ============================================================================
+
+# Bytes an installed version writes for two entries: one with an address, a
+# microsecond timestamp and non-ASCII text, one without an address. The cache
+# file is read and rewritten by every version in the field, so these bytes
+# must load unchanged and survive a rewrite byte for byte.
+_INSTALLED_CACHE_BYTES = (
+    b"{\n"
+    b'  "ATU11111111": {\n'
+    b'    "uid": "ATU11111111",\n'
+    b'    "return_code": 0,\n'
+    b'    "message": "G\xc3\xbcltig",\n'
+    b'    "name": "Firma GmbH",\n'
+    b'    "address": {\n'
+    b'      "line1": "Firma GmbH",\n'
+    b'      "line2": "Hauptstr. 1",\n'
+    b'      "line3": "1010 Wien",\n'
+    b'      "line4": "",\n'
+    b'      "line5": "",\n'
+    b'      "line6": "AT"\n'
+    b"    },\n"
+    b'    "queried_at": "2025-01-15T10:30:00.123456Z",\n'
+    b'    "expires_at": "2099-01-01T00:00:00Z"\n'
+    b"  },\n"
+    b'  "DE222222222": {\n'
+    b'    "uid": "DE222222222",\n'
+    b'    "return_code": 0,\n'
+    b'    "message": "valid",\n'
+    b'    "name": "",\n'
+    b'    "address": null,\n'
+    b'    "queried_at": "2025-01-16T08:00:00Z",\n'
+    b'    "expires_at": "2099-01-01T00:00:00Z"\n'
+    b"  }\n"
+    b"}"
+)
+
+_EXPECTED_AFTER_PUT = (
+    _INSTALLED_CACHE_BYTES[:-2]
+    + b",\n"
+    + b'  "ATU33333333": {\n'
+    + b'    "uid": "ATU33333333",\n'
+    + b'    "return_code": 0,\n'
+    + b'    "message": "ok",\n'
+    + b'    "name": "Neu",\n'
+    + b'    "address": {\n'
+    + b'      "line1": "Neu",\n'
+    + b'      "line2": "",\n'
+    + b'      "line3": "8010 Graz",\n'
+    + b'      "line4": "",\n'
+    + b'      "line5": "",\n'
+    + b'      "line6": ""\n'
+    + b"    },\n"
+    + b'    "queried_at": "2025-02-01T12:00:00Z",\n'
+    + b'    "expires_at": "__EXPIRES__"\n'
+    + b"  }\n"
+    + b"}"
+)
+
+
+def _write_installed_cache(cache_file: Path) -> None:
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    cache_file.write_bytes(_INSTALLED_CACHE_BYTES)
+
+
+def _new_result() -> UidCheckResult:
+    return UidCheckResult(
+        uid="ATU33333333",
+        return_code=0,
+        message="ok",
+        name="Neu",
+        address=Address(line1="Neu", line3="8010 Graz"),
+        timestamp=datetime(2025, 2, 1, 12, 0, 0, tzinfo=timezone.utc),
+    )
+
+
+def _stored_entry(cache_file: Path, uid: str) -> dict[str, object]:
+    data: dict[str, dict[str, object]] = orjson.loads(cache_file.read_bytes())
+    return data[uid]
+
+
+class TestCacheWireFormat:
+    """The cache file is a wire shared with installed versions."""
+
+    def test_installed_file_loads_with_every_field(self, cache_file: Path, cache: UidResultCache) -> None:
+        """A file written by an installed version yields the stored values."""
+        _write_installed_cache(cache_file)
+
+        cached = cache.get("ATU11111111")
+
+        assert cached is not None
+        assert cached.message == "G\u00fcltig"
+        assert cached.name == "Firma GmbH"
+        assert cached.address == Address(line1="Firma GmbH", line2="Hauptstr. 1", line3="1010 Wien", line6="AT")
+        assert cached.timestamp == datetime(2025, 1, 15, 10, 30, 0, 123456, tzinfo=timezone.utc)
+        assert cached.cached_at == cached.timestamp
+
+    def test_installed_file_entry_without_address(self, cache_file: Path, cache: UidResultCache) -> None:
+        """A null address loads as None."""
+        _write_installed_cache(cache_file)
+
+        cached = cache.get("DE222222222")
+
+        assert cached is not None
+        assert cached.address is None
+        assert cached.message == "valid"
+
+    def test_put_rewrites_installed_entries_byte_for_byte(self, cache_file: Path, cache: UidResultCache) -> None:
+        """put keeps installed entries' bytes and appends the new entry in the same form."""
+        _write_installed_cache(cache_file)
+
+        cache.put(_new_result())
+
+        written = cache_file.read_bytes()
+        expires = _stored_entry(cache_file, "ATU33333333")["expires_at"]
+        assert isinstance(expires, str)
+        assert expires.endswith("Z")
+        assert written == _EXPECTED_AFTER_PUT.replace(b"__EXPIRES__", expires.encode())
+
+
+class TestCacheMalformedContent:
+    """Malformed files reset and malformed entries are skipped, as installed versions do."""
+
+    @pytest.mark.parametrize("content", [b"[1, 2]", b'"text"', b"42", b"null"])
+    def test_non_object_file_is_reset_on_put(self, cache_file: Path, cache: UidResultCache, content: bytes) -> None:
+        """A top-level value that is not an object is replaced by the new entry alone."""
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(content)
+
+        assert cache.get("ATU33333333") is None
+        cache.put(_new_result())
+
+        data: dict[str, object] = orjson.loads(cache_file.read_bytes())
+        assert list(data) == ["ATU33333333"]
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("queried_at", None),
+            ("expires_at", "not-a-date"),
+            ("return_code", "abc"),
+            ("uid", None),
+            ("expires_at", 12345),
+            ("address", "garbage"),
+        ],
+    )
+    def test_malformed_entry_is_skipped(self, cache_file: Path, cache: UidResultCache, field: str, value: object) -> None:
+        """An entry with a missing or unparsable required field is a miss and is dropped on write."""
+        entry: dict[str, object] = {
+            "uid": "ATU99999999",
+            "return_code": 0,
+            "message": "m",
+            "name": "",
+            "address": None,
+            "queried_at": "2025-01-01T00:00:00Z",
+            "expires_at": "2099-01-01T00:00:00Z",
+        }
+        if value is None:
+            del entry[field]
+        else:
+            entry[field] = value
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(orjson.dumps({"ATU99999999": entry}))
+
+        assert cache.get("ATU99999999") is None
+        cache.put(_new_result())
+
+        data: dict[str, object] = orjson.loads(cache_file.read_bytes())
+        assert list(data) == ["ATU33333333"]
+
+    def test_entry_without_optional_fields_loads_with_defaults(self, cache_file: Path, cache: UidResultCache) -> None:
+        """message, name and address are optional and default to empty / None."""
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(
+            orjson.dumps(
+                {
+                    "ATU99999999": {
+                        "uid": "ATU99999999",
+                        "return_code": 0,
+                        "queried_at": "2025-01-01T00:00:00Z",
+                        "expires_at": "2099-01-01T00:00:00Z",
+                    }
+                }
+            )
+        )
+
+        cached = cache.get("ATU99999999")
+
+        assert cached is not None
+        assert (cached.message, cached.name, cached.address) == ("", "", None)
+
+    def test_partial_address_fills_missing_lines(self, cache_file: Path, cache: UidResultCache) -> None:
+        """Address lines missing from the file read as empty strings."""
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(
+            orjson.dumps(
+                {
+                    "ATU99999999": {
+                        "uid": "ATU99999999",
+                        "return_code": 0,
+                        "address": {"line3": "1010 Wien"},
+                        "queried_at": "2025-01-01T00:00:00Z",
+                        "expires_at": "2099-01-01T00:00:00Z",
+                    }
+                }
+            )
+        )
+
+        cached = cache.get("ATU99999999")
+
+        assert cached is not None
+        assert cached.address == Address(line3="1010 Wien")
+
+    def test_non_object_entry_is_skipped(self, cache_file: Path, cache: UidResultCache) -> None:
+        """An entry that is not a JSON object is a miss and is dropped on write."""
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(orjson.dumps({"ATU99999999": "garbage"}))
+
+        assert cache.get("ATU99999999") is None
+        cache.put(_new_result())
+
+        data: dict[str, object] = orjson.loads(cache_file.read_bytes())
+        assert list(data) == ["ATU33333333"]
+
+    def test_expired_entry_kept_out_while_valid_neighbour_survives(self, cache_file: Path, cache: UidResultCache) -> None:
+        """Cleanup on write drops expired entries and keeps unexpired ones in file order."""
+        _write_installed_cache(cache_file)
+        data: dict[str, dict[str, object]] = orjson.loads(cache_file.read_bytes())
+        data["DE222222222"]["expires_at"] = "2020-01-01T00:00:00Z"
+        cache_file.write_bytes(orjson.dumps(data, option=orjson.OPT_INDENT_2))
+
+        cache.put(_new_result())
+
+        written: dict[str, object] = orjson.loads(cache_file.read_bytes())
+        assert list(written) == ["ATU11111111", "ATU33333333"]
+
+    def test_re_put_keeps_the_uid_in_its_file_position(self, cache_file: Path, cache: UidResultCache) -> None:
+        """Replacing an existing UID updates it in place rather than moving it to the end."""
+        _write_installed_cache(cache_file)
+        refreshed = UidCheckResult(
+            uid="ATU11111111",
+            return_code=0,
+            message="refreshed",
+            timestamp=datetime(2025, 3, 1, tzinfo=timezone.utc),
+        )
+
+        cache.put(refreshed)
+
+        written: dict[str, dict[str, object]] = orjson.loads(cache_file.read_bytes())
+        assert list(written) == ["ATU11111111", "DE222222222"]
+        assert written["ATU11111111"]["message"] == "refreshed"
+
+    def test_trim_writes_oldest_first(self, cache_file: Path) -> None:
+        """Above max_entries the kept entries are written oldest query first."""
+        _write_installed_cache(cache_file)
+        cache = UidResultCache(cache_file=cache_file, cache_hours=24.0, max_entries=2)
+        older = UidCheckResult(uid="ATU33333333", return_code=0, message="ok", timestamp=datetime(2025, 1, 15, 12, 0, tzinfo=timezone.utc))
+
+        cache.put(older)
+
+        written: dict[str, object] = orjson.loads(cache_file.read_bytes())
+        assert list(written) == ["ATU33333333", "DE222222222"]
+
+    def test_naive_timestamp_is_read_as_utc(self, cache_file: Path, cache: UidResultCache) -> None:
+        """A timestamp without an offset is read as UTC, the convention format_iso_datetime writes."""
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_bytes(
+            orjson.dumps(
+                {
+                    "ATU99999999": {
+                        "uid": "ATU99999999",
+                        "return_code": 0,
+                        "queried_at": "2025-01-01T00:00:00",
+                        "expires_at": "2099-01-01T00:00:00",
+                    }
+                }
+            )
+        )
+
+        cached = cache.get("ATU99999999")
+
+        assert cached is not None
+        assert cached.timestamp == datetime(2025, 1, 1, tzinfo=timezone.utc)
+
+    def test_corrupt_json_on_put_raises(self, cache_file: Path, cache: UidResultCache) -> None:
+        """An unparsable cache file is not silently overwritten by put."""
+        cache_file.parent.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text("{ invalid json }")
+
+        with pytest.raises(orjson.JSONDecodeError):
+            cache.put(_new_result())
+
+        assert cache_file.read_text() == "{ invalid json }"

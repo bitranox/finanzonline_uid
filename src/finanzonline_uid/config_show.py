@@ -5,7 +5,7 @@ sources in human-readable or JSON format. Keeps CLI layer thin by handling
 all formatting and display logic here.
 
 Contents:
-    * :func:`display_config` – displays configuration in requested format
+    * :func:`display_config` - displays configuration in requested format
 
 System Role:
     Lives in the behaviors layer. The CLI command delegates to this module for
@@ -16,8 +16,8 @@ System Role:
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
-from typing import Any, cast
+from collections.abc import Iterable, Mapping
+from typing import cast
 
 from lib_layered_config import Config
 
@@ -78,7 +78,7 @@ def display_config(
         _display_human(config, section)
 
 
-def _require_section(config: Config, section: str) -> Any:
+def _require_section(config: Config, section: str) -> object:
     """Return a section's data, exiting with status 1 when it is missing or empty.
 
     Args:
@@ -86,12 +86,12 @@ def _require_section(config: Config, section: str) -> Any:
         section: Name of the section to look up.
 
     Returns:
-        The section's data (never empty).
+        The section's data (never empty): a table, or a scalar set at top level.
 
     Raises:
         SystemExit: With code 1 if the section does not exist or is empty.
     """
-    section_data = config.get(section, default={})
+    section_data: object = config.get(section, default={})
     if not section_data:
         safe_console.echo(f"Section '{section}' not found or empty", err=True)
         raise SystemExit(1)
@@ -125,7 +125,7 @@ def _display_human(config: Config, section: str | None) -> None:
         # Show specific section
         section_data = _require_section(config, section)
         safe_console.echo(f"\n[{section}]")
-        _echo_entries(section_data.items())
+        _echo_section_body(section_data)
     else:
         _display_all_human(config)
 
@@ -136,17 +136,25 @@ def _display_all_human(config: Config) -> None:
     Args:
         config: Loaded layered configuration.
     """
-    data: dict[str, Any] = config.as_dict()
+    data: Mapping[str, object] = config.as_dict()
     for section_name, section_data in data.items():
         safe_console.echo(f"\n[{section_name}]")
-        if isinstance(section_data, dict):
-            dict_data = cast(dict[str, Any], section_data)
-            _echo_entries(dict_data.items())
-        else:
-            safe_console.echo(f"  {section_data}")
+        _echo_section_body(section_data)
 
 
-def _echo_entries(entries: Iterable[tuple[str, Any]]) -> None:
+def _echo_section_body(section_data: object) -> None:
+    """Write a section's entries, or its value when it is a top-level scalar.
+
+    Args:
+        section_data: The section's data as the configuration holds it.
+    """
+    if isinstance(section_data, Mapping):
+        _echo_entries(cast(Mapping[str, object], section_data).items())
+    else:
+        safe_console.echo(f"  {section_data}")
+
+
+def _echo_entries(entries: Iterable[tuple[str, object]]) -> None:
     """Write one ``key = value`` line per entry, indented under its section.
 
     Args:
@@ -156,7 +164,7 @@ def _echo_entries(entries: Iterable[tuple[str, Any]]) -> None:
         safe_console.echo(f"  {key} = {_format_value(value)}")
 
 
-def _format_value(value: Any) -> str:
+def _format_value(value: object) -> str:
     """Render a configuration value the way a TOML file would show it.
 
     Args:

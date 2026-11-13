@@ -5,9 +5,11 @@ application's configuration system and logging infrastructure. Isolates
 email functionality behind a domain-appropriate interface.
 
 Contents:
-    * :class:`EmailConfig` – Configuration container for email settings
-    * :func:`send_email` – Primary email sending interface
-    * :func:`send_notification` – Convenience wrapper for simple notifications
+    * :class:`EmailSection` - the ``[email]`` section as read from the configuration
+    * :class:`EmailConfig` - Configuration container for email settings
+    * :func:`load_email_config` - build an EmailConfig from the layered configuration
+    * :func:`send_email` - Primary email sending interface
+    * :func:`send_notification` - Convenience wrapper for simple notifications
 
 System Role:
     Acts as the email adapter layer, bridging btx_lib_mail with the application's
@@ -18,28 +20,20 @@ System Role:
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast
 
 from btx_lib_mail.lib_mail import ConfMail, Transport
 from btx_lib_mail.lib_mail import send as btx_send
-from pydantic import SecretStr
+from lib_layered_config import Config
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic_core import PydanticUseDefault
 
-from .config import parse_float, parse_string_list
+from .config import empty_text_list, number_or_default, parse_string_list, read_config_section, text_setting
+from .enums import ConfigSection
 
 logger = logging.getLogger(__name__)
-
-
-def _default_smtp_hosts() -> list[str]:
-    """Factory function for default SMTP hosts list."""
-    return []
-
-
-def _default_recipients() -> list[str]:
-    """Factory function for default recipients list."""
-    return []
 
 
 def _validate_smtp_host(host: str) -> None:
@@ -93,7 +87,8 @@ class EmailConfig:
             one succeeds.
         from_address: Default sender address for outgoing emails.
         smtp_username: Optional SMTP authentication username.
-        smtp_password: Optional SMTP authentication password.
+        smtp_password: Optional SMTP authentication password; unwrapped only where
+            it is handed to btx_lib_mail, so it never renders in a repr or log.
         use_starttls: Enable STARTTLS negotiation.
         timeout: Socket timeout in seconds for SMTP operations.
         raise_on_missing_attachments: When True, missing attachment files raise FileNotFoundError.
@@ -109,15 +104,15 @@ class EmailConfig:
         ['smtp.example.com:587']
     """
 
-    smtp_hosts: list[str] = field(default_factory=_default_smtp_hosts)
+    smtp_hosts: list[str] = field(default_factory=empty_text_list)
     from_address: str = "noreply@localhost"
     smtp_username: str | None = None
-    smtp_password: str | None = None
+    smtp_password: SecretStr | None = None
     use_starttls: bool = True
     timeout: float = 30.0
     raise_on_missing_attachments: bool = True
     raise_on_invalid_recipient: bool = True
-    default_recipients: list[str] = field(default_factory=_default_recipients)
+    default_recipients: list[str] = field(default_factory=empty_text_list)
 
     def __post_init__(self) -> None:
         """Validate configuration values.
@@ -163,56 +158,25 @@ class EmailConfig:
             >>> conf.smtphosts
             ['smtp.example.com']
         """
-        # Pydantic model type inference limitation in strict mode
         return ConfMail(
-            smtphosts=self.smtp_hosts,  # type: ignore[reportUnknownVariableType]
+            smtphosts=self.smtp_hosts,
             smtp_username=self.smtp_username,
-            smtp_password=SecretStr(self.smtp_password) if self.smtp_password is not None else None,
+            smtp_password=self.smtp_password,
             smtp_use_starttls=self.use_starttls,
             smtp_timeout=self.timeout,
             raise_on_missing_attachments=self.raise_on_missing_attachments,
             raise_on_invalid_recipient=self.raise_on_invalid_recipient,
         )
 
-    @classmethod
-    def from_dict(cls, section: Mapping[str, Any]) -> EmailConfig:
-        """Create EmailConfig from a configuration section dictionary.
-
-        Handles optional values and type conversions for configuration data
-        typically from lib_layered_config.
-
-        Args:
-            section: Dictionary with email settings (smtp_hosts, from_address, etc.).
-
-        Returns:
-            Configured EmailConfig instance with defaults for missing values.
-
-        Example:
-            >>> section = {
-            ...     "smtp_hosts": ["smtp.example.com:587"],
-            ...     "from_address": "test@example.com"
-            ... }
-            >>> config = EmailConfig.from_dict(section)
-            >>> config.from_address
-            'test@example.com'
-        """
-        return cls(
-            smtp_hosts=parse_string_list(section.get("smtp_hosts", [])),
-            from_address=_parse_string(section.get("from_address"), "noreply@localhost"),
-            smtp_username=_parse_optional_string(section.get("smtp_username")),
-            smtp_password=_parse_optional_string(section.get("smtp_password")),
-            use_starttls=_parse_bool(section.get("use_starttls", True), True),
-            timeout=parse_float(section.get("timeout", 30.0), 30.0),
-            raise_on_missing_attachments=_parse_bool(section.get("raise_on_missing_attachments", True), True),
-            raise_on_invalid_recipient=_parse_bool(section.get("raise_on_invalid_recipient", True), True),
-            default_recipients=parse_string_list(section.get("default_recipients", [])),
-        )
-
 
 def _resolve_credentials(config: EmailConfig) -> tuple[str, str] | None:
-    """Extract credentials tuple from config when both username and password exist."""
-    if config.smtp_username and config.smtp_password:
-        return (config.smtp_username, config.smtp_password)
+    """Extract credentials tuple from config when both username and password exist.
+
+    The password is unwrapped here because btx_lib_mail's ``send`` takes it as text.
+    """
+    password = config.smtp_password.get_secret_value() if config.smtp_password is not None else ""
+    if config.smtp_username and password:
+        return (config.smtp_username, password)
     return None
 
 
@@ -373,66 +337,100 @@ def send_notification(
     )
 
 
-def _parse_string(raw: Any, default: str) -> str:
-    """Parse a string value with fallback to default."""
-    return raw if isinstance(raw, str) else default
+class EmailSection(BaseModel):
+    """The ``[email]`` section as read from the layered configuration.
 
-
-def _parse_optional_string(raw: Any) -> str | None:
-    """Parse an optional string value.
-
-    lib_layered_config reads an unquoted all-digit value as an int, and only when the number
-    reads back as the same text, so ``str()`` restores exactly what was written. A bool stays
-    "not a string" so that ``true`` is not turned into the text ``True``.
+    Each setting of the wrong type falls back to its default instead of failing,
+    so building the section never raises; the value checks (a positive timeout, a
+    sender with ``@``, a valid ``host:port``) stay in :class:`EmailConfig`, which
+    raises them as ``ValueError`` for configured and hand-built settings alike.
 
     Examples:
-        >>> _parse_optional_string("secret"), _parse_optional_string(123456), _parse_optional_string(True)
-        ('secret', '123456', None)
+        >>> section = EmailSection.model_validate({"timeout": "slow", "use_starttls": "yes", "smtp_password": 4711})
+        >>> section.timeout, section.use_starttls, section.smtp_password
+        (30.0, True, SecretStr('**********'))
     """
-    if isinstance(raw, int) and not isinstance(raw, bool):
-        return str(raw)
-    return raw if isinstance(raw, str) else None
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    smtp_hosts: list[str] = Field(default_factory=empty_text_list)
+    from_address: str = "noreply@localhost"
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    use_starttls: bool = True
+    timeout: float = 30.0
+    raise_on_missing_attachments: bool = True
+    raise_on_invalid_recipient: bool = True
+    default_recipients: list[str] = Field(default_factory=empty_text_list)
+
+    @field_validator("smtp_hosts", "default_recipients", mode="before")
+    @classmethod
+    def _text_list(cls, raw: object) -> list[str]:
+        return parse_string_list(raw)
+
+    @field_validator("from_address", mode="before")
+    @classmethod
+    def _sender(cls, raw: object) -> str:
+        if isinstance(raw, str):
+            return raw
+        raise PydanticUseDefault
+
+    @field_validator("smtp_username", "smtp_password", mode="before")
+    @classmethod
+    def _credential(cls, raw: object) -> str | None:
+        return text_setting(raw)
+
+    @field_validator("use_starttls", "raise_on_missing_attachments", "raise_on_invalid_recipient", mode="before")
+    @classmethod
+    def _flag(cls, raw: object) -> bool:
+        if isinstance(raw, bool):
+            return raw
+        raise PydanticUseDefault
+
+    @field_validator("timeout", mode="before")
+    @classmethod
+    def _timeout(cls, raw: object) -> float:
+        return number_or_default(raw)
 
 
-def _parse_bool(raw: Any, default: bool) -> bool:
-    """Parse a boolean value with fallback to default."""
-    return raw if isinstance(raw, bool) else default
-
-
-def load_email_config_from_dict(config_dict: Mapping[str, Any]) -> EmailConfig:
-    """Load EmailConfig from a configuration dictionary.
-
-    Bridges lib_layered_config's dictionary output with the typed
-    EmailConfig dataclass, handling optional values and type conversions.
+def load_email_config(config: Config) -> EmailConfig:
+    """Load EmailConfig from the ``[email]`` section of the layered configuration.
 
     Args:
-        config_dict: Configuration dictionary typically from lib_layered_config.
-            Expected to have an 'email' section with email settings.
+        config: Loaded layered configuration.
 
     Returns:
-        Configured email settings with defaults for missing values.
+        Configured email settings with defaults for missing or mistyped values.
+
+    Raises:
+        ValueError: When a configured value is invalid (see :class:`EmailConfig`).
 
     Example:
-        >>> config_dict = {
-        ...     "email": {
-        ...         "smtp_hosts": ["smtp.example.com:587"],
-        ...         "from_address": "test@example.com"
-        ...     }
-        ... }
-        >>> email_config = load_email_config_from_dict(config_dict)
+        >>> config = Config({"email": {"smtp_hosts": ["smtp.example.com:587"], "from_address": "test@example.com"}}, {})
+        >>> email_config = load_email_config(config)
         >>> email_config.from_address
         'test@example.com'
         >>> email_config.use_starttls
         True
     """
-    email_section_raw = config_dict.get("email", {})
-    section: Mapping[str, Any] = cast(Mapping[str, Any], email_section_raw if isinstance(email_section_raw, dict) else {})
-    return EmailConfig.from_dict(section)
+    section = EmailSection.model_validate(dict(read_config_section(config, ConfigSection.EMAIL)))
+    return EmailConfig(
+        smtp_hosts=list(section.smtp_hosts),
+        from_address=section.from_address,
+        smtp_username=section.smtp_username,
+        smtp_password=section.smtp_password,
+        use_starttls=section.use_starttls,
+        timeout=section.timeout,
+        raise_on_missing_attachments=section.raise_on_missing_attachments,
+        raise_on_invalid_recipient=section.raise_on_invalid_recipient,
+        default_recipients=list(section.default_recipients),
+    )
 
 
 __all__ = [
     "EmailConfig",
-    "load_email_config_from_dict",
+    "EmailSection",
+    "load_email_config",
     "send_email",
     "send_notification",
 ]

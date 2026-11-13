@@ -5,9 +5,13 @@ configs, host configs, user configs, .env files, and environment variables
 following a deterministic precedence order.
 
 Contents:
-    * :func:`get_config` – loads configuration with lib_layered_config
-    * :func:`get_default_config_path` – returns path to bundled default config
-    * :func:`load_finanzonline_config` – loads FinanzOnline credentials and settings
+    * :func:`get_config` - loads configuration with lib_layered_config
+    * :func:`get_default_config_path` - returns path to bundled default config
+    * :func:`read_config_section` - one raw section, ready for a section model
+    * :func:`text_setting` - a text setting's value, digits restored from an int
+    * :func:`empty_text_list` - typed empty-list factory for list-of-text fields
+    * :func:`load_app_config` - loads the general application settings
+    * :func:`load_finanzonline_config` - loads FinanzOnline credentials and settings
 
     Configuration identifiers (vendor, app, slug) are imported from
     :mod:`finanzonline_uid.__init__conf__` as LAYEREDCONF_* constants.
@@ -15,58 +19,60 @@ Contents:
 System Role:
     Acts as the configuration adapter layer, bridging lib_layered_config with the
     application's runtime needs while keeping domain logic decoupled from
-    configuration mechanics.
+    configuration mechanics. Each section is parsed once into a Pydantic section
+    model (:class:`AppSection`, :class:`FinanzOnlineSection`); the rest of the
+    application only sees the typed results.
 """
 
 from __future__ import annotations
 
+import json
 import os
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 from lib_layered_config import Config, read_config
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic_core import PydanticCustomError, PydanticUseDefault
 
 from . import __init__conf__
 from .domain.errors import ConfigurationError
 from .domain.models import FinanzOnlineCredentials
-from .enums import EmailFormat
+from .enums import ConfigSection, EmailFormat, FileFormat, Language
+from .i18n import DEFAULT_LANGUAGE
 
 # =============================================================================
-# Configuration Parsing Helpers (shared with mail.py)
+# Configuration Parsing Helpers (shared with mail.py and logging_setup.py)
 # =============================================================================
 
 
-def parse_float(raw: Any, default: float) -> float:
-    """Parse a float value with fallback to default.
+def number_or_default(raw: object) -> float:
+    """Return a numeric config value as float, else make the field use its default.
 
-    Args:
-        raw: Raw config value (int, float, or other).
-        default: Default value if parsing fails.
-
-    Returns:
-        Parsed float or default.
-    """
-    return float(raw) if isinstance(raw, (int, float)) else default
-
-
-def parse_int(raw: Any, default: int) -> int:
-    """Parse an integer value with fallback to default.
+    Meant for a ``mode="before"`` field validator: raising
+    :class:`pydantic_core.PydanticUseDefault` keeps each field's own default in
+    one place (the field declaration) instead of repeating it at every call.
 
     Args:
         raw: Raw config value.
-        default: Default value if parsing fails.
 
     Returns:
-        Parsed integer or default.
+        The value as float when it is an int or a float.
+
+    Raises:
+        PydanticUseDefault: For any other value, so the field default applies.
+
+    Examples:
+        >>> number_or_default(45)
+        45.0
     """
-    if isinstance(raw, int):
-        return raw
-    if isinstance(raw, float):
-        return int(raw)
-    return default
+    if isinstance(raw, (int, float)):
+        return float(raw)
+    raise PydanticUseDefault
 
 
 def parse_string_list(raw: object) -> list[str]:
@@ -77,44 +83,49 @@ def parse_string_list(raw: object) -> list[str]:
 
     Returns:
         List of strings, empty list if parsing fails.
-    """
-    import json
 
+    Examples:
+        >>> parse_string_list('["a@example.com", ""]')
+        ['a@example.com']
+        >>> parse_string_list("not-a-list")
+        []
+    """
     if isinstance(raw, list):
         return [str(item) for item in cast(list[object], raw) if item]
 
     if isinstance(raw, str) and raw.startswith("["):
         try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, list):
-                return [str(item) for item in cast(list[object], parsed) if item]
+            parsed: object = json.loads(raw)
         except json.JSONDecodeError:
-            pass
+            return []
+        if isinstance(parsed, list):
+            return [str(item) for item in cast(list[object], parsed) if item]
 
     return []
 
 
-def _parse_email_format(raw: Any, default: EmailFormat) -> EmailFormat:
-    """Parse email format from config value.
+def text_setting(raw: object) -> str | None:
+    """Return a text setting's value as text, or None when it is not text.
+
+    lib_layered_config reads an unquoted all-digit value as an int whenever the
+    number reads back as the same text, so ``str()`` restores exactly what was
+    written. A bool stays "not text" so ``true`` never becomes the text ``True``.
 
     Args:
-        raw: Raw config value (string or EmailFormat).
-        default: Default value if parsing fails.
+        raw: Raw config value.
 
     Returns:
-        EmailFormat enum value.
+        The text, the digits of an int, or None for any other type.
+
+    Examples:
+        >>> text_setting("dir"), text_setting(2024), text_setting(True)
+        ('dir', '2024', None)
     """
-    if isinstance(raw, EmailFormat):
-        return raw
-
     if isinstance(raw, str):
-        normalized = raw.lower().strip()
-        try:
-            return EmailFormat(normalized)
-        except ValueError:
-            pass
-
-    return default
+        return raw
+    if isinstance(raw, int) and not isinstance(raw, bool):
+        return str(raw)
+    return None
 
 
 def _get_cache_dir() -> Path:
@@ -126,8 +137,6 @@ def _get_cache_dir() -> Path:
         - macOS: ~/Library/Caches/finanzonline-uid/
         - Windows: %LOCALAPPDATA%/finanzonline-uid/
     """
-    import sys
-
     home = Path.home()
 
     if sys.platform == "darwin":
@@ -182,8 +191,6 @@ def _normalize_path(path_str: str) -> Path:
         >>> _normalize_path("//server/share/dir")  # doctest: +SKIP
         WindowsPath('//server/share/dir')
     """
-    import sys
-
     path_str = path_str.strip()
 
     # On Windows, convert Linux-style UNC paths (//server/share) to Windows-style
@@ -193,53 +200,43 @@ def _normalize_path(path_str: str) -> Path:
     return Path(path_str).expanduser()
 
 
-def _parse_cache_file_path(raw: Any) -> Path:
-    """Parse cache file path from config value.
+def empty_text_list() -> list[str]:
+    """Return a new empty list of text for a ``default_factory``.
 
-    Args:
-        raw: Raw config value (string path or None).
-
-    Returns:
-        Path object, using platform default if not specified.
-    """
-    if isinstance(raw, str) and raw.strip():
-        return _normalize_path(raw)
-    if isinstance(raw, Path):
-        return raw
-    return _get_default_cache_path()
-
-
-def _parse_ratelimit_file_path(raw: Any) -> Path:
-    """Parse rate limit file path from config value.
-
-    Args:
-        raw: Raw config value (string path or None).
+    A bare ``list`` factory infers ``list[Unknown]`` under pyright strict.
 
     Returns:
-        Path object, using platform default if not specified.
+        An empty ``list[str]``.
+
+    Examples:
+        >>> empty_text_list()
+        []
     """
-    if isinstance(raw, str) and raw.strip():
-        return _normalize_path(raw)
-    if isinstance(raw, Path):
-        return raw
-    return _get_default_ratelimit_path()
+    return []
 
 
-def _extract_config_section(config_dict: dict[str, Any], section: str) -> Mapping[str, Any]:
-    """Extract and validate a configuration section from config dict.
+def read_config_section(config: Config, section: ConfigSection) -> Mapping[str, object]:
+    """Return one top-level configuration section as raw data for a section model.
 
-    Safely retrieves a section from the config dictionary, ensuring the result
-    is always a valid Mapping even if the section is missing or has wrong type.
+    A section that is missing, or that is not a table (a scalar set through an
+    environment variable, say), reads as empty so every setting in it falls back
+    to its default rather than failing the whole command.
 
     Args:
-        config_dict: Full configuration dictionary from Config.as_dict().
-        section: Name of the section to extract (e.g., "app", "finanzonline").
+        config: Loaded layered configuration.
+        section: The section to read.
 
     Returns:
-        Mapping of section contents, empty dict if section missing or invalid type.
+        The section's raw key/value pairs, empty when absent or not a table.
+
+    Examples:
+        >>> read_config_section(Config({"email": "x"}, {}), ConfigSection.EMAIL)
+        {}
     """
-    raw = config_dict.get(section, {})
-    return cast(Mapping[str, Any], raw if isinstance(raw, dict) else {})
+    raw: object = config.get(section.value, default=None)
+    if isinstance(raw, Mapping):
+        return cast(Mapping[str, object], raw)
+    return {}
 
 
 @lru_cache(maxsize=1)
@@ -269,10 +266,10 @@ def get_default_config_path() -> Path:
 
 # Cache configuration to avoid redundant file I/O and parsing.
 # Trade-offs:
-#   ✅ Future-proof if config is read from multiple places
-#   ✅ Near-zero overhead (single cache entry)
-#   ❌ Prevents dynamic config reloading (if ever needed)
-#   ❌ start_dir/profile parameter variations would bypass cache
+#   + Future-proof if config is read from multiple places
+#   + Near-zero overhead (single cache entry)
+#   - Prevents dynamic config reloading (if ever needed)
+#   - start_dir/profile parameter variations would bypass cache
 @lru_cache(maxsize=4)
 def get_config(*, profile: str | None = None, start_dir: str | None = None) -> Config:
     """Load layered configuration with application defaults.
@@ -283,7 +280,7 @@ def get_config(*, profile: str | None = None, start_dir: str | None = None) -> C
     multiple modules.
 
     Loads configuration from multiple sources in precedence order:
-    defaults → app → host → user → dotenv → env
+    defaults -> app -> host -> user -> dotenv -> env
 
     The vendor, app, and slug identifiers determine platform-specific paths:
     - Linux: Uses XDG directories with slug
@@ -332,15 +329,49 @@ def get_config(*, profile: str | None = None, start_dir: str | None = None) -> C
     )
 
 
+class AppSection(BaseModel):
+    """The ``[app]`` section as read from the layered configuration.
+
+    Attributes:
+        language: Interface language. An empty value means the default; an
+            unsupported one falls back to the default, so a typo never stops the
+            command. It falls back silently: the CLI reads this section before
+            logging is initialised, and a log record emitted then would go out
+            unformatted through ``logging.lastResort``.
+
+    Examples:
+        >>> AppSection.model_validate({"language": " DE "}).language
+        <Language.DE: 'de'>
+        >>> AppSection.model_validate({}).language
+        <Language.EN: 'en'>
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    language: Language = DEFAULT_LANGUAGE
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _supported_language(cls, raw: object) -> Language:
+        if isinstance(raw, Language):
+            return raw
+        if not raw:
+            return DEFAULT_LANGUAGE
+        try:
+            return Language(str(raw).lower().strip())
+        except ValueError:
+            return DEFAULT_LANGUAGE
+
+
 @dataclass(frozen=True, slots=True)
 class AppConfig:
     """General application configuration.
 
     Attributes:
-        language: Language code for user-facing messages (en, de, es, fr, ru).
+        language: Language for user-facing messages.
     """
 
-    language: str = "en"
+    language: Language = DEFAULT_LANGUAGE
 
 
 def load_app_config(config: Config) -> AppConfig:
@@ -353,23 +384,152 @@ def load_app_config(config: Config) -> AppConfig:
         AppConfig with language setting.
 
     Example:
-        >>> config = get_config()  # doctest: +SKIP
-        >>> app_config = load_app_config(config)  # doctest: +SKIP
-        >>> app_config.language  # doctest: +SKIP
-        'en'
+        >>> load_app_config(Config({"app": {"language": "fr"}}, {})).language
+        <Language.FR: 'fr'>
     """
-    from .i18n import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES
+    section = AppSection.model_validate(dict(read_config_section(config, ConfigSection.APP)))
+    return AppConfig(language=section.language)
 
-    app_section = _extract_config_section(config.as_dict(), "app")
 
-    # Parse language with validation
-    raw_language = app_section.get("language", DEFAULT_LANGUAGE)
-    language = str(raw_language).lower().strip() if raw_language else DEFAULT_LANGUAGE
+def _credential_text(raw: object) -> str:
+    """Return a credential value as text, empty when it is falsy (reported as missing)."""
+    return str(raw) if raw else ""
 
-    if language not in SUPPORTED_LANGUAGES:
-        language = DEFAULT_LANGUAGE
 
-    return AppConfig(language=language)
+def _path_setting(raw: object) -> Path | None:
+    """Return a path setting as a Path, or None when it names no path.
+
+    Examples:
+        >>> _path_setting("") is None, str(_path_setting(4711))
+        (True, '4711')
+    """
+    if isinstance(raw, Path):
+        return raw
+    text = text_setting(raw)
+    return _normalize_path(text) if text else None
+
+
+class FinanzOnlineSection(BaseModel):
+    """The ``[finanzonline]`` section as read from the layered configuration.
+
+    Every validator but one coerces or falls back to the field default. The
+    exception is ``output_dir``: a value that names no path (``true``, a list)
+    is refused, because falling back would quietly stop writing result files.
+    :func:`load_finanzonline_config` turns that refusal into a
+    :class:`ConfigurationError` and raises the other refusals (missing
+    credentials, invalid credentials, an own UID without ``ATU``) in the order
+    and with the text callers already depend on.
+
+    Examples:
+        >>> section = FinanzOnlineSection.model_validate({"tid": 123456789, "session_timeout": "slow", "output_format": "TXT"})
+        >>> section.tid, section.session_timeout, section.output_format
+        ('123456789', 30.0, <FileFormat.TXT: 'txt'>)
+        >>> section.missing_required()
+        ['finanzonline.benid', 'finanzonline.pin', 'finanzonline.uid_tn', 'finanzonline.herstellerid']
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    tid: str = ""
+    benid: str = ""
+    # repr=False keeps the PIN out of any log line or traceback that renders the section.
+    pin: str = Field(default="", repr=False)
+    uid_tn: str = ""
+    herstellerid: str = ""
+    session_timeout: float = 30.0
+    query_timeout: float = 30.0
+    default_recipients: list[str] = Field(default_factory=empty_text_list)
+    email_format: EmailFormat = EmailFormat.HTML
+    cache_results_hours: float = 48.0
+    cache_file: Path = Field(default_factory=_get_default_cache_path)
+    ratelimit_queries: int = 50
+    ratelimit_hours: float = 24.0
+    ratelimit_file: Path = Field(default_factory=_get_default_ratelimit_path)
+    output_dir: Path | None = None
+    output_format: FileFormat = FileFormat.HTML
+
+    @field_validator("tid", "benid", "pin", "uid_tn", "herstellerid", mode="before")
+    @classmethod
+    def _credential(cls, raw: object) -> str:
+        return _credential_text(raw)
+
+    @field_validator("session_timeout", "query_timeout", "cache_results_hours", "ratelimit_hours", mode="before")
+    @classmethod
+    def _number(cls, raw: object) -> float:
+        return number_or_default(raw)
+
+    @field_validator("ratelimit_queries", mode="before")
+    @classmethod
+    def _count(cls, raw: object) -> int:
+        return int(number_or_default(raw))
+
+    @field_validator("default_recipients", mode="before")
+    @classmethod
+    def _recipients(cls, raw: object) -> list[str]:
+        return parse_string_list(raw)
+
+    @field_validator("email_format", mode="before")
+    @classmethod
+    def _email_format(cls, raw: object) -> EmailFormat:
+        if isinstance(raw, EmailFormat):
+            return raw
+        if isinstance(raw, str):
+            try:
+                return EmailFormat(raw.lower().strip())
+            except ValueError:
+                pass
+        raise PydanticUseDefault
+
+    @field_validator("cache_file", "ratelimit_file", mode="before")
+    @classmethod
+    def _state_file(cls, raw: object) -> Path:
+        # A blank path means "not configured", so the platform default applies.
+        if isinstance(raw, str) and not raw.strip():
+            raise PydanticUseDefault
+        path = _path_setting(raw)
+        if path is None:
+            raise PydanticUseDefault
+        return path
+
+    @field_validator("output_dir", mode="before")
+    @classmethod
+    def _output_dir(cls, raw: object) -> Path | None:
+        if raw is None or isinstance(raw, Path):
+            return raw
+        if not raw:
+            # Every falsy value ("", false, 0, an empty list or table) meant "off" in
+            # the release; 0 must not turn into a directory named "0".
+            return None
+        if text_setting(raw) is None:
+            # Refused rather than defaulted: the default (None) switches result files off,
+            # so a mistyped value would silently stop writing them.
+            raise PydanticCustomError(
+                "path_type",
+                "must be a directory path given as text, got {type_name}",
+                {"type_name": type(raw).__name__},
+            )
+        return _path_setting(raw)
+
+    @field_validator("output_format", mode="before")
+    @classmethod
+    def _output_format(cls, raw: object) -> FileFormat:
+        if isinstance(raw, FileFormat):
+            return raw
+        try:
+            return FileFormat(str(raw).lower())
+        except ValueError:
+            raise PydanticUseDefault from None
+
+    def missing_required(self) -> list[str]:
+        """Return the dotted names of the required settings that are empty, in report order."""
+        required = (
+            ("tid", self.tid),
+            ("benid", self.benid),
+            ("pin", self.pin),
+            ("uid_tn", self.uid_tn),
+            ("herstellerid", self.herstellerid),
+        )
+        return [f"finanzonline.{name}" for name, value in required if not value]
 
 
 @dataclass(frozen=True, slots=True)
@@ -389,7 +549,7 @@ class FinanzOnlineConfig:
         ratelimit_hours: Sliding window duration in hours for rate limiting.
         ratelimit_file: Path to the rate limit tracking JSON file.
         output_dir: Directory to save valid UID results as files.
-        output_format: Format for saved files (json, txt, html).
+        output_format: Format for saved files.
     """
 
     credentials: FinanzOnlineCredentials
@@ -404,7 +564,23 @@ class FinanzOnlineConfig:
     ratelimit_hours: float = 24.0
     ratelimit_file: Path | None = None
     output_dir: Path | None = None
-    output_format: str = "html"
+    output_format: FileFormat = FileFormat.HTML
+
+
+def _refusal_text(section: ConfigSection, error: ValidationError) -> str:
+    """Render a section model's refusal as ``<section>.<field>: <reason>`` lines.
+
+    Built from ``error.errors()`` rather than ``str(error)``, which would hand the
+    user Pydantic's internals (error type codes, documentation URLs).
+
+    Examples:
+        >>> try:
+        ...     FinanzOnlineSection.model_validate({"output_dir": True})
+        ... except ValidationError as exc:
+        ...     print(_refusal_text(ConfigSection.FINANZONLINE, exc))
+        finanzonline.output_dir: must be a directory path given as text, got bool
+    """
+    return "; ".join(f"{section.value}.{'.'.join(str(part) for part in detail['loc'])}: {detail['msg']}" for detail in error.errors())
 
 
 def load_finanzonline_config(config: Config) -> FinanzOnlineConfig:
@@ -417,105 +593,68 @@ def load_finanzonline_config(config: Config) -> FinanzOnlineConfig:
         FinanzOnlineConfig with validated credentials and settings.
 
     Raises:
-        ConfigurationError: If required configuration values are missing.
+        ConfigurationError: If required configuration values are missing or invalid,
+            or a setting has a type it cannot be read from (``output_dir = true``).
 
     Example:
-        >>> config = get_config()  # doctest: +SKIP
-        >>> fo_config = load_finanzonline_config(config)  # doctest: +SKIP
+        >>> load_finanzonline_config(Config({"finanzonline": {"output_dir": ["x"]}}, {}))
+        Traceback (most recent call last):
+        ...
+        finanzonline_uid.domain.errors.ConfigurationError: Invalid FinanzOnline configuration: finanzonline.output_dir: must be a directory path given as text, got list
     """
-    fo_section = _extract_config_section(config.as_dict(), "finanzonline")
+    try:
+        section = FinanzOnlineSection.model_validate(dict(read_config_section(config, ConfigSection.FINANZONLINE)))
+    except ValidationError as exc:
+        raise ConfigurationError(f"Invalid FinanzOnline configuration: {_refusal_text(ConfigSection.FINANZONLINE, exc)}") from None
 
-    # Required credentials
-    tid = fo_section.get("tid", "")
-    benid = fo_section.get("benid", "")
-    pin = fo_section.get("pin", "")
-    uid_tn = fo_section.get("uid_tn", "")
-    herstellerid = fo_section.get("herstellerid", "")
-
-    # Validate required fields
-    missing: list[str] = []
-    if not tid:
-        missing.append("finanzonline.tid")
-    if not benid:
-        missing.append("finanzonline.benid")
-    if not pin:
-        missing.append("finanzonline.pin")
-    if not uid_tn:
-        missing.append("finanzonline.uid_tn")
-    if not herstellerid:
-        missing.append("finanzonline.herstellerid")
-
+    missing = section.missing_required()
     if missing:
         raise ConfigurationError(f"Missing required FinanzOnline configuration: {', '.join(missing)}. Configure via config file or environment variables.")
 
     # Create credentials (validation happens in __post_init__)
     try:
         credentials = FinanzOnlineCredentials(
-            tid=str(tid),
-            benid=str(benid),
-            pin=str(pin),
-            herstellerid=str(herstellerid),
+            tid=section.tid,
+            benid=section.benid,
+            pin=section.pin,
+            herstellerid=section.herstellerid,
         )
     except ValueError as e:
         raise ConfigurationError(f"Invalid credentials: {e}") from e
 
-    # Validate uid_tn format
-    uid_tn_str = str(uid_tn)
-    if not uid_tn_str.upper().startswith("ATU"):
-        raise ConfigurationError(f"finanzonline.uid_tn must start with 'ATU', got: {uid_tn_str}")
-
-    # Optional settings with defaults
-    session_timeout = parse_float(fo_section.get("session_timeout", 30.0), 30.0)
-    query_timeout = parse_float(fo_section.get("query_timeout", 30.0), 30.0)
-
-    # Parse default_recipients - handle JSON string from .env files
-    default_recipients = parse_string_list(fo_section.get("default_recipients", []))
-
-    # Parse email_format - defaults to "html"
-    email_format = _parse_email_format(fo_section.get("email_format", "html"), EmailFormat.HTML)
-
-    # Parse cache settings - defaults to 48 hours with platform-specific path
-    cache_results_hours = parse_float(fo_section.get("cache_results_hours", 48.0), 48.0)
-    cache_file = _parse_cache_file_path(fo_section.get("cache_file"))
-
-    # Parse rate limit settings - defaults to 50 queries per 24 hours
-    ratelimit_queries = parse_int(fo_section.get("ratelimit_queries", 50), 50)
-    ratelimit_hours = parse_float(fo_section.get("ratelimit_hours", 24.0), 24.0)
-    ratelimit_file = _parse_ratelimit_file_path(fo_section.get("ratelimit_file"))
-
-    # Parse output directory - defaults to empty (disabled)
-    output_dir_raw = fo_section.get("output_dir", "")
-    output_dir = _normalize_path(output_dir_raw) if output_dir_raw else None
-
-    # Parse output format - defaults to html, validate against allowed values
-    output_format_raw = str(fo_section.get("output_format", "html")).lower()
-    output_format = output_format_raw if output_format_raw in ("json", "txt", "html") else "html"
+    # Checked after the credentials, as before: a config with both faults reports the credentials first.
+    if not section.uid_tn.upper().startswith("ATU"):
+        raise ConfigurationError(f"finanzonline.uid_tn must start with 'ATU', got: {section.uid_tn}")
 
     return FinanzOnlineConfig(
         credentials=credentials,
-        uid_tn=uid_tn_str,
-        session_timeout=session_timeout,
-        query_timeout=query_timeout,
-        default_recipients=default_recipients if default_recipients else None,
-        email_format=email_format,
-        cache_results_hours=cache_results_hours,
-        cache_file=cache_file,
-        ratelimit_queries=ratelimit_queries,
-        ratelimit_hours=ratelimit_hours,
-        ratelimit_file=ratelimit_file,
-        output_dir=output_dir,
-        output_format=output_format,
+        uid_tn=section.uid_tn,
+        session_timeout=section.session_timeout,
+        query_timeout=section.query_timeout,
+        default_recipients=list(section.default_recipients) or None,
+        email_format=section.email_format,
+        cache_results_hours=section.cache_results_hours,
+        cache_file=section.cache_file,
+        ratelimit_queries=section.ratelimit_queries,
+        ratelimit_hours=section.ratelimit_hours,
+        ratelimit_file=section.ratelimit_file,
+        output_dir=section.output_dir,
+        output_format=section.output_format,
     )
 
 
 __all__ = [
     "AppConfig",
+    "AppSection",
     "FinanzOnlineConfig",
+    "FinanzOnlineSection",
+    "empty_text_list",
     "get_config",
     "get_default_config_path",
     "load_app_config",
     "load_finanzonline_config",
-    "parse_float",
-    "parse_int",
+    "number_or_default",
     "parse_string_list",
+    "read_config_section",
+    "text_setting",
 ]

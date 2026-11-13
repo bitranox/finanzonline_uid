@@ -6,18 +6,37 @@ Tests cover UID query operations with mocked zeep SOAP client.
 
 from __future__ import annotations
 
+import logging
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 from zeep.exceptions import Fault, TransportError
 
+from finanzonline_uid.adapters.finanzonline._soap_common import MalformedSoapResponseError
 from finanzonline_uid.adapters.finanzonline.uid_query_client import (
     UID_QUERY_SERVICE_WSDL,
     FinanzOnlineQueryClient,
+    SoapUidQueryResponse,
     _capture_raw_response,
+    _parse_query_response,
 )
 from finanzonline_uid.domain.errors import QueryError, ServiceMaintenanceError, SessionError
-from finanzonline_uid.domain.models import FinanzOnlineCredentials, UidCheckRequest
+from finanzonline_uid.domain.models import Address, FinanzOnlineCredentials, SoapOperation, UidCheckRequest
+
+
+def _uid_reply(*, rc: object, msg: str | None = None, name: str | None = None) -> SimpleNamespace:
+    """A uidAbfrage reply shaped like zeep's: every element present, an omitted one None."""
+    return SimpleNamespace(rc=rc, msg=msg, name=name, adrz1=None, adrz2=None, adrz3=None, adrz4=None, adrz5=None, adrz6=None)
+
+
+def _client_answering(reply: object) -> tuple[FinanzOnlineQueryClient, MagicMock]:
+    """A query client whose zeep service returns the given reply."""
+    client = FinanzOnlineQueryClient()
+    zeep = MagicMock()
+    zeep.service.uidAbfrage.return_value = reply
+    client._client = zeep
+    return client, zeep
 
 
 @pytest.fixture
@@ -150,9 +169,7 @@ class TestQuery:
         uid_request: UidCheckRequest,
     ) -> None:
         """Should return invalid result for invalid UID."""
-        mock_response = MagicMock()
-        mock_response.rc = 1
-        mock_response.msg = "UID is invalid"
+        mock_response = _uid_reply(rc=1, msg="UID is invalid")
 
         with patch.object(query_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
@@ -173,9 +190,7 @@ class TestQuery:
         uid_request: UidCheckRequest,
     ) -> None:
         """Should raise SessionError for expired session."""
-        mock_response = MagicMock()
-        mock_response.rc = -1
-        mock_response.msg = "Session expired"
+        mock_response = _uid_reply(rc=-1, msg="Session expired")
 
         with patch.object(query_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
@@ -187,6 +202,10 @@ class TestQuery:
 
             assert exc_info.value.return_code == -1
             assert "Session invalid or expired" in str(exc_info.value)
+            assert exc_info.value.diagnostics is not None
+            assert exc_info.value.diagnostics.operation == SoapOperation.UID_QUERY
+            assert exc_info.value.diagnostics.return_code == "-1"
+            assert exc_info.value.diagnostics.response_message == "Session expired"
 
     def test_query_soap_fault(
         self,
@@ -308,9 +327,7 @@ class TestQuery:
         uid_request: UidCheckRequest,
     ) -> None:
         """Should handle None message from response."""
-        mock_response = MagicMock()
-        mock_response.rc = 1
-        mock_response.msg = None
+        mock_response = _uid_reply(rc=1, msg=None)
 
         with patch.object(query_client, "_get_client") as mock_get_client:
             mock_client = MagicMock()
@@ -412,9 +429,7 @@ class TestQuery:
         ]
 
         for return_code, message in test_cases:
-            mock_response = MagicMock()
-            mock_response.rc = return_code
-            mock_response.msg = message
+            mock_response = _uid_reply(rc=return_code, msg=message)
 
             with patch.object(query_client, "_get_client") as mock_get_client:
                 mock_client = MagicMock()
@@ -481,7 +496,7 @@ class TestCaptureRawResponse:
             result = _capture_raw_response(history)
 
         assert "Request was sent" in result
-        # The actual request body must NOT leak — it contains credentials.
+        # The actual request body must NOT leak - it contains credentials.
         assert "secret-request-body" not in result
 
     def test_returns_placeholder_when_buffer_empty(self) -> None:
@@ -489,6 +504,17 @@ class TestCaptureRawResponse:
         history = MagicMock()
         type(history).last_received = property(lambda self: (_ for _ in ()).throw(IndexError()))
         type(history).last_sent = property(lambda self: (_ for _ in ()).throw(IndexError()))
+
+        result = _capture_raw_response(history)
+
+        assert "No SOAP envelope captured" in result
+
+    @pytest.mark.parametrize("odd_entry", [{"http_headers": {}}, {}, "not an entry", 42])
+    def test_entry_without_envelope_reads_as_nothing_captured(self, odd_entry: object) -> None:
+        """An entry lacking the envelope key, or not a mapping, never raises."""
+        history = MagicMock()
+        history.last_received = odd_entry
+        history.last_sent = odd_entry
 
         result = _capture_raw_response(history)
 
@@ -505,3 +531,106 @@ class TestCaptureRawResponse:
 
         assert "[truncated]" in result
         assert len(result) < 9000  # 8192 cap + small header
+
+
+class TestReplyParsing:
+    """A zeep uidAbfrage reply is parsed once into a validated record."""
+
+    def test_address_lines_come_from_adrz_attributes(self) -> None:
+        """adrz1..adrz6 map to line1..line6; None reads as empty."""
+        reply = SimpleNamespace(rc=0, msg="ok", name="ACME", adrz1="Street 1", adrz2=None, adrz3="1010 Wien", adrz4=None, adrz5=None, adrz6="AT")
+
+        parsed = _parse_query_response(reply)
+
+        assert parsed.address == Address(line1="Street 1", line3="1010 Wien", line6="AT")
+        assert parsed.name == "ACME"
+
+    def test_reply_lacking_optional_attributes_uses_defaults(self) -> None:
+        """A reply object with only rc and msg parses with empty name and address."""
+        parsed = SoapUidQueryResponse.model_validate(SimpleNamespace(rc=1, msg="invalid"))
+
+        assert (parsed.return_code, parsed.message, parsed.name, parsed.address) == (1, "invalid", "", Address())
+
+    def test_non_integer_rc_is_refused_by_field(self) -> None:
+        """A non-integer rc names the field, not the reply content."""
+        with pytest.raises(MalformedSoapResponseError) as exc_info:
+            _parse_query_response(_uid_reply(rc="abc", name="SECRET COMPANY"))
+
+        message = str(exc_info.value)
+        assert message.startswith("Malformed uidAbfrage response: rc: ")
+        assert "SECRET COMPANY" not in message
+        assert exc_info.value.__context__ is None
+
+
+class TestMalformedReply:
+    """A reply that does not fit its record becomes a QueryError, not a bare ValueError."""
+
+    def test_non_integer_rc_raises_query_error(self, credentials: FinanzOnlineCredentials, uid_request: UidCheckRequest) -> None:
+        """A non-integer rc takes the unexpected-error path, not retryable."""
+        client, _ = _client_answering(_uid_reply(rc="abc", msg="x"))
+
+        with pytest.raises(QueryError) as exc_info:
+            client.query("SESSION123", credentials, uid_request)
+
+        assert str(exc_info.value).startswith("Unexpected error: Malformed uidAbfrage response: rc: ")
+        assert isinstance(exc_info.value.__cause__, MalformedSoapResponseError)
+        assert exc_info.value.retryable is False
+        assert exc_info.value.diagnostics is not None
+        assert exc_info.value.diagnostics.operation == SoapOperation.UID_QUERY
+        assert exc_info.value.diagnostics.return_code == ""
+
+    def test_non_string_msg_raises_query_error(self, credentials: FinanzOnlineCredentials, uid_request: UidCheckRequest) -> None:
+        """A msg that is not a string is refused, never converted with str()."""
+        client, _ = _client_answering(SimpleNamespace(rc=0, msg=123, name=None))
+
+        with pytest.raises(QueryError) as exc_info:
+            client.query("SESSION123", credentials, uid_request)
+
+        assert str(exc_info.value).startswith("Unexpected error: Malformed uidAbfrage response: msg: ")
+        assert isinstance(exc_info.value.__cause__, MalformedSoapResponseError)
+
+    def test_history_entry_without_envelope_keeps_the_original_error(self, credentials: FinanzOnlineCredentials, uid_request: UidCheckRequest) -> None:
+        """A history entry lacking the envelope key does not replace the error being reported."""
+        client, _ = _client_answering(_uid_reply(rc="abc"))
+        history = MagicMock()
+        history.last_received = {"http_headers": {}}
+        history.last_sent = {"http_headers": {}}
+        client._history = history
+
+        with pytest.raises(QueryError) as exc_info:
+            client.query("SESSION123", credentials, uid_request)
+
+        assert str(exc_info.value).startswith("Unexpected error: Malformed uidAbfrage response: rc: ")
+        assert exc_info.value.diagnostics is not None
+        assert "No SOAP envelope captured" in exc_info.value.diagnostics.raw_response
+
+
+class TestQueryLogging:
+    """Query logs keep credentials and the session id masked."""
+
+    def test_debug_log_masks_credentials_and_session_id(
+        self,
+        credentials: FinanzOnlineCredentials,
+        uid_request: UidCheckRequest,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """tid, benid, pin and the session id never reach the log in clear text."""
+        client, _ = _client_answering(_uid_reply(rc=1, msg="invalid"))
+
+        with caplog.at_level(logging.DEBUG, logger="finanzonline_uid.adapters.finanzonline.uid_query_client"):
+            client.query("SESSION123456", credentials, uid_request)
+
+        text = caplog.text
+        for secret in (credentials.tid, credentials.benid, credentials.pin, "SESSION123456"):
+            assert secret not in text
+        assert "SESS...3456" in text
+
+    def test_soap_fault_message_is_the_fault_text(self, credentials: FinanzOnlineCredentials, uid_request: UidCheckRequest) -> None:
+        """The QueryError reads 'SOAP fault: <fault message>'."""
+        client, zeep = _client_answering(None)
+        zeep.service.uidAbfrage.side_effect = Fault("Server busy")
+
+        with pytest.raises(QueryError) as exc_info:
+            client.query("SESSION123", credentials, uid_request)
+
+        assert str(exc_info.value) == "SOAP fault: Server busy"

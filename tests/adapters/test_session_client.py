@@ -8,17 +8,49 @@ network access - these are external dependencies we cannot control in tests.
 
 from __future__ import annotations
 
+import logging
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 from zeep.exceptions import Fault, TransportError
 
+from finanzonline_uid.adapters.finanzonline._soap_common import MalformedSoapResponseError
 from finanzonline_uid.adapters.finanzonline.session_client import (
     SESSION_SERVICE_WSDL,
     FinanzOnlineSessionClient,
+    SoapLoginResponse,
+    SoapLogoutResponse,
+    _parse_login_response,
 )
 from finanzonline_uid.domain.errors import AuthenticationError, ServiceMaintenanceError, SessionError
+from finanzonline_uid.domain.models import SoapOperation
+
+
+def _login_reply(*, rc: object, msg: str | None = None, id: str | None = None) -> SimpleNamespace:
+    """A loginResponse shaped like zeep's: every element present, an omitted one None."""
+    return SimpleNamespace(rc=rc, msg=msg, id=id)
+
+
+def _logout_reply(*, rc: object, msg: str | None = None) -> SimpleNamespace:
+    """A logoutResponse shaped like zeep's: every element present, an omitted one None."""
+    return SimpleNamespace(rc=rc, msg=msg)
+
+
+def _client_answering(*, login: object = None, logout: object = None) -> tuple[FinanzOnlineSessionClient, MagicMock]:
+    """A session client whose zeep service returns the given replies (or raises them if exceptions)."""
+    client = FinanzOnlineSessionClient()
+    zeep = MagicMock()
+    for operation, reply in (("login", login), ("logout", logout)):
+        method = getattr(zeep.service, operation)
+        if isinstance(reply, BaseException):
+            method.side_effect = reply
+        else:
+            method.return_value = reply
+    client._client = zeep
+    return client, zeep
+
 
 # ============================================================================
 # Initialization
@@ -168,9 +200,7 @@ class TestLoginFailure:
     ) -> None:
         """Return code -4 triggers an AuthenticationError."""
         client = FinanzOnlineSessionClient()
-        response = MagicMock()
-        response.rc = -4
-        response.msg = "Not authorized"
+        response = _login_reply(rc=-4, msg="Not authorized")
 
         with patch.object(client, "_get_client") as mock_get:
             mock_zeep = MagicMock()
@@ -314,8 +344,7 @@ class TestLogoutSuccess:
     ) -> None:
         """Return code 0 means logout succeeded."""
         client = FinanzOnlineSessionClient()
-        response = MagicMock()
-        response.rc = 0
+        response = _logout_reply(rc=0)
 
         with patch.object(client, "_get_client") as mock_get:
             mock_zeep = MagicMock()
@@ -332,8 +361,7 @@ class TestLogoutSuccess:
     ) -> None:
         """Session ID is forwarded to the SOAP logout call."""
         client = FinanzOnlineSessionClient()
-        response = MagicMock()
-        response.rc = 0
+        response = _logout_reply(rc=0)
 
         with patch.object(client, "_get_client") as mock_get:
             mock_zeep = MagicMock()
@@ -364,8 +392,7 @@ class TestLogoutFailure:
     ) -> None:
         """Non-zero return codes mean logout failed."""
         client = FinanzOnlineSessionClient()
-        response = MagicMock()
-        response.rc = -1
+        response = _logout_reply(rc=-1)
 
         with patch.object(client, "_get_client") as mock_get:
             mock_zeep = MagicMock()
@@ -424,8 +451,7 @@ class TestLogoutEdgeCases:
     ) -> None:
         """Short session IDs don't break logging."""
         client = FinanzOnlineSessionClient()
-        response = MagicMock()
-        response.rc = 0
+        response = _logout_reply(rc=0)
 
         with patch.object(client, "_get_client") as mock_get:
             mock_zeep = MagicMock()
@@ -442,8 +468,7 @@ class TestLogoutEdgeCases:
     ) -> None:
         """Empty session IDs don't cause errors."""
         client = FinanzOnlineSessionClient()
-        response = MagicMock()
-        response.rc = 0
+        response = _logout_reply(rc=0)
 
         with patch.object(client, "_get_client") as mock_get:
             mock_zeep = MagicMock()
@@ -453,3 +478,137 @@ class TestLogoutEdgeCases:
             result = client.logout("", valid_credentials)
 
             assert result is True
+
+
+# ============================================================================
+# Reply parsing (the zeep boundary)
+# ============================================================================
+
+
+@pytest.mark.os_agnostic
+class TestReplyParsing:
+    """A zeep reply is parsed once into a validated record."""
+
+    def test_login_reply_maps_none_text_to_empty(self) -> None:
+        """Omitted msg/id (zeep gives None) read as empty strings."""
+        parsed = _parse_login_response(_login_reply(rc=-3))
+
+        assert parsed == SoapLoginResponse.model_validate(SimpleNamespace(rc=-3, msg="", id=""))
+        assert (parsed.return_code, parsed.message, parsed.session_id) == (-3, "", "")
+
+    def test_login_reply_without_attributes_uses_defaults(self) -> None:
+        """A reply object lacking msg and id still parses."""
+        parsed = _parse_login_response(SimpleNamespace(rc=0))
+
+        assert (parsed.return_code, parsed.message, parsed.session_id) == (0, "", "")
+
+    def test_login_reply_with_non_integer_rc_is_refused_by_field(self) -> None:
+        """A non-integer rc names the field, never the reply's session id."""
+        with pytest.raises(MalformedSoapResponseError) as exc_info:
+            _parse_login_response(_login_reply(rc="abc", id="SESSIONSECRET42"))
+
+        message = str(exc_info.value)
+        assert message.startswith("Malformed login response: rc: ")
+        assert "SESSIONSECRET42" not in message
+        assert exc_info.value.__context__ is None
+
+    def test_logout_reply_without_rc_has_no_return_code(self) -> None:
+        """A logout reply without rc parses with return_code None."""
+        assert SoapLogoutResponse.model_validate(SimpleNamespace()).return_code is None
+
+
+@pytest.mark.os_agnostic
+class TestMalformedReplies:
+    """A reply that does not fit its record becomes the domain error, not a bare ValueError."""
+
+    def test_login_with_non_integer_rc_raises_session_error(self, valid_credentials: Any) -> None:
+        """A non-integer rc goes the unexpected-error path as SessionError."""
+        client, _ = _client_answering(login=_login_reply(rc="abc", msg="x", id="SESSION123456"))
+
+        with pytest.raises(SessionError) as exc_info:
+            client.login(valid_credentials)
+
+        assert str(exc_info.value).startswith("Unexpected error: Malformed login response: rc: ")
+        assert isinstance(exc_info.value.__cause__, MalformedSoapResponseError)
+        assert exc_info.value.retryable is False
+        assert exc_info.value.diagnostics is not None
+        assert exc_info.value.diagnostics.operation == SoapOperation.LOGIN
+        assert exc_info.value.diagnostics.return_code == ""
+
+    def test_logout_with_non_integer_rc_returns_false(self, valid_credentials: Any) -> None:
+        """Logout stays non-fatal for a malformed reply."""
+        client, _ = _client_answering(logout=_logout_reply(rc="abc"))
+
+        assert client.logout("SESSION123", valid_credentials) is False
+
+    def test_login_with_non_string_msg_raises_session_error(self, valid_credentials: Any) -> None:
+        """A msg that is not a string is refused, never converted with str()."""
+        client, _ = _client_answering(login=SimpleNamespace(rc=0, msg=123, id="SESSION123456"))
+
+        with pytest.raises(SessionError) as exc_info:
+            client.login(valid_credentials)
+
+        assert str(exc_info.value).startswith("Unexpected error: Malformed login response: msg: ")
+        assert isinstance(exc_info.value.__cause__, MalformedSoapResponseError)
+
+    def test_login_with_no_reply_names_the_whole_reply(self, valid_credentials: Any) -> None:
+        """A None reply is refused as a whole, not as an empty field name."""
+        client, _ = _client_answering(login=None)
+
+        with pytest.raises(SessionError) as exc_info:
+            client.login(valid_credentials)
+
+        assert str(exc_info.value).startswith("Unexpected error: Malformed login response: (whole reply): ")
+
+
+@pytest.mark.os_agnostic
+class TestLoginDiagnosticsAndLogging:
+    """Diagnostics carry the parsed reply; logs keep credentials masked."""
+
+    def test_authentication_error_diagnostics_hold_parsed_reply(self, valid_credentials: Any) -> None:
+        """The -4 diagnostics carry operation, return code, message and a masked session id."""
+        client, _ = _client_answering(login=_login_reply(rc=-4, msg="Not authorized", id="SESSION123456"))
+
+        with pytest.raises(AuthenticationError) as exc_info:
+            client.login(valid_credentials)
+
+        diagnostics = exc_info.value.diagnostics
+        assert diagnostics is not None
+        assert diagnostics.operation == SoapOperation.LOGIN
+        assert diagnostics.return_code == "-4"
+        assert diagnostics.response_message == "Not authorized"
+        assert diagnostics.session_id == "SESS...3456"
+        assert diagnostics.pin == "test...n123"
+
+    def test_soap_fault_message_is_the_fault_text(self, valid_credentials: Any) -> None:
+        """The SessionError reads 'SOAP fault: <fault message>'."""
+        client, _ = _client_answering(login=Fault("Server busy"))
+
+        with pytest.raises(SessionError) as exc_info:
+            client.login(valid_credentials)
+
+        assert str(exc_info.value) == "SOAP fault: Server busy"
+
+    def test_login_debug_log_masks_credentials_and_session_id(self, valid_credentials: Any, caplog: pytest.LogCaptureFixture) -> None:
+        """tid, benid, pin and the session id never reach the log in clear text."""
+        client, _ = _client_answering(login=_login_reply(rc=0, msg="ok", id="SESSION123456"))
+
+        with caplog.at_level(logging.DEBUG, logger="finanzonline_uid.adapters.finanzonline.session_client"):
+            client.login(valid_credentials)
+
+        text = caplog.text
+        for secret in (valid_credentials.tid, valid_credentials.benid, valid_credentials.pin, "SESSION123456"):
+            assert secret not in text
+        assert valid_credentials.herstellerid in text
+        assert "SESS...3456" in text
+
+    def test_logout_debug_log_masks_credentials_and_session_id(self, valid_credentials: Any, caplog: pytest.LogCaptureFixture) -> None:
+        """The logout request log masks tid, benid and the session id."""
+        client, _ = _client_answering(logout=_logout_reply(rc=0))
+
+        with caplog.at_level(logging.DEBUG, logger="finanzonline_uid.adapters.finanzonline.session_client"):
+            client.logout("SESSION123456", valid_credentials)
+
+        text = caplog.text
+        for secret in (valid_credentials.tid, valid_credentials.benid, "SESSION123456"):
+            assert secret not in text

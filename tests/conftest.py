@@ -76,9 +76,10 @@ def ensure_english_locale() -> None:
     Many tests expect English strings (e.g., 'VALID', 'Timestamp:').
     This ensures the i18n system starts in English before any tests run.
     """
+    from finanzonline_uid.enums import Language
     from finanzonline_uid.i18n import setup_locale
 
-    setup_locale("en")
+    setup_locale(Language.EN)
 
 
 # ============================================================================

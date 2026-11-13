@@ -10,16 +10,34 @@ from unittest.mock import patch
 
 import pytest
 
-from finanzonline_uid.adapters.notification.email_adapter import (
-    EmailNotificationAdapter,
-    format_error_html,
-    format_error_plain,
-    format_result_html,
-    format_result_plain,
-)
-from finanzonline_uid.domain.models import Address, UidCheckResult
+from finanzonline_uid.adapters.formatting import format_result_html
+from finanzonline_uid.adapters.notification.email_adapter import EmailNotificationAdapter
+from finanzonline_uid.adapters.notification.error_html_formatter import format_error_html
+from finanzonline_uid.adapters.notification.plain_formatter import format_error_plain, format_result_plain
+from finanzonline_uid.domain.errors import CheckErrorInfo, ErrorKind
+from finanzonline_uid.domain.models import Address, DiagnosticField, Diagnostics, SoapOperation, UidCheckResult
+from finanzonline_uid.domain.return_codes import CliExitCode, Severity
 from finanzonline_uid.enums import EmailFormat
 from finanzonline_uid.mail import EmailConfig
+
+
+def _info(
+    kind: ErrorKind,
+    message: str,
+    *,
+    return_code: int | None = None,
+    retryable: bool = False,
+    diagnostics: Diagnostics | None = None,
+) -> CheckErrorInfo:
+    """Build the error record the formatters take, with a fixed exit code."""
+    return CheckErrorInfo(
+        error_type=kind,
+        message=message,
+        exit_code=CliExitCode.QUERY_ERROR,
+        return_code=return_code,
+        retryable=retryable,
+        diagnostics=diagnostics,
+    )
 
 
 @pytest.fixture
@@ -307,37 +325,32 @@ class TestFormatErrorPlain:
     def test_contains_uid(self) -> None:
         """Should include UID in output."""
         output = format_error_plain(
-            error_type="Test Error",
-            error_message="Test message",
-            uid="DE123456789",
+            _info(ErrorKind.QUERY, "Test message"),
+            "DE123456789",
         )
         assert "DE123456789" in output
 
     def test_contains_error_type(self) -> None:
         """Should include error type."""
         output = format_error_plain(
-            error_type="Authentication Error",
-            error_message="Test message",
-            uid="DE123456789",
+            _info(ErrorKind.AUTHENTICATION, "Test message"),
+            "DE123456789",
         )
         assert "Authentication Error" in output
 
     def test_contains_error_status(self) -> None:
         """Should include ERROR status."""
         output = format_error_plain(
-            error_type="Test Error",
-            error_message="Test message",
-            uid="DE123456789",
+            _info(ErrorKind.QUERY, "Test message"),
+            "DE123456789",
         )
         assert "ERROR" in output
 
     def test_contains_return_code_when_provided(self) -> None:
         """Should include return code info when provided."""
         output = format_error_plain(
-            error_type="Test Error",
-            error_message="Test message",
-            uid="DE123456789",
-            return_code=-4,
+            _info(ErrorKind.QUERY, "Test message", return_code=-4),
+            "DE123456789",
         )
         assert "-4" in output
         assert "Return Code" in output
@@ -345,10 +358,8 @@ class TestFormatErrorPlain:
     def test_contains_retryable_info(self) -> None:
         """Should include retryable status."""
         output = format_error_plain(
-            error_type="Test Error",
-            error_message="Test message",
-            uid="DE123456789",
-            retryable=True,
+            _info(ErrorKind.QUERY, "Test message", retryable=True),
+            "DE123456789",
         )
         assert "Retryable:" in output
         assert "Yes" in output
@@ -360,9 +371,8 @@ class TestFormatErrorHtml:
     def test_valid_html_structure(self) -> None:
         """Should produce valid HTML structure."""
         output = format_error_html(
-            error_type="Test Error",
-            error_message="Test message",
-            uid="DE123456789",
+            _info(ErrorKind.QUERY, "Test message"),
+            "DE123456789",
         )
         assert "<!DOCTYPE html>" in output
         assert "<html>" in output
@@ -371,18 +381,16 @@ class TestFormatErrorHtml:
     def test_contains_uid(self) -> None:
         """Should include UID."""
         output = format_error_html(
-            error_type="Test Error",
-            error_message="Test message",
-            uid="DE123456789",
+            _info(ErrorKind.QUERY, "Test message"),
+            "DE123456789",
         )
         assert "DE123456789" in output
 
     def test_contains_error_badge(self) -> None:
         """Should include error badge."""
         output = format_error_html(
-            error_type="Test Error",
-            error_message="Test message",
-            uid="DE123456789",
+            _info(ErrorKind.QUERY, "Test message"),
+            "DE123456789",
         )
         assert "ERROR" in output
         assert "#dc3545" in output  # Red color for error
@@ -390,10 +398,8 @@ class TestFormatErrorHtml:
     def test_contains_return_code_section(self) -> None:
         """Should include return code section when provided."""
         output = format_error_html(
-            error_type="Test Error",
-            error_message="Test message",
-            uid="DE123456789",
-            return_code=-1,
+            _info(ErrorKind.QUERY, "Test message", return_code=-1),
+            "DE123456789",
         )
         assert "-1" in output
 
@@ -409,9 +415,8 @@ class TestSendError:
             mock_send.return_value = True
 
             result = adapter.send_error(
-                error_type="Session Error",
-                error_message="Connection failed",
-                uid="DE123456789",
+                _info(ErrorKind.SESSION, "Connection failed"),
+                "DE123456789",
                 recipients=["admin@example.com"],
             )
 
@@ -429,9 +434,8 @@ class TestSendError:
 
         with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             result = adapter.send_error(
-                error_type="Test Error",
-                error_message="Test",
-                uid="DE123456789",
+                _info(ErrorKind.QUERY, "Test"),
+                "DE123456789",
                 recipients=[],
             )
 
@@ -446,9 +450,8 @@ class TestSendError:
             mock_send.side_effect = RuntimeError("SMTP error")
 
             result = adapter.send_error(
-                error_type="Test Error",
-                error_message="Test",
-                uid="DE123456789",
+                _info(ErrorKind.QUERY, "Test"),
+                "DE123456789",
                 recipients=["admin@example.com"],
             )
 
@@ -462,11 +465,9 @@ class TestSendError:
             mock_send.return_value = True
 
             adapter.send_error(
-                error_type="Auth Error",
-                error_message="Not authorized",
-                uid="DE123456789",
+                _info(ErrorKind.AUTHENTICATION, "Not authorized", return_code=-4),
+                "DE123456789",
                 recipients=["admin@example.com"],
-                return_code=-4,
             )
 
             call_kwargs = mock_send.call_args.kwargs
@@ -481,11 +482,9 @@ class TestSendError:
             mock_send.return_value = True
 
             adapter.send_error(
-                error_type="Connection Error",
-                error_message="Timeout",
-                uid="DE123456789",
+                _info(ErrorKind.SESSION, "Timeout", retryable=True),
+                "DE123456789",
                 recipients=["admin@example.com"],
-                retryable=True,
             )
 
             call_kwargs = mock_send.call_args.kwargs
@@ -606,9 +605,8 @@ class TestEmailFormat:
         with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
             adapter.send_error(
-                error_type="Test Error",
-                error_message="Test",
-                uid="DE123456789",
+                _info(ErrorKind.QUERY, "Test"),
+                "DE123456789",
                 recipients=["test@example.com"],
             )
 
@@ -623,12 +621,95 @@ class TestEmailFormat:
         with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
             mock_send.return_value = True
             adapter.send_error(
-                error_type="Test Error",
-                error_message="Test",
-                uid="DE123456789",
+                _info(ErrorKind.QUERY, "Test"),
+                "DE123456789",
                 recipients=["test@example.com"],
             )
 
             call_kwargs = mock_send.call_args.kwargs
             assert call_kwargs["body"] == ""
             assert call_kwargs["body_html"] != ""
+
+
+class TestEnumValuesInBodies:
+    """Enum members reach email bodies and subjects as their values, never as Class.MEMBER."""
+
+    @pytest.mark.parametrize(
+        ("return_code", "severity"),
+        [(0, Severity.SUCCESS), (1, Severity.WARNING), (-4, Severity.CRITICAL), (-3, Severity.ERROR)],
+    )
+    def test_result_plain_severity_is_the_bare_value(self, return_code: int, severity: Severity) -> None:
+        """The plain result body prints e.g. 'success', not 'Severity.SUCCESS' (str() of a mixin enum on 3.11+)."""
+        result = UidCheckResult(
+            uid="DE1",
+            return_code=return_code,
+            message="m",
+            timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
+        output = format_result_plain(result)
+        assert f"Severity:    {severity.value}\n" in output
+        assert "Severity." not in output
+
+    def test_error_plain_severity_is_the_bare_value(self) -> None:
+        """The plain error body prints the severity value next to the return code."""
+        output = format_error_plain(_info(ErrorKind.QUERY, "m", return_code=1513), "DE1")
+        assert "Severity:    warning\n" in output
+        assert "Severity." not in output
+
+    def test_error_bodies_use_field_labels(self) -> None:
+        """Diagnostics rows are headed by DiagnosticField labels in both bodies."""
+        diagnostics = Diagnostics(operation=SoapOperation.UID_QUERY, target_uid="DE1", raw_response="<r a='1'/>")
+        info = _info(ErrorKind.QUERY, "m", diagnostics=diagnostics)
+        plain = format_error_plain(info, "DE1")
+        html_body = format_error_html(info, "DE1")
+        assert "\nOperation: uidAbfrage\nTarget Uid: DE1\n" in plain
+        assert f">{DiagnosticField.TARGET_UID.label}:</td>" in html_body
+        assert "&lt;r a=&#x27;1&#x27;/&gt;" in html_body
+        assert "SoapOperation." not in plain + html_body
+
+    def test_error_html_kind_and_severity(self) -> None:
+        """The HTML error body shows the kind label and the upper-case severity value."""
+        output = format_error_html(_info(ErrorKind.SERVICE_MAINTENANCE, "m", return_code=-2), "DE1")
+        assert ">Service Maintenance</td>" in output
+        assert ">WARNING</span>" in output
+        assert "ErrorKind." not in output
+
+    @pytest.mark.parametrize("kind", list(ErrorKind))
+    def test_error_subject_carries_the_kind_label(self, email_config: EmailConfig, kind: ErrorKind) -> None:
+        """The error subject ends with the ErrorKind value."""
+        adapter = EmailNotificationAdapter(email_config)
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
+            mock_send.return_value = True
+            adapter.send_error(_info(kind, "m"), "DE1", ["a@example.com"])
+        assert mock_send.call_args.kwargs["subject"] == f"UID Check ERROR: DE1 - {kind.value}"
+
+    @pytest.mark.parametrize(
+        ("return_code", "subject_status"),
+        [
+            (0, "Valid"),
+            (1, "Invalid"),
+            (1511, "Service Unavailable"),
+            (1512, "Service Unavailable"),
+            (-2, "Service Unavailable"),
+            (1513, "Rate Limited"),
+            (1514, "Rate Limited"),
+            (-4, "The access codes are not valid"),
+        ],
+    )
+    def test_result_subject_status(self, email_config: EmailConfig, return_code: int, subject_status: str) -> None:
+        """Each result status names itself in the subject; other errors use their meaning."""
+        result = UidCheckResult(uid="DE1", return_code=return_code, message="m")
+        adapter = EmailNotificationAdapter(email_config)
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send:
+            mock_send.return_value = True
+            adapter.send_result(result, ["a@example.com"])
+        assert mock_send.call_args.kwargs["subject"] == f"UID Check Result: DE1 - {subject_status}"
+
+    def test_log_line_shows_the_format_value(self, email_config: EmailConfig, caplog: pytest.LogCaptureFixture) -> None:
+        """The send log names the email format by its value, not EmailFormat.MEMBER."""
+        adapter = EmailNotificationAdapter(email_config, email_format=EmailFormat.BOTH)
+        with patch("finanzonline_uid.adapters.notification.email_adapter.send_email") as mock_send, caplog.at_level("INFO"):
+            mock_send.return_value = True
+            adapter.send_error(_info(ErrorKind.QUERY, "m"), "DE1", ["a@example.com"])
+        assert "(format=both)" in caplog.text
+        assert "EmailFormat." not in caplog.text

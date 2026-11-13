@@ -5,35 +5,111 @@ for safe concurrent access on network drives.
 
 Contents:
     * :class:`UidResultCache` - Thread-safe file cache with expiration
+    * :class:`CacheEntry` - One cached result, validated from and dumped to the cache file
+    * :class:`AddressRecord` - The six address lines as stored in the cache file
 
 System Role:
     Acts as a caching adapter that stores successful UID verification results
     to disk, reducing redundant API calls to FinanzOnline while ensuring
     data integrity through file locking.
+
+    The cache file is a JSON object mapping each normalized UID to one entry.
+    Installed versions of this tool read and rewrite the same file, so the
+    entry shape (keys, key order, timestamp form) is a fixed wire format.
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import orjson
 from filelock import FileLock, Timeout
+from pydantic import BaseModel, ConfigDict, ValidationError
 
-from finanzonline_uid._datetime_utils import format_iso_datetime, parse_iso_datetime
+from finanzonline_uid._datetime_utils import WireDatetime, format_iso_datetime
 from finanzonline_uid.domain.models import Address, UidCheckResult
+
+__all__ = ["AddressRecord", "CacheEntry", "UidResultCache"]
 
 logger = logging.getLogger(__name__)
 
 _LOCK_TIMEOUT_SECONDS = 10.0
+_DEFAULT_MAX_CACHE_ENTRIES = 1000
 
 
-@dataclass(frozen=True, slots=True)
-class CacheEntry:
+class AddressRecord(BaseModel):
+    """Company address as stored in the cache file.
+
+    A separate record (rather than dumping the domain Address) keeps the
+    on-disk shape fixed even if the domain type gains fields. Every line
+    defaults to "" because installed versions read missing lines that way.
+
+    Attributes:
+        line1: First address line.
+        line2: Second address line.
+        line3: Third address line.
+        line4: Fourth address line.
+        line5: Fifth address line.
+        line6: Sixth address line.
+
+    Examples:
+        >>> AddressRecord.model_validate({"line3": "1010 Wien"}).to_address()
+        Address(line1='', line2='', line3='1010 Wien', line4='', line5='', line6='')
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    line1: str = ""
+    line2: str = ""
+    line3: str = ""
+    line4: str = ""
+    line5: str = ""
+    line6: str = ""
+
+    @classmethod
+    def from_address(cls, address: Address) -> AddressRecord:
+        """Build the stored form of a domain address.
+
+        Args:
+            address: Domain address.
+
+        Returns:
+            AddressRecord with the same six lines.
+        """
+        return cls(
+            line1=address.line1,
+            line2=address.line2,
+            line3=address.line3,
+            line4=address.line4,
+            line5=address.line5,
+            line6=address.line6,
+        )
+
+    def to_address(self) -> Address:
+        """Convert to the domain address.
+
+        Returns:
+            Address with the same six lines.
+        """
+        return Address(
+            line1=self.line1,
+            line2=self.line2,
+            line3=self.line3,
+            line4=self.line4,
+            line5=self.line5,
+            line6=self.line6,
+        )
+
+
+class CacheEntry(BaseModel):
     """Single cache entry with expiration metadata.
+
+    Field order is the on-disk key order. message, name and address are
+    optional because installed versions read their absence as "", "" and
+    None.
 
     Attributes:
         uid: The cached UID.
@@ -45,45 +121,15 @@ class CacheEntry:
         expires_at: Expiration timestamp (UTC).
     """
 
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
     uid: str
     return_code: int
-    message: str
-    name: str
-    address: Address | None
-    queried_at: datetime
-    expires_at: datetime
-
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize entry to dictionary for JSON storage."""
-        return {
-            "uid": self.uid,
-            "return_code": self.return_code,
-            "message": self.message,
-            "name": self.name,
-            "address": _address_to_dict(self.address),
-            "queried_at": format_iso_datetime(self.queried_at),
-            "expires_at": format_iso_datetime(self.expires_at),
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> CacheEntry:
-        """Deserialize entry from dictionary.
-
-        Args:
-            data: Dictionary with cache entry fields.
-
-        Returns:
-            CacheEntry instance.
-        """
-        return cls(
-            uid=str(data["uid"]),
-            return_code=int(data["return_code"]),
-            message=str(data.get("message", "")),
-            name=str(data.get("name", "")),
-            address=_dict_to_address(data.get("address")),
-            queried_at=parse_iso_datetime(data["queried_at"]),
-            expires_at=parse_iso_datetime(data["expires_at"]),
-        )
+    message: str = ""
+    name: str = ""
+    address: AddressRecord | None = None
+    queried_at: WireDatetime
+    expires_at: WireDatetime
 
     def is_expired(self) -> bool:
         """Check if this cache entry has expired."""
@@ -96,7 +142,7 @@ class CacheEntry:
             return_code=self.return_code,
             message=self.message,
             name=self.name,
-            address=self.address,
+            address=self.address.to_address() if self.address is not None else None,
             timestamp=self.queried_at,
             from_cache=True,
             cached_at=self.queried_at,
@@ -118,81 +164,86 @@ class CacheEntry:
             return_code=result.return_code,
             message=result.message,
             name=result.name,
-            address=result.address,
+            address=AddressRecord.from_address(result.address) if result.address is not None else None,
             queried_at=result.timestamp,
             expires_at=expires_at,
         )
 
 
-def _address_to_dict(address: Address | None) -> dict[str, str] | None:
-    """Convert Address to dict for JSON serialization."""
-    if address is None:
-        return None
-    return {
-        "line1": address.line1,
-        "line2": address.line2,
-        "line3": address.line3,
-        "line4": address.line4,
-        "line5": address.line5,
-        "line6": address.line6,
-    }
+def _parse_entries(content: bytes) -> dict[str, CacheEntry]:
+    """Validate the cache file content entry by entry.
 
+    A top-level value that is not an object reads as an empty cache, and an
+    entry that fails validation is skipped, as installed versions do. Invalid
+    JSON raises so that a write never overwrites a file it could not read.
 
-def _dict_to_address(data: dict[str, str] | None) -> Address | None:
-    """Convert dict back to Address object."""
-    if data is None:
-        return None
-    return Address(
-        line1=data.get("line1", ""),
-        line2=data.get("line2", ""),
-        line3=data.get("line3", ""),
-        line4=data.get("line4", ""),
-        line5=data.get("line5", ""),
-        line6=data.get("line6", ""),
-    )
-
-
-def _cleanup_expired_entries(data: dict[str, Any]) -> tuple[dict[str, Any], int]:
-    """Remove expired entries from cache data.
+    Args:
+        content: Raw cache file bytes.
 
     Returns:
-        Tuple of (cleaned data, number of entries removed).
+        Valid entries keyed by UID, in file order.
+
+    Raises:
+        orjson.JSONDecodeError: The content is not valid JSON.
+
+    Examples:
+        >>> _parse_entries(b"")
+        {}
+        >>> _parse_entries(b"[1, 2]")
+        {}
+        >>> _parse_entries(b'{"X": {"uid": "X"}}')
+        {}
     """
-    original_count = len(data)
-    cleaned: dict[str, Any] = {}
-    for uid, entry_dict in data.items():
+    if not content:
+        return {}
+    loaded: object = orjson.loads(content)
+    if not isinstance(loaded, dict):
+        return {}
+    entries: dict[str, CacheEntry] = {}
+    # JSON object keys are always strings, so only the values need validating.
+    for uid, raw_entry in cast(dict[str, object], loaded).items():
         try:
-            entry = CacheEntry.from_dict(entry_dict)
-            if not entry.is_expired():
-                cleaned[uid] = entry_dict
-        except (KeyError, ValueError):
-            continue  # Skip malformed entries
-    removed_count = original_count - len(cleaned)
-    return cleaned, removed_count
+            entries[uid] = CacheEntry.model_validate(raw_entry)
+        except ValidationError:
+            logger.debug("Skipping malformed cache entry for UID %s", uid)
+    return entries
 
 
-_DEFAULT_MAX_CACHE_ENTRIES = 1000
+def _serialize_entries(entries: dict[str, CacheEntry]) -> bytes:
+    """Dump entries with the serializer call installed versions use.
 
-
-def _trim_oldest_entries(data: dict[str, Any], max_entries: int) -> tuple[dict[str, Any], int]:
-    """Trim oldest entries to stay within max_entries limit.
-
-    Sorts entries by queried_at timestamp and keeps only the newest max_entries.
+    Args:
+        entries: Entries keyed by UID, in the order to write them.
 
     Returns:
-        Tuple of (trimmed data, number of entries removed).
+        File content bytes.
     """
-    if len(data) <= max_entries:
-        return data, 0
+    wire = {uid: entry.model_dump(mode="json") for uid, entry in entries.items()}
+    return orjson.dumps(wire, option=orjson.OPT_INDENT_2 | orjson.OPT_UTC_Z)
 
-    # Sort by queried_at (oldest first) and keep newest entries
-    sorted_items = sorted(
-        data.items(),
-        key=lambda item: item[1].get("queried_at", ""),
-    )
-    entries_to_remove = len(data) - max_entries
-    trimmed = dict(sorted_items[entries_to_remove:])
-    return trimmed, entries_to_remove
+
+def _drop_expired(entries: dict[str, CacheEntry]) -> dict[str, CacheEntry]:
+    """Return the unexpired entries, keeping their order."""
+    return {uid: entry for uid, entry in entries.items() if not entry.is_expired()}
+
+
+def _trim_oldest_entries(entries: dict[str, CacheEntry], max_entries: int) -> dict[str, CacheEntry]:
+    """Keep only the newest max_entries entries by query time.
+
+    Below the limit the map is returned unchanged, so file order is kept;
+    above it the result is ordered oldest first, as installed versions write it.
+
+    Args:
+        entries: Entries keyed by UID.
+        max_entries: Maximum number of entries to keep.
+
+    Returns:
+        The kept entries.
+    """
+    if len(entries) <= max_entries:
+        return entries
+    by_age = sorted(entries.items(), key=lambda item: item[1].queried_at)
+    return dict(by_age[len(entries) - max_entries :])
 
 
 class UidResultCache:
@@ -270,26 +321,21 @@ class UidResultCache:
         normalized_uid = uid.upper().strip()
 
         try:
-            data = self._read_cache()
-            entry_dict = data.get(normalized_uid)
-
-            if entry_dict is None:
-                logger.debug("Cache miss for UID %s", normalized_uid)
-                return None
-
-            entry = CacheEntry.from_dict(entry_dict)
-
-            if entry.is_expired():
-                logger.debug("Cache entry expired for UID %s", normalized_uid)
-                return None
-
-            result = entry.to_result()
-            logger.info("Cache hit for UID %s (cached at %s)", normalized_uid, format_iso_datetime(entry.queried_at))
-            return result
-
-        except (OSError, orjson.JSONDecodeError, KeyError, ValueError) as e:  # type: ignore[attr-defined]
-            logger.warning("Failed to read cache: %s", e)  # type: ignore[arg-type]
+            entry = self._read_cache().get(normalized_uid)
+        except (OSError, orjson.JSONDecodeError) as e:
+            logger.warning("Failed to read cache: %s", e)
             return None
+
+        if entry is None:
+            logger.debug("Cache miss for UID %s", normalized_uid)
+            return None
+
+        if entry.is_expired():
+            logger.debug("Cache entry expired for UID %s", normalized_uid)
+            return None
+
+        logger.info("Cache hit for UID %s (cached at %s)", normalized_uid, format_iso_datetime(entry.queried_at))
+        return entry.to_result()
 
     def put(self, result: UidCheckResult) -> None:
         """Store a successful result in the cache.
@@ -311,7 +357,7 @@ class UidResultCache:
         entry = CacheEntry.from_result(result, expires_at)
 
         try:
-            self._write_entry(normalized_uid, entry.to_dict())
+            self._write_entry(normalized_uid, entry)
             logger.info("Cached result for UID %s (expires %s)", normalized_uid, format_iso_datetime(entry.expires_at))
         except (OSError, Timeout) as e:
             logger.warning("Failed to write cache: %s", e)
@@ -320,52 +366,44 @@ class UidResultCache:
         """Create cache directory if it doesn't exist."""
         self._cache_file.parent.mkdir(parents=True, exist_ok=True)
 
-    def _parse_file_content(self, content: bytes) -> dict[str, Any]:
-        """Parse file content into a dict, returning empty dict on failure."""
-        if not content:
-            return {}
-        loaded = orjson.loads(content)
-        return cast(dict[str, Any], loaded) if isinstance(loaded, dict) else {}
-
-    def _read_cache(self) -> dict[str, Any]:
-        """Read and parse cache file with locking."""
+    def _read_cache(self) -> dict[str, CacheEntry]:
+        """Read and validate the cache file with locking."""
         if not self._cache_file.exists():
             return {}
 
         lock = FileLock(self._lock_file, timeout=_LOCK_TIMEOUT_SECONDS)
         with lock:
-            content = self._cache_file.read_bytes()
-            return self._parse_file_content(content)
+            return _parse_entries(self._cache_file.read_bytes())
 
-    def _read_locked_data(self) -> dict[str, Any]:
-        """Read cache data within an already-acquired lock."""
+    def _read_locked_entries(self) -> dict[str, CacheEntry]:
+        """Read and validate the cache file within an already-acquired lock."""
         if not self._cache_file.exists():
             return {}
-        content = self._cache_file.read_bytes()
-        return self._parse_file_content(content)
+        return _parse_entries(self._cache_file.read_bytes())
 
-    def _write_entry(self, uid: str, entry: dict[str, Any]) -> None:
+    def _write_entry(self, uid: str, entry: CacheEntry) -> None:
         """Write entry to cache with locking, cleanup, and size limit enforcement."""
         self._ensure_cache_dir()
 
         lock = FileLock(self._lock_file, timeout=_LOCK_TIMEOUT_SECONDS)
         with lock:
-            data = self._read_locked_data()
+            stored = self._read_locked_entries()
 
-            # First, remove expired entries
-            data, expired_removed = _cleanup_expired_entries(data)
+            entries = _drop_expired(stored)
+            expired_removed = len(stored) - len(entries)
             if expired_removed > 0:
                 logger.debug("Cleaned up %d expired cache entries", expired_removed)
 
-            # Add new entry
-            data[uid] = entry
+            # Assigning to an existing UID keeps its position in the file,
+            # matching what installed versions write.
+            entries[uid] = entry
 
-            # Trim oldest entries if over limit
-            data, trimmed = _trim_oldest_entries(data, self._max_entries)
+            kept = _trim_oldest_entries(entries, self._max_entries)
+            trimmed = len(entries) - len(kept)
             if trimmed > 0:
                 logger.debug("Trimmed %d oldest cache entries (max_entries=%d)", trimmed, self._max_entries)
 
-            self._cache_file.write_bytes(orjson.dumps(data, option=orjson.OPT_INDENT_2 | orjson.OPT_UTC_Z))
+            self._cache_file.write_bytes(_serialize_entries(kept))
 
     def clear(self) -> None:
         """Remove all cached entries."""

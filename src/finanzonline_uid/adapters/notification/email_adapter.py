@@ -17,28 +17,27 @@ Adapters layer - integrates with btx_lib_mail for email delivery.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from finanzonline_uid.adapters.formatting import format_result_html
-from finanzonline_uid.adapters.formatting.html_templates import (
-    RATE_LIMITED_CODES,
-    SERVICE_UNAVAILABLE_CODES,
-)
+from finanzonline_uid.adapters.formatting.html_templates import ResultStatus, classify_result
 from finanzonline_uid.adapters.notification.error_html_formatter import format_error_html
 from finanzonline_uid.adapters.notification.plain_formatter import format_error_plain, format_result_plain
 from finanzonline_uid.adapters.notification.rate_limit_formatter import (
     format_rate_limit_warning_html,
     format_rate_limit_warning_plain,
 )
-from finanzonline_uid.domain.return_codes import ReturnCode, get_return_code_info
+from finanzonline_uid.domain.return_codes import get_return_code_info
 from finanzonline_uid.enums import EmailFormat
 from finanzonline_uid.i18n import _
 from finanzonline_uid.mail import EmailConfig, send_email
 
 if TYPE_CHECKING:
     from finanzonline_uid.adapters.ratelimit import RateLimitStatus
-    from finanzonline_uid.domain.models import Diagnostics, UidCheckResult
+    from finanzonline_uid.domain.errors import CheckErrorInfo
+    from finanzonline_uid.domain.models import UidCheckResult
 
+__all__ = ["EmailNotificationAdapter"]
 
 logger = logging.getLogger(__name__)
 
@@ -58,18 +57,26 @@ def _get_result_subject_status(return_code: int) -> str:
         >>> _get_result_subject_status(1511)  # doctest: +SKIP
         'Service Unavailable'
     """
-    if return_code == ReturnCode.UID_VALID:
+    # The subject words differ from the body's status badge (title case, longer
+    # wording), so they are spelled out here rather than taken from the label map.
+    status = classify_result(return_code)
+    if status == ResultStatus.VALID:
         return _("Valid")
-    if return_code == ReturnCode.UID_INVALID:
+    if status == ResultStatus.INVALID:
         return _("Invalid")
-    if return_code in SERVICE_UNAVAILABLE_CODES:
+    if status == ResultStatus.UNAVAILABLE:
         return _("Service Unavailable")
-    if return_code in RATE_LIMITED_CODES:
+    if status == ResultStatus.RATE_LIMITED:
         return _("Rate Limited")
+    # An error says more through its own meaning than through a generic word
+    return get_return_code_info(return_code).meaning
 
-    # For other error codes, use the meaning from return code info
-    info = get_return_code_info(return_code)
-    return info.meaning
+
+class _BodyParts(NamedTuple):
+    """Email bodies to send; an empty string leaves that part out."""
+
+    plain: str
+    html: str
 
 
 class EmailNotificationAdapter:
@@ -96,7 +103,7 @@ class EmailNotificationAdapter:
         self._config = config
         self._email_format = email_format
 
-    def _get_body_parts(self, plain_body: str, html_body: str) -> tuple[str, str]:
+    def _get_body_parts(self, plain_body: str, html_body: str) -> _BodyParts:
         """Get body parts based on configured email format.
 
         Args:
@@ -104,13 +111,13 @@ class EmailNotificationAdapter:
             html_body: HTML body content.
 
         Returns:
-            Tuple of (plain_body, html_body) with empty string for excluded format.
+            The bodies to send, with an empty string for the excluded format.
         """
         if self._email_format == EmailFormat.PLAIN:
-            return plain_body, ""
+            return _BodyParts(plain=plain_body, html="")
         if self._email_format == EmailFormat.HTML:
-            return "", html_body
-        return plain_body, html_body
+            return _BodyParts(plain="", html=html_body)
+        return _BodyParts(plain=plain_body, html=html_body)
 
     def send_result(
         self,
@@ -133,7 +140,7 @@ class EmailNotificationAdapter:
         subject_status = _get_result_subject_status(result.return_code)
         subject = f"UID Check Result: {result.uid} - {subject_status}"
 
-        plain_body, html_body = self._get_body_parts(
+        bodies = self._get_body_parts(
             format_result_plain(result),
             format_result_html(result),
         )
@@ -142,7 +149,7 @@ class EmailNotificationAdapter:
             "Sending UID check notification for %s to %d recipients (format=%s)",
             result.uid,
             len(recipients),
-            self._email_format,
+            self._email_format.value,
         )
 
         try:
@@ -150,8 +157,8 @@ class EmailNotificationAdapter:
                 config=self._config,
                 recipients=recipients,
                 subject=subject,
-                body=plain_body,
-                body_html=html_body,
+                body=bodies.plain,
+                body_html=bodies.html,
             )
         except Exception as e:  # noqa: BLE001 - email delivery is non-fatal, degrade to a bool result
             logger.error("Failed to send notification: %s", e)
@@ -159,24 +166,17 @@ class EmailNotificationAdapter:
 
     def send_error(
         self,
-        error_type: str,
-        error_message: str,
+        info: CheckErrorInfo,
         uid: str,
         recipients: list[str],
-        return_code: int | None = None,
-        retryable: bool = False,
-        diagnostics: Diagnostics | None = None,
     ) -> bool:
         """Send error notification via email.
 
         Args:
-            error_type: Type of error (e.g., "Authentication Error").
-            error_message: Error message details.
+            info: The failure to report: kind, message, return code,
+                retryability and diagnostics.
             uid: The UID that was being checked.
             recipients: Email addresses to send notification to.
-            return_code: Optional return code from BMF.
-            retryable: Whether the error is retryable.
-            diagnostics: Optional Diagnostics object for debugging.
 
         Returns:
             True if notification sent successfully, False otherwise.
@@ -185,18 +185,18 @@ class EmailNotificationAdapter:
             logger.warning("No recipients specified, skipping error notification")
             return False
 
-        subject = f"UID Check ERROR: {uid} - {error_type}"
+        subject = f"UID Check ERROR: {uid} - {info.error_type.value}"
 
-        plain_body, html_body = self._get_body_parts(
-            format_error_plain(error_type, error_message, uid, return_code, retryable, diagnostics),
-            format_error_html(error_type, error_message, uid, return_code, retryable, diagnostics),
+        bodies = self._get_body_parts(
+            format_error_plain(info, uid),
+            format_error_html(info, uid),
         )
 
         logger.info(
             "Sending UID check error notification for %s to %d recipients (format=%s)",
             uid,
             len(recipients),
-            self._email_format,
+            self._email_format.value,
         )
 
         try:
@@ -204,8 +204,8 @@ class EmailNotificationAdapter:
                 config=self._config,
                 recipients=recipients,
                 subject=subject,
-                body=plain_body,
-                body_html=html_body,
+                body=bodies.plain,
+                body_html=bodies.html,
             )
         except Exception as e:  # noqa: BLE001 - email delivery is non-fatal, degrade to a bool result
             logger.error("Failed to send error notification: %s", e)
@@ -231,7 +231,7 @@ class EmailNotificationAdapter:
 
         subject = "UID Check WARNING: Rate Limit Exceeded"
 
-        plain_body, html_body = self._get_body_parts(
+        bodies = self._get_body_parts(
             format_rate_limit_warning_plain(status),
             format_rate_limit_warning_html(status),
         )
@@ -239,7 +239,7 @@ class EmailNotificationAdapter:
         logger.info(
             "Sending rate limit warning to %d recipients (format=%s, count=%d/%d)",
             len(recipients),
-            self._email_format,
+            self._email_format.value,
             status.current_count,
             status.max_queries,
         )
@@ -249,8 +249,8 @@ class EmailNotificationAdapter:
                 config=self._config,
                 recipients=recipients,
                 subject=subject,
-                body=plain_body,
-                body_html=html_body,
+                body=bodies.plain,
+                body_html=bodies.html,
             )
         except Exception as e:  # noqa: BLE001 - email delivery is non-fatal, degrade to a bool result
             logger.error("Failed to send rate limit warning: %s", e)

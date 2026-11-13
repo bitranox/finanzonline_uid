@@ -4,11 +4,11 @@ Expose a stable command-line surface so tooling, documentation, and packaging
 automation can be exercised while the richer logging helpers are being built.
 
 Contents:
-    * :data:`CLICK_CONTEXT_SETTINGS` – shared Click settings.
-    * :func:`apply_traceback_preferences` – synchronises traceback configuration.
-    * :func:`snapshot_traceback_state` / :func:`restore_traceback_state` – state management.
-    * :func:`cli` – root command group wiring global options.
-    * :func:`main` – entry point for console scripts and ``python -m`` execution.
+    * :data:`CLICK_CONTEXT_SETTINGS` - shared Click settings.
+    * :func:`apply_traceback_preferences` - synchronises traceback configuration.
+    * :func:`snapshot_traceback_state` / :func:`restore_traceback_state` - state management.
+    * :func:`cli` - root command group wiring global options.
+    * :func:`main` - entry point for console scripts and ``python -m`` execution.
 
 System Role:
     The CLI is the primary adapter for local development workflows; packaging
@@ -20,10 +20,11 @@ from __future__ import annotations
 import logging
 import re
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Final
+from types import MappingProxyType
+from typing import Final, NamedTuple, NoReturn
 
 import lib_cli_exit_tools
 import lib_log_rich.runtime
@@ -40,19 +41,28 @@ from .adapters.cache import UidResultCache
 from .adapters.finanzonline import FinanzOnlineQueryClient, FinanzOnlineSessionClient
 from .adapters.notification import EmailNotificationAdapter
 from .adapters.output import format_html, format_human, format_json
-from .adapters.ratelimit import RateLimitTracker
+from .adapters.ratelimit import RateLimitStatus, RateLimitTracker
 from .application.use_cases import CheckUidUseCase
 from .behaviors import emit_greeting, noop_main, raise_intentional_failure
 from .config import FinanzOnlineConfig, get_config, load_app_config, load_finanzonline_config
 from .config_deploy import deploy_configuration
 from .config_show import display_config
-from .domain.errors import AuthenticationError, CheckErrorInfo, ConfigurationError, QueryError, ServiceMaintenanceError, SessionError, UidCheckError
-from .domain.models import sanitize_uid
+from .domain.errors import (
+    AuthenticationError,
+    CheckErrorInfo,
+    ConfigurationError,
+    ErrorKind,
+    QueryError,
+    ServiceMaintenanceError,
+    SessionError,
+    UidCheckError,
+)
+from .domain.models import UidCheckResult, sanitize_uid
 from .domain.return_codes import CliExitCode, get_return_code_info, is_retryable
-from .enums import DeployTarget, OutputFormat
+from .enums import DeployTarget, FileFormat, NotificationKind, OutputFormat
 from .i18n import _, setup_locale
 from .logging_setup import init_logging
-from .mail import EmailConfig, load_email_config_from_dict
+from .mail import EmailConfig, load_email_config
 from .typed_click import argument, option, version_option
 
 #: Shared Click context flags so help output stays consistent across commands.
@@ -61,11 +71,66 @@ CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 TRACEBACK_SUMMARY_LIMIT: Final[int] = 500
 #: Character budget used when verbose tracebacks are enabled.
 TRACEBACK_VERBOSE_LIMIT: Final[int] = 10_000
-TracebackState = tuple[bool, bool]
 #: Pattern for ANSI escape codes (used for stripping colors from file output).
 _ANSI_PATTERN: Final[re.Pattern[str]] = re.compile(r"\033\[[0-9;]*m")
 
 logger = logging.getLogger(__name__)
+
+
+class TracebackState(NamedTuple):
+    """Traceback configuration of ``lib_cli_exit_tools`` captured for later restoration.
+
+    Attributes:
+        enabled: Whether full tracebacks are printed.
+        force_color: Whether tracebacks are coloured even without a terminal.
+    """
+
+    enabled: bool
+    force_color: bool
+
+
+class ErrorCategory(NamedTuple):
+    """How a UID check exception is reported: its category and the exit code.
+
+    Attributes:
+        kind: Category shown to the reader (its value is the display label).
+        exit_code: CLI exit code for this category.
+    """
+
+    kind: ErrorKind
+    exit_code: CliExitCode
+
+
+#: Category per exception type. The lookup is by EXACT type, so a subclass
+#: (ServiceMaintenanceError is a SessionError) needs its own row.
+_ERROR_CATEGORIES: Final[Mapping[type[UidCheckError], ErrorCategory]] = MappingProxyType(
+    {
+        ConfigurationError: ErrorCategory(ErrorKind.CONFIGURATION, CliExitCode.CONFIG_ERROR),
+        AuthenticationError: ErrorCategory(ErrorKind.AUTHENTICATION, CliExitCode.AUTH_ERROR),
+        ServiceMaintenanceError: ErrorCategory(ErrorKind.SERVICE_MAINTENANCE, CliExitCode.QUERY_ERROR),
+        SessionError: ErrorCategory(ErrorKind.SESSION, CliExitCode.QUERY_ERROR),
+        QueryError: ErrorCategory(ErrorKind.QUERY, CliExitCode.QUERY_ERROR),
+    }
+)
+#: Category for any other UidCheckError subclass.
+_FALLBACK_ERROR_CATEGORY: Final[ErrorCategory] = ErrorCategory(ErrorKind.UID_CHECK, CliExitCode.QUERY_ERROR)
+
+
+@dataclass(frozen=True, slots=True)
+class PreparedNotification:
+    """An email adapter ready to send, with the recipients it sends to.
+
+    Attributes:
+        adapter: Email adapter built from the ``[email]`` configuration.
+        recipients: Resolved, non-empty recipient list.
+    """
+
+    adapter: EmailNotificationAdapter
+    recipients: list[str]
+
+
+#: What a check produces: a result from FinanzOnline, or the error that ended it.
+CheckOutcome = UidCheckResult | CheckErrorInfo
 
 
 @dataclass(slots=True)
@@ -111,11 +176,11 @@ def snapshot_traceback_state() -> TracebackState:
     """Capture the current traceback configuration for later restoration.
 
     Returns:
-        Tuple of ``(traceback_enabled, force_color)``.
+        The current ``(enabled, force_color)`` state.
     """
-    return (
-        bool(getattr(lib_cli_exit_tools.config, "traceback", False)),
-        bool(getattr(lib_cli_exit_tools.config, "traceback_force_color", False)),
+    return TracebackState(
+        enabled=bool(getattr(lib_cli_exit_tools.config, "traceback", False)),
+        force_color=bool(getattr(lib_cli_exit_tools.config, "traceback_force_color", False)),
     )
 
 
@@ -123,10 +188,10 @@ def restore_traceback_state(state: TracebackState) -> None:
     """Reapply a previously captured traceback configuration.
 
     Args:
-        state: Tuple returned by :func:`snapshot_traceback_state`.
+        state: State returned by :func:`snapshot_traceback_state`.
     """
-    lib_cli_exit_tools.config.traceback = bool(state[0])
-    lib_cli_exit_tools.config.traceback_force_color = bool(state[1])
+    lib_cli_exit_tools.config.traceback = state.enabled
+    lib_cli_exit_tools.config.traceback_force_color = state.force_color
 
 
 def _store_cli_context(
@@ -265,7 +330,7 @@ def cli_fail() -> None:
     help=_("Override profile from root command (e.g., 'production', 'test')"),
 )
 @click.pass_context
-def cli_config(ctx: click.Context, format: str, section: str | None, profile: str | None) -> None:
+def cli_config(ctx: click.Context, format: OutputFormat, section: str | None, profile: str | None) -> None:
     """Display the current merged configuration from all sources.
 
     Shows configuration loaded from defaults, application/user config files,
@@ -282,14 +347,15 @@ def cli_config(ctx: click.Context, format: str, section: str | None, profile: st
         config = cli_ctx.config
         effective_profile = cli_ctx.profile
 
-    output_format = OutputFormat(format.lower())
-    extra = {"command": "config", "format": output_format, "profile": effective_profile}
+    # click.Choice over the enum members hands back the member itself (matched on
+    # its name, case-insensitively), so ``format`` is already an OutputFormat.
+    extra = {"command": "config", "format": format.value, "profile": effective_profile}
     with lib_log_rich.runtime.bind(job_id="cli-config", extra=extra):
-        logger.info("Displaying configuration", extra={"format": output_format, "section": section, "profile": effective_profile})
-        display_config(config, format=output_format, section=section)
+        logger.info("Displaying configuration", extra={"format": format.value, "section": section, "profile": effective_profile})
+        display_config(config, format=format, section=section)
 
 
-def _display_deploy_result(deployed_paths: list[Any], effective_profile: str | None, *, force: bool = False) -> None:
+def _display_deploy_result(deployed_paths: list[Path], effective_profile: str | None, *, force: bool = False) -> None:
     """Display deployment result to user."""
     if deployed_paths:
         profile_msg = f" ({_('profile')}: {effective_profile})" if effective_profile else ""
@@ -338,7 +404,7 @@ def _handle_deploy_error(exc: Exception) -> None:
     help=_("Override profile from root command (e.g., 'production', 'test')"),
 )
 @click.pass_context
-def cli_config_deploy(ctx: click.Context, targets: tuple[str, ...], force: bool, profile: str | None) -> None:
+def cli_config_deploy(ctx: click.Context, targets: tuple[DeployTarget, ...], force: bool, profile: str | None) -> None:
     """Deploy default configuration to system or user directories.
 
     Creates configuration files in platform-specific locations:
@@ -352,15 +418,14 @@ def cli_config_deploy(ctx: click.Context, targets: tuple[str, ...], force: bool,
     """
     cli_ctx: CliContext = ctx.obj
     effective_profile = profile if profile else cli_ctx.profile
-    deploy_targets = tuple(DeployTarget(t.lower()) for t in targets)
-    target_strs = tuple(t for t in deploy_targets)
+    target_strs = tuple(t.value for t in targets)
     extra = {"command": "config-deploy", "targets": target_strs, "force": force, "profile": effective_profile}
 
     with lib_log_rich.runtime.bind(job_id="cli-config-deploy", extra=extra):
         logger.info("Deploying configuration", extra={"targets": target_strs, "force": force, "profile": effective_profile})
 
         try:
-            deployed_paths = deploy_configuration(targets=deploy_targets, force=force, profile=effective_profile)
+            deployed_paths = deploy_configuration(targets=targets, force=force, profile=effective_profile)
             _display_deploy_result(deployed_paths, effective_profile, force=force)
         except Exception as exc:  # noqa: BLE001 - CLI command boundary converts any deploy failure to a clean message
             _handle_deploy_error(exc)
@@ -373,22 +438,14 @@ def cli_config_deploy(ctx: click.Context, targets: tuple[str, ...], force: bool,
 
 def _get_uid_check_error_info(exc: UidCheckError) -> CheckErrorInfo:
     """Get CheckErrorInfo for UidCheckError subclasses."""
-    error_type_map: dict[type[UidCheckError], tuple[str, CliExitCode]] = {
-        ConfigurationError: ("Configuration Error", CliExitCode.CONFIG_ERROR),
-        AuthenticationError: ("Authentication Error", CliExitCode.AUTH_ERROR),
-        ServiceMaintenanceError: ("Service Maintenance", CliExitCode.QUERY_ERROR),
-        SessionError: ("Session Error", CliExitCode.QUERY_ERROR),
-        QueryError: ("Query Error", CliExitCode.QUERY_ERROR),
-    }
-    exc_type = type(exc)
-    error_type, exit_code = error_type_map.get(exc_type, ("UID Check Error", CliExitCode.QUERY_ERROR))
+    category = _ERROR_CATEGORIES.get(type(exc), _FALLBACK_ERROR_CATEGORY)
     return CheckErrorInfo(
-        error_type=error_type,
+        error_type=category.kind,
         message=exc.message,
-        exit_code=exit_code,
-        return_code=getattr(exc, "return_code", None),
-        retryable=getattr(exc, "retryable", False),
-        diagnostics=getattr(exc, "diagnostics", None),
+        exit_code=category.exit_code,
+        return_code=exc.return_code,
+        retryable=exc.retryable,
+        diagnostics=exc.diagnostics,
     )
 
 
@@ -405,12 +462,12 @@ def _get_error_info(exc: Exception) -> CheckErrorInfo:
         return _get_uid_check_error_info(exc)
     if isinstance(exc, ValueError):
         return CheckErrorInfo(
-            error_type="Validation Error",
+            error_type=ErrorKind.VALIDATION,
             message=str(exc),
             exit_code=CliExitCode.CONFIG_ERROR,
         )
     return CheckErrorInfo(
-        error_type="Unexpected Error",
+        error_type=ErrorKind.UNEXPECTED,
         message=str(exc),
         exit_code=CliExitCode.QUERY_ERROR,
     )
@@ -447,20 +504,37 @@ def _resolve_uid_input(uid: str | None, interactive: bool) -> str:
     return sanitize_uid(raw_uid)
 
 
-def _output_check_result(result: Any, output_format: str) -> None:
+def _output_check_result(result: UidCheckResult, output_format: OutputFormat) -> None:
     """Output the check result in the requested format.
 
     Args:
         result: UidCheckResult to output.
-        output_format: Format string ("json" or "human").
+        output_format: Console output format.
     """
-    if OutputFormat(output_format.lower()) == OutputFormat.JSON:
+    if output_format == OutputFormat.JSON:
         safe_console.echo(format_json(result))
     else:
         safe_console.echo(format_human(result))
 
 
-def _save_result_to_file(result: Any, outputdir: Path, file_format: str) -> None:
+def _render_result_file(result: UidCheckResult, file_format: FileFormat) -> str:
+    """Render the content of a saved result file.
+
+    Args:
+        result: UidCheckResult to render.
+        file_format: Format of the file.
+
+    Returns:
+        The file content; the text format has its colour codes stripped.
+    """
+    if file_format == FileFormat.JSON:
+        return format_json(result)
+    if file_format == FileFormat.HTML:
+        return format_html(result)
+    return _strip_ansi(format_human(result))
+
+
+def _save_result_to_file(result: UidCheckResult, outputdir: Path, file_format: FileFormat) -> None:
     """Save valid UID result to file in the output directory.
 
     Creates a file named <UID>_<YYYY-MM-DD>.<ext> with the result in the
@@ -474,25 +548,16 @@ def _save_result_to_file(result: Any, outputdir: Path, file_format: str) -> None
     Args:
         result: UidCheckResult to save.
         outputdir: Directory to save the file in.
-        file_format: Format for file content ("json", "txt", "html").
+        file_format: Format of the file content; its value is also the extension.
     """
     date_str = result.timestamp.strftime("%Y-%m-%d")
-    filename = f"{result.uid}_{date_str}.{file_format}"
+    filename = f"{result.uid}_{date_str}.{file_format.value}"
     filepath = outputdir / filename
 
     try:
         # Create directory if it doesn't exist
         outputdir.mkdir(parents=True, exist_ok=True)
-
-        # Format content based on file_format
-        if file_format == "json":
-            content = format_json(result)
-        elif file_format == "html":
-            content = format_html(result)
-        else:  # txt
-            content = _strip_ansi(format_human(result))
-
-        filepath.write_text(content, encoding="utf-8")
+        filepath.write_text(_render_result_file(result, file_format), encoding="utf-8")
 
         safe_console.echo(_("Result saved to: {filepath}").format(filepath=filepath))
     except OSError as exc:
@@ -501,14 +566,14 @@ def _save_result_to_file(result: Any, outputdir: Path, file_format: str) -> None
         safe_console.echo(warning_msg, err=True)
 
 
-def _emit_check_result(result: Any, *, output_format: str, outputdir: Path | None, file_format: str) -> None:
+def _emit_check_result(result: UidCheckResult, *, output_format: OutputFormat, outputdir: Path | None, file_format: FileFormat) -> None:
     """Print the check result and save it to a file when it is valid.
 
     Args:
         result: UidCheckResult to output.
-        output_format: Console format string ("json" or "human").
+        output_format: Console output format.
         outputdir: Directory to save valid results in, or None to skip saving.
-        file_format: Format for the saved file ("json", "txt", "html").
+        file_format: Format for the saved file.
     """
     _output_check_result(result, output_format)
     if outputdir and result.is_valid:
@@ -523,7 +588,7 @@ def _handle_check_error(
     fo_config: FinanzOnlineConfig | None,
     uid: str,
     recipients: list[str],
-) -> None:
+) -> NoReturn:
     """Handle check command errors with output and notification.
 
     Args:
@@ -537,7 +602,7 @@ def _handle_check_error(
     Raises:
         SystemExit: Always raises with the specified exit code.
     """
-    safe_console.echo(f"\n{error_info.error_type}: {error_info.message}", err=True)
+    safe_console.echo(f"\n{error_info.error_type.value}: {error_info.message}", err=True)
 
     if error_info.return_code is not None:
         info = get_return_code_info(error_info.return_code)
@@ -670,7 +735,7 @@ def _wait_for_next_attempt(attempt: int, message: str, *, retry_minutes: float, 
     return False
 
 
-def _cancelled_outcome(last_result: Any, last_error: CheckErrorInfo | None) -> tuple[Any, CheckErrorInfo | None]:
+def _cancelled_outcome(last_result: UidCheckResult | None, last_error: CheckErrorInfo | None) -> CheckOutcome:
     """Pick what a Ctrl+C during an attempt returns from the retry loop.
 
     Args:
@@ -681,12 +746,12 @@ def _cancelled_outcome(last_result: Any, last_error: CheckErrorInfo | None) -> t
         The last error if one occurred, else the last result, else a
         cancellation error.
     """
-    if last_error:
-        return None, last_error
-    if last_result:
-        return last_result, None
-    return None, CheckErrorInfo(
-        error_type="Cancelled",
+    if last_error is not None:
+        return last_error
+    if last_result is not None:
+        return last_result
+    return CheckErrorInfo(
+        error_type=ErrorKind.CANCELLED,
         message=_("Check cancelled by user"),
         exit_code=CliExitCode.QUERY_ERROR,
     )
@@ -698,7 +763,7 @@ def _execute_retry_loop(
     retry_minutes: float,
     config: Config,
     recipients: list[str],
-) -> tuple[Any, CheckErrorInfo | None]:
+) -> CheckOutcome:
     """Execute UID check with retry loop.
 
     Uses lib_cli_exit_tools signal handling (SigIntInterrupt on Ctrl+C).
@@ -712,12 +777,12 @@ def _execute_retry_loop(
         recipients: Email recipients list.
 
     Returns:
-        Tuple of (result, error_info). One will be None.
+        The final result, or the error that ended the loop.
     """
     attempt = 0
     last_error: CheckErrorInfo | None = None
 
-    last_result: Any = None
+    last_result: UidCheckResult | None = None
 
     while True:
         attempt += 1
@@ -729,12 +794,12 @@ def _execute_retry_loop(
 
             # Check if result indicates success OR non-retryable error
             if result.is_valid or not is_retryable(result.return_code):
-                return result, None  # Final result (success or non-retryable)
+                return result  # Final result (success or non-retryable)
 
             # Retryable return code (e.g., 1511 Service Unavailable) - continue loop
             if not _wait_for_next_attempt(attempt, result.message, retry_minutes=retry_minutes, uid=uid):
                 # User cancelled during wait - return last result
-                return result, None
+                return result
 
         except (SigIntInterrupt, KeyboardInterrupt):
             # User pressed Ctrl+C - clean exit
@@ -743,18 +808,18 @@ def _execute_retry_loop(
 
         except (ConfigurationError, AuthenticationError, ValueError) as exc:
             # Non-retryable errors - stop immediately
-            return None, _get_error_info(exc)
+            return _get_error_info(exc)
 
         except (SessionError, QueryError) as exc:
             error_info = _get_error_info(exc)
             if not error_info.retryable:
-                return None, error_info
+                return error_info
 
             # Retryable error - show message and wait
             last_error = error_info
             if not _wait_for_next_attempt(attempt, error_info.message, retry_minutes=retry_minutes, uid=uid):
                 # User cancelled during wait
-                return None, last_error
+                return last_error
 
 
 @cli.command("check", context_settings=CLICK_CONTEXT_SETTINGS)
@@ -775,8 +840,8 @@ def _execute_retry_loop(
 @option(
     "--format",
     "output_format",
-    type=click.Choice(["human", "json"], case_sensitive=False),
-    default="human",
+    type=click.Choice(list(OutputFormat), case_sensitive=False),
+    default=OutputFormat.HUMAN,
     help=_("Output format (default: human)"),
 )
 @option(
@@ -801,7 +866,7 @@ def _execute_retry_loop(
 @option(
     "--outputformat",
     "file_format",
-    type=click.Choice(["json", "txt", "html"], case_sensitive=False),
+    type=click.Choice(list(FileFormat), case_sensitive=False),
     default=None,
     help=_("Output file format: json, txt, or html (default: html)"),
 )
@@ -811,11 +876,11 @@ def cli_check(
     uid: str | None,
     interactive: bool,
     no_email: bool,
-    output_format: str,
+    output_format: OutputFormat,
     recipients: tuple[str, ...],
     retryminutes: float | None,
     outputdir: Path | None,
-    file_format: str | None,
+    file_format: FileFormat | None,
 ) -> None:
     """Verify an EU VAT ID via FinanzOnline Level 2 query.
 
@@ -851,7 +916,7 @@ def cli_check(
     recipients_list = list(recipients)
     fo_config: FinanzOnlineConfig | None = None
 
-    extra = {"command": "check", "uid": resolved_uid, "no_email": no_email, "format": output_format, "retryminutes": retryminutes}
+    extra = {"command": "check", "uid": resolved_uid, "no_email": no_email, "format": output_format.value, "retryminutes": retryminutes}
 
     with lib_log_rich.runtime.bind(job_id="cli-check", extra=extra):
         try:
@@ -860,36 +925,34 @@ def cli_check(
 
             # Resolve output settings (CLI overrides config)
             effective_outputdir = outputdir or fo_config.output_dir
-            effective_file_format = (file_format or fo_config.output_format).lower()
+            effective_file_format = file_format or fo_config.output_format
 
-            result: Any
-            error_info: CheckErrorInfo | None = None
+            outcome: CheckOutcome
             if retryminutes is None:
                 # Single attempt mode: errors propagate to the handler below
-                result = _execute_uid_check(fo_config, resolved_uid, config=config, recipients=recipients_list)
+                outcome = _execute_uid_check(fo_config, resolved_uid, config=config, recipients=recipients_list)
             else:
                 # Retry mode - uses retry loop with countdown animation
-                result, error_info = _execute_retry_loop(fo_config, resolved_uid, retryminutes, config, recipients_list)
+                outcome = _execute_retry_loop(fo_config, resolved_uid, retryminutes, config, recipients_list)
 
-            if result is not None:
-                _emit_check_result(result, output_format=output_format, outputdir=effective_outputdir, file_format=effective_file_format)
-                if not no_email:
-                    _send_check_notification(config=config, fo_config=fo_config, result=result, recipients=recipients_list)
-                raise SystemExit(CliExitCode.SUCCESS if result.is_valid else CliExitCode.UID_INVALID)
-            if error_info is not None:
+            if isinstance(outcome, CheckErrorInfo):
                 # Error (cancelled or non-retryable)
                 _handle_check_error(
-                    error_info,
+                    outcome,
                     send_notification=not no_email,
                     config=config,
                     fo_config=fo_config,
                     uid=resolved_uid,
                     recipients=recipients_list,
                 )
+            _emit_check_result(outcome, output_format=output_format, outputdir=effective_outputdir, file_format=effective_file_format)
+            if not no_email:
+                _send_check_notification(config=config, fo_config=fo_config, result=outcome, recipients=recipients_list)
+            raise SystemExit(CliExitCode.SUCCESS if outcome.is_valid else CliExitCode.UID_INVALID)
 
         except (ConfigurationError, AuthenticationError, SessionError, QueryError, ValueError, UidCheckError) as exc:
             error_info = _get_error_info(exc)
-            logger.error(error_info.error_type, extra={"error": str(exc)})
+            logger.error(error_info.error_type.value, extra={"error": str(exc)})
             if isinstance(exc, ConfigurationError):
                 _show_config_help(exc.message)
             _handle_check_error(
@@ -945,19 +1008,19 @@ def _create_rate_limiter(fo_config: FinanzOnlineConfig) -> RateLimitTracker | No
     )
 
 
-def _log_notification_result(success: bool, recipients: list[str], notification_type: str) -> None:
+def _log_notification_result(success: bool, recipients: list[str], kind: NotificationKind) -> None:
     """Log the result of a notification attempt."""
     if success:
-        logger.info("%s email sent", notification_type, extra={"recipients": recipients})
+        logger.info("%s email sent", kind.value, extra={"recipients": recipients})
     else:
-        logger.warning("%s email failed", notification_type)
+        logger.warning("%s email failed", kind.value)
 
 
 def _create_rate_limit_notifier(
     config: Config,
     fo_config: FinanzOnlineConfig,
     recipients: list[str],
-) -> Any:
+) -> Callable[[RateLimitStatus], None]:
     """Create a rate limit notification callback.
 
     Args:
@@ -966,19 +1029,18 @@ def _create_rate_limit_notifier(
         recipients: Explicit recipients list.
 
     Returns:
-        Callable that sends rate limit warning email, or None if not configured.
+        Callable that sends a rate limit warning email; it does nothing when
+        no SMTP host or recipient is configured.
     """
-    from .adapters.ratelimit import RateLimitStatus
 
     def notifier(status: RateLimitStatus) -> None:
         """Send rate limit warning email (non-fatal on failure)."""
         try:
-            prepared = _prepare_notification(config, fo_config, recipients, "Rate limit warning")
-            if not prepared:
+            prepared = _prepare_notification(config, fo_config, recipients, NotificationKind.RATE_LIMIT_WARNING)
+            if prepared is None:
                 return
-            adapter, final_recipients = prepared
-            success = adapter.send_rate_limit_warning(status, final_recipients)
-            _log_notification_result(success, final_recipients, "Rate limit warning")
+            success = prepared.adapter.send_rate_limit_warning(status, prepared.recipients)
+            _log_notification_result(success, prepared.recipients, NotificationKind.RATE_LIMIT_WARNING)
         except Exception as e:  # noqa: BLE001 - notification send is non-fatal, must not abort the check
             logger.warning("Rate limit notification error (non-fatal): %s", e)
 
@@ -990,7 +1052,7 @@ def _execute_uid_check(
     uid: str,
     config: Config | None = None,
     recipients: list[str] | None = None,
-) -> Any:
+) -> UidCheckResult:
     """Execute UID check via use case.
 
     Args:
@@ -1056,48 +1118,51 @@ def _prepare_notification(
     config: Config,
     fo_config: FinanzOnlineConfig | None,
     recipients: list[str],
-    notification_type: str,
-) -> tuple[EmailNotificationAdapter, list[str]] | None:
+    kind: NotificationKind,
+) -> PreparedNotification | None:
     """Prepare email notification adapter and recipients.
+
+    The ``[email]`` section is loaded here, per notification, on purpose: the
+    callers wrap this call in their non-fatal handler, so an invalid email
+    setting costs only the notification and never fails the check itself.
 
     Args:
         config: Application configuration.
         fo_config: FinanzOnline configuration (may be None).
         recipients: Explicit recipients list.
-        notification_type: Type for logging (e.g., "Email", "Error").
+        kind: Kind of notification, named in the log messages.
 
     Returns:
-        Tuple of (adapter, final_recipients) if ready, None if skipped.
+        The adapter and its recipients if ready, None if skipped.
     """
-    email_config = load_email_config_from_dict(config.as_dict())
+    email_config = load_email_config(config)
 
     if not email_config.smtp_hosts:
-        logger.warning("%s notification skipped: no SMTP hosts configured", notification_type)
+        logger.warning("%s notification skipped: no SMTP hosts configured", kind.value)
         return None
 
     final_recipients = _resolve_notification_recipients(recipients, email_config, fo_config)
     if not final_recipients:
-        logger.warning("%s notification skipped: no recipients configured", notification_type)
+        logger.warning("%s notification skipped: no recipients configured", kind.value)
         return None
 
-    return EmailNotificationAdapter(email_config), final_recipients
+    return PreparedNotification(adapter=EmailNotificationAdapter(email_config), recipients=final_recipients)
 
 
 def _send_check_notification(
     config: Config,
     fo_config: FinanzOnlineConfig,
-    result: Any,
+    result: UidCheckResult,
     recipients: list[str],
 ) -> None:
     """Send email notification for check result (non-fatal on failure)."""
     try:
-        prepared = _prepare_notification(config, fo_config, recipients, "Email")
-        if not prepared:
+        prepared = _prepare_notification(config, fo_config, recipients, NotificationKind.RESULT)
+        if prepared is None:
             return
 
-        adapter, final_recipients = prepared
-        if adapter.send_result(result, final_recipients):
-            logger.info("Email notification sent", extra={"recipients": final_recipients})
+        if prepared.adapter.send_result(result, prepared.recipients):
+            logger.info("Email notification sent", extra={"recipients": prepared.recipients})
         else:
             logger.warning("Email notification failed")
 
@@ -1115,22 +1180,13 @@ def _send_error_notification(
 ) -> None:
     """Send email notification for check error (non-fatal on failure)."""
     try:
-        prepared = _prepare_notification(config, fo_config, recipients, "Error")
-        if not prepared:
+        prepared = _prepare_notification(config, fo_config, recipients, NotificationKind.ERROR)
+        if prepared is None:
             return
 
-        adapter, final_recipients = prepared
-        success = adapter.send_error(
-            error_type=error_info.error_type,
-            error_message=error_info.message,
-            uid=uid,
-            recipients=final_recipients,
-            return_code=error_info.return_code,
-            retryable=error_info.retryable,
-            diagnostics=error_info.diagnostics,
-        )
+        success = prepared.adapter.send_error(error_info, uid, prepared.recipients)
         if success:
-            logger.info("Error notification sent", extra={"recipients": final_recipients})
+            logger.info("Error notification sent", extra={"recipients": prepared.recipients})
         else:
             logger.warning("Error notification failed")
 

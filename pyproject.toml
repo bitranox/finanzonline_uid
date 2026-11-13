@@ -137,9 +137,6 @@ extraPaths = [
 ]
 exclude = [
   "scripts/menu.py",
-  # zeep SOAP library has no type stubs, causing many reportUnknownMemberType errors
-  "src/finanzonline_uid/adapters/finanzonline/session_client.py",
-  "src/finanzonline_uid/adapters/finanzonline/uid_query_client.py",
   ".venv*",
 ]
 executionEnvironments = [{root = "tests"}]

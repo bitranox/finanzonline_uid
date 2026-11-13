@@ -1,12 +1,11 @@
-"""SOAP response extraction utilities.
+"""SOAP failure classification utilities.
 
 Purpose
 -------
-Provide reusable utilities for extracting data from SOAP response objects.
+Provide reusable utilities for classifying failed SOAP calls.
 
 Contents
 --------
-* :func:`extract_string_attr` - Safely extract string attribute from SOAP response.
 * :func:`is_html_response_error` - Detect HTML-instead-of-XML errors (maintenance pages).
 * :func:`extract_text_from_html_error` - Extract text from HTML maintenance page error.
 * :func:`is_zeep_parsing_error` - Detect transient zeep response-parsing errors.
@@ -19,44 +18,6 @@ Domain layer - pure utility functions with no I/O dependencies.
 from __future__ import annotations
 
 import re
-from typing import Any, cast
-
-
-def extract_string_attr(response: Any, attr_name: str, default: str = "") -> str:
-    """Extract a string attribute from a SOAP response object.
-
-    Safely extracts an attribute from a SOAP response, handling:
-    - Missing attributes (returns default)
-    - None values (returns default)
-    - Non-string values (casts to string)
-
-    Args:
-        response: SOAP response object with named attributes.
-        attr_name: Attribute name to extract (e.g., 'adrz1', 'name').
-        default: Default value if attribute is missing or None.
-
-    Returns:
-        Extracted string value, or default if not present.
-
-    Examples:
-        >>> class FakeResponse:
-        ...     adrz1 = "Line 1"
-        ...     adrz2 = None
-        >>> r = FakeResponse()
-        >>> extract_string_attr(r, "adrz1")
-        'Line 1'
-        >>> extract_string_attr(r, "adrz2")
-        ''
-        >>> extract_string_attr(r, "adrz3")
-        ''
-        >>> extract_string_attr(r, "adrz3", "N/A")
-        'N/A'
-    """
-    value = getattr(response, attr_name, None)
-    if value is None:
-        return default
-    return str(cast(str, value) or default)
-
 
 # Patterns that indicate an HTML page was returned instead of SOAP XML.
 # These appear in lxml XMLSyntaxError messages when parsing HTML as XML.
@@ -128,7 +89,7 @@ def extract_text_from_html_error(exc: Exception) -> str:
 
 # Patterns indicating zeep failed to parse the SOAP response. These typically
 # appear when BMF relays a malformed response from a foreign VIES service
-# (cross-border UID checks like HR, IT, etc.) — the issue is transient and
+# (cross-border UID checks like HR, IT, etc.) - the issue is transient and
 # usually clears on retry.
 _ZEEP_PARSING_ERROR_PATTERNS: tuple[str, ...] = (
     "name cannot be none",

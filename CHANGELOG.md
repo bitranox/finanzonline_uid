@@ -7,10 +7,49 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+### Changed
+
+- Data read from outside is now parsed once into typed, validated models: SOAP replies, the cache
+  and rate-limit files, and the `[app]`, `[finanzonline]`, `[email]` and `[lib_log_rich]` config
+  sections. Fixed categories (file format, language, error kind, SOAP operation) are enums inside
+  the program. The cache and rate-limit files keep their exact format: files written by earlier
+  versions load unchanged, and the files written stay byte for byte the same. Keys this program
+  never writes are dropped when such a file is rewritten.
+- `check` on the console shows the status `RATE LIMITED` for return codes 1513 and 1514 and
+  `UNAVAILABLE` for 1511, 1512 and -2, as the HTML and email output already did; it showed `ERROR`.
+- The SOAP client modules are now type-checked; they were excluded because zeep has no type stubs.
+- Library API: `load_email_config(config)` replaces `load_email_config_from_dict` and
+  `EmailConfig.from_dict`; `EmailConfig.smtp_password` is a `SecretStr`; the error formatters and
+  `EmailNotificationAdapter.send_error` take a `CheckErrorInfo`; `Diagnostics.entries()` replaces
+  `Diagnostics.as_dict()`; `setup_locale` takes a `Language`; `parse_float`, `parse_int` and
+  `domain.soap_utils.extract_string_attr` are removed.
+
 ### Fixed
 
 - `config-deploy --help` no longer prints a literal `\b` above the target list; the list keeps its
   line breaks.
+- The plain-text result and error emails printed `Severity: Severity.SUCCESS` (and so on) on
+  Python 3.11 and later; they print `success` again. Log lines named the email format as
+  `EmailFormat.BOTH` and config-deploy messages could name a target as `DeployTarget.USER`; both
+  print the plain value now.
+- A SOAP reply with a return code that is not a number made login or the UID query fail with a bare
+  `ValueError` (or `TypeError` for an empty code); it is now reported as a session or query error
+  ("Malformed ... response"). The same error now refuses a fractional return code, which was cut to
+  a whole number, an empty reply, which read as a successful login or a valid UID, and a reply
+  whose text fields are not text. When the error diagnostics found a recorded SOAP exchange without
+  an envelope, the original error was replaced by a `KeyError`; it is kept now.
+- An `output_dir` that is not text (`true`, a non-empty list or table, a number with a fraction)
+  crashed `check` with `AttributeError`; it now stops `check` with exit code 2 and "Invalid
+  FinanzOnline configuration: finanzonline.output_dir: ...". An empty value, `false` or `0` still
+  turns result files off.
+- A digit-only `.env` value for `output_dir` crashed with `AttributeError`, and one for `cache_file`
+  or `ratelimit_file` was silently replaced by the default path; all three now keep the value.
+- A cache or rate-limit file entry that is not a JSON object, has a non-text timestamp or a
+  non-object address crashed the read; such an entry is now skipped like any other malformed one,
+  and so is an entry whose fields have the wrong type (a `null` message, a fractional return code)
+  instead of being read with the value turned into text or truncated.
+  A timestamp without a timezone is read as UTC. A `config` section that is a single value instead
+  of a table no longer crashes `config` or the logging setup.
 
 ## [2.7.15] - 2026-11-12
 

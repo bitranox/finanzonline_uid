@@ -124,6 +124,22 @@ class TestGetReturnCodeInfo:
         assert info.severity == Severity.CRITICAL
         assert info.retryable is True
 
+    @pytest.mark.parametrize("member", list(ReturnCode), ids=lambda member: member.name)
+    def test_every_return_code_has_its_own_entry(self, member: ReturnCode) -> None:
+        """Pins the table's key set to ReturnCode: a new member without a row would read as unknown.
+
+        The table is keyed by ReturnCode, so it cannot hold a key outside the enum; this
+        covers the other direction, through the public lookup rather than the private table.
+        """
+        unknown_prefix = get_return_code_info(999_999).meaning.removesuffix(": 999999")
+
+        info = get_return_code_info(member.value)
+
+        assert not info.meaning.startswith(unknown_prefix)
+        assert type(info.code) is int
+        assert info.code == member.value
+        assert get_return_code_info(member) == info
+
     def test_unknown_code(self) -> None:
         """Should return generic error for unknown codes."""
         info = get_return_code_info(9999)

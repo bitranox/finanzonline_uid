@@ -31,8 +31,11 @@ Contents
 
 from __future__ import annotations
 
+import io
 import sys
-from typing import IO, Any, Final, TextIO
+from collections.abc import Iterable, Iterator
+from types import TracebackType
+from typing import IO, Any, BinaryIO, Final, TextIO
 
 import rich_click as click
 
@@ -144,8 +147,8 @@ def echo(message: object = "", *, file: IO[Any] | None = None, err: bool = False
     click.echo(encode_safe(text, _stream_encoding(file, err=err)), file=file, err=err, nl=nl)
 
 
-class _SafeWriter:
-    """A text stream that degrades what the wrapped stream cannot encode.
+class _SafeWriter(TextIO):
+    """A write-only text stream that degrades what the wrapped stream cannot encode.
 
     Why
         Rich renders through a writer this module does not control, and it
@@ -159,6 +162,13 @@ class _SafeWriter:
         anything that later swaps ``sys.stdout`` - click's ``CliRunner``,
         ``contextlib.redirect_stdout``, pytest's capture - would be bypassed
         and its buffer would come back empty.
+
+        It is a full :class:`typing.TextIO` because rich's ``Console(file=...)``
+        is typed ``IO[str]``. Only writing is supported; reading, seeking and
+        ``fileno`` raise :class:`io.UnsupportedOperation` like any in-memory
+        stream. ``fileno`` in particular must not hand out the target's
+        descriptor: rich would then take its legacy Windows path for a standard
+        stream and write around :meth:`write`, skipping the fallback.
     """
 
     def __init__(self, stream: TextIO | None) -> None:
@@ -167,11 +177,16 @@ class _SafeWriter:
     def _target(self) -> TextIO:
         return self._stream if self._stream is not None else sys.stdout
 
-    def write(self, text: str) -> int:
-        """Write `text`, degrading anything the current target cannot encode."""
+    def write(self, s: str, /) -> int:
+        """Write `s`, degrading anything the current target cannot encode."""
         target = self._target()
         encoding = getattr(target, "encoding", None)
-        return target.write(encode_safe(text, encoding if isinstance(encoding, str) else None))
+        return target.write(encode_safe(s, encoding if isinstance(encoding, str) else None))
+
+    def writelines(self, lines: Iterable[str], /) -> None:
+        """Write each line through :meth:`write`."""
+        for line in lines:
+            self.write(line)
 
     def flush(self) -> None:
         """Flush the current target."""
@@ -182,13 +197,110 @@ class _SafeWriter:
         return self._target().isatty()
 
     @property
-    def encoding(self) -> str | None:
-        """Expose the target's encoding; rich inspects it."""
+    def encoding(self) -> str:
+        """Expose the target's encoding; rich inspects it.
+
+        An unknown encoding reads as ``utf-8``, the value rich itself assumes
+        for a writer without one.
+        """
         encoding = getattr(self._target(), "encoding", None)
-        return encoding if isinstance(encoding, str) else None
+        return encoding if isinstance(encoding, str) else "utf-8"
+
+    @property
+    def errors(self) -> str | None:
+        """No error handler of its own: unencodable text is degraded in :meth:`write`."""
+        return None
+
+    @property
+    def line_buffering(self) -> bool:
+        """Buffering belongs to the target."""
+        return False
+
+    @property
+    def newlines(self) -> None:
+        """Nothing is read, so no newline style was seen."""
+        return None
+
+    @property
+    def buffer(self) -> BinaryIO:
+        """There is no byte buffer: bytes would bypass the fallback."""
+        raise io.UnsupportedOperation("buffer")
+
+    @property
+    def mode(self) -> str:
+        """Write-only text mode."""
+        return "w"
+
+    @property
+    def name(self) -> str:
+        """A descriptive name; the writer is not a file."""
+        return "<safe_console>"
+
+    @property
+    def closed(self) -> bool:
+        """The writer never closes: the target belongs to someone else."""
+        return False
+
+    def close(self) -> None:
+        """Do nothing; closing the writer must not close a stream it does not own."""
+
+    def fileno(self) -> int:
+        """Refuse, so rich treats the writer as a non-standard stream (see the class docstring)."""
+        raise io.UnsupportedOperation("fileno")
+
+    def readable(self) -> bool:
+        """Write-only."""
+        return False
+
+    def writable(self) -> bool:
+        """Write-only."""
+        return True
+
+    def seekable(self) -> bool:
+        """Not seekable."""
+        return False
+
+    def read(self, n: int = -1, /) -> str:
+        """Refuse: write-only."""
+        raise io.UnsupportedOperation("read")
+
+    def readline(self, limit: int = -1, /) -> str:
+        """Refuse: write-only."""
+        raise io.UnsupportedOperation("readline")
+
+    def readlines(self, hint: int = -1, /) -> list[str]:
+        """Refuse: write-only."""
+        raise io.UnsupportedOperation("readlines")
+
+    def seek(self, offset: int, whence: int = 0, /) -> int:
+        """Refuse: not seekable."""
+        raise io.UnsupportedOperation("seek")
+
+    def tell(self) -> int:
+        """Refuse: not seekable."""
+        raise io.UnsupportedOperation("tell")
+
+    def truncate(self, size: int | None = None, /) -> int:
+        """Refuse: not seekable."""
+        raise io.UnsupportedOperation("truncate")
+
+    def __iter__(self) -> Iterator[str]:
+        """Refuse: write-only."""
+        raise io.UnsupportedOperation("iteration")
+
+    def __next__(self) -> str:
+        """Refuse: write-only."""
+        raise io.UnsupportedOperation("iteration")
+
+    def __enter__(self) -> TextIO:
+        """Return the writer itself."""
+        return self
+
+    def __exit__(self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None, /) -> None:
+        """Do nothing; see :meth:`close`."""
 
 
-def safe_stream(stream: TextIO | None = None) -> Any:  # rich accepts any writer with this shape
+def safe_stream(stream: TextIO | None = None) -> TextIO:
     """Wrap a stream so unencodable text degrades instead of raising.
 
     Use for a writer handed to a third-party renderer. For this project's own
@@ -203,8 +315,8 @@ def safe_stream(stream: TextIO | None = None) -> Any:  # rich accepts any writer
 
     Returns
     -------
-    Any
-        A writer with ``write``/``flush``/``isatty``/``encoding``.
+    TextIO
+        A write-only text stream; see :class:`_SafeWriter` for what it refuses.
     """
     return _SafeWriter(stream)
 

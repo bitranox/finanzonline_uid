@@ -5,8 +5,8 @@ eliminating duplication between module entry (__main__.py) and console script
 (cli.py) while ensuring initialization happens exactly once.
 
 Contents:
-    * :func:`init_logging` – idempotent logging initialization with layered config.
-    * :func:`_build_runtime_config` – constructs RuntimeConfig from layered sources.
+    * :func:`init_logging` - idempotent logging initialization with layered config.
+    * :func:`build_runtime_config` - constructs RuntimeConfig from layered sources.
 
 System Role:
     Lives in the adapters/platform layer. All entry points (module execution,
@@ -31,15 +31,48 @@ Configuration:
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Mapping
+from enum import Enum
 
 import lib_log_rich.runtime
 from lib_layered_config import Config
 
 from . import __init__conf__
+from .config import read_config_section, text_setting
+from .enums import ConfigSection
 
 
-def _build_runtime_config(config: Config) -> lib_log_rich.runtime.RuntimeConfig:
+class _RuntimeName(str, Enum):
+    """The two required RuntimeConfig names this module supplies a default for."""
+
+    SERVICE = "service"
+    ENVIRONMENT = "environment"
+
+    @property
+    def default(self) -> str:
+        """The name used when the section does not set it."""
+        return __init__conf__.name if self == _RuntimeName.SERVICE else "prod"
+
+
+def _name_setting(section: Mapping[str, object], name: _RuntimeName) -> str | None:
+    """Return a logging name setting as text, or None when its value is not text.
+
+    lib_layered_config reads an unquoted all-digit value as an int, and RuntimeConfig accepts
+    text only; the conversion is lossless, so the digits restore what the operator wrote.
+    An absent setting gives the default.
+
+    Examples:
+        >>> _name_setting({"service": 4711}, _RuntimeName.SERVICE), _name_setting({}, _RuntimeName.ENVIRONMENT)
+        ('4711', 'prod')
+        >>> _name_setting({"service": True}, _RuntimeName.SERVICE) is None
+        True
+    """
+    if name.value not in section:
+        return name.default
+    return text_setting(section[name.value])
+
+
+def build_runtime_config(config: Config) -> lib_log_rich.runtime.RuntimeConfig:
     """Build RuntimeConfig from a Config object.
 
     Centralizes the mapping from lib_layered_config to lib_log_rich
@@ -58,23 +91,17 @@ def _build_runtime_config(config: Config) -> lib_log_rich.runtime.RuntimeConfig:
         use lib_log_rich's built-in defaults. The service and environment
         parameters default to package metadata when not configured.
     """
-    log_config_raw: Any = config.get("lib_log_rich", default={})
-    log_config: dict[str, Any] = dict(log_config_raw) if log_config_raw else {}
-
-    # lib_layered_config reads an unquoted all-digit value as an int, and RuntimeConfig accepts text
-    # only; the conversion is lossless, so str() restores what the operator wrote.
-    for key in ("service", "environment"):
-        value = log_config.get(key)
-        if isinstance(value, int) and not isinstance(value, bool):
-            log_config[key] = str(value)
-
-    # Apply defaults for required fields
-    if "service" not in log_config:
-        log_config["service"] = __init__conf__.name
-    if "environment" not in log_config:
-        log_config["environment"] = "prod"
-
-    return lib_log_rich.runtime.RuntimeConfig(**log_config)
+    section = read_config_section(config, ConfigSection.LIB_LOG_RICH)
+    # The section is passed through key by key: RuntimeConfig is itself a Pydantic model and is
+    # the boundary that validates every lib_log_rich setting, so this module only supplies the
+    # two required names it has defaults for. A name that is not text keeps its raw value, so
+    # RuntimeConfig refuses it with the operator's own value in the message.
+    settings: dict[str, object] = dict(section)
+    for name in _RuntimeName:
+        text = _name_setting(section, name)
+        if text is not None:
+            settings[name.value] = text
+    return lib_log_rich.runtime.RuntimeConfig.model_validate(settings)
 
 
 def init_logging(config: Config) -> None:
@@ -103,11 +130,12 @@ def init_logging(config: Config) -> None:
         - env var: FINANZONLINE_UID___LIB_LOG_RICH__CONSOLE_LEVEL=DEBUG
     """
     if not lib_log_rich.runtime.is_initialised():
-        runtime_config = _build_runtime_config(config)
+        runtime_config = build_runtime_config(config)
         lib_log_rich.runtime.init(runtime_config)
         lib_log_rich.runtime.attach_std_logging()
 
 
 __all__ = [
+    "build_runtime_config",
     "init_logging",
 ]

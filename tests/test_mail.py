@@ -13,14 +13,21 @@ from typing import Any
 from unittest.mock import patch
 
 import pytest
+from pydantic import SecretStr
 
-from conftest import RecordingTransport
+from conftest import MockConfig, RecordingTransport
 from finanzonline_uid.mail import (
     EmailConfig,
-    load_email_config_from_dict,
+    load_email_config,
     send_email,
     send_notification,
 )
+
+
+def _load(data: dict[str, Any]) -> EmailConfig:
+    """Load the email settings from a configuration holding `data`."""
+    return load_email_config(MockConfig(data))
+
 
 # ============================================================================
 # EmailConfig: Default Values
@@ -83,9 +90,14 @@ class TestEmailConfigCustomValues:
 
     def test_custom_credentials_are_stored(self) -> None:
         """Custom username and password are preserved."""
-        config = EmailConfig(smtp_username="user", smtp_password="pass")
+        config = EmailConfig(smtp_username="user", smtp_password=SecretStr("pass"))
         assert config.smtp_username == "user"
-        assert config.smtp_password == "pass"
+        assert config.smtp_password is not None and config.smtp_password.get_secret_value() == "pass"
+
+    def test_password_never_renders_in_repr(self) -> None:
+        """The password is a SecretStr, so a logged or printed config hides it."""
+        config = EmailConfig(smtp_username="user", smtp_password=SecretStr("hunter22"))
+        assert "hunter22" not in repr(config)
 
     def test_starttls_can_be_disabled(self) -> None:
         """STARTTLS can be turned off when needed."""
@@ -177,7 +189,7 @@ def test_to_conf_mail_creates_btx_compatible_config() -> None:
     config = EmailConfig(
         smtp_hosts=["smtp.example.com:587"],
         smtp_username="user",
-        smtp_password="pass",
+        smtp_password=SecretStr("pass"),
         timeout=45.0,
     )
 
@@ -191,23 +203,23 @@ def test_to_conf_mail_creates_btx_compatible_config() -> None:
 
 
 # ============================================================================
-# load_email_config_from_dict: Basic Loading
+# load_email_config: Basic Loading
 # ============================================================================
 
 
 @pytest.mark.os_agnostic
-class TestLoadEmailConfigFromDict:
-    """Configuration loading from dictionary handles various scenarios."""
+class TestLoadEmailConfig:
+    """Configuration loading from the layered configuration handles various scenarios."""
 
     def test_missing_email_section_uses_defaults(self) -> None:
         """Missing email section falls back to defaults."""
-        config = load_email_config_from_dict({})
+        config = _load({})
         assert config.smtp_hosts == []
         assert config.from_address == "noreply@localhost"
 
     def test_extracts_values_from_email_section(self) -> None:
         """Email section values are correctly extracted."""
-        config_dict = {
+        config_dict: dict[str, Any] = {
             "email": {
                 "smtp_hosts": ["smtp.test.com:587"],
                 "from_address": "alerts@test.com",
@@ -218,25 +230,25 @@ class TestLoadEmailConfigFromDict:
             }
         }
 
-        config = load_email_config_from_dict(config_dict)
+        config = _load(config_dict)
 
         assert config.smtp_hosts == ["smtp.test.com:587"]
         assert config.from_address == "alerts@test.com"
         assert config.smtp_username == "testuser"
-        assert config.smtp_password == "testpass"
+        assert config.smtp_password is not None and config.smtp_password.get_secret_value() == "testpass"
         assert config.use_starttls is False
         assert config.timeout == 120.0
 
     def test_partial_config_inherits_defaults(self) -> None:
         """Partial config merges with defaults for missing values."""
-        config_dict = {
+        config_dict: dict[str, Any] = {
             "email": {
                 "smtp_hosts": ["smtp.partial.com"],
                 "from_address": "partial@test.com",
             }
         }
 
-        config = load_email_config_from_dict(config_dict)
+        config = _load(config_dict)
 
         assert config.smtp_hosts == ["smtp.partial.com"]
         assert config.from_address == "partial@test.com"
@@ -245,7 +257,7 @@ class TestLoadEmailConfigFromDict:
 
 
 # ============================================================================
-# load_email_config_from_dict: Type Coercion
+# load_email_config: Type Coercion
 # ============================================================================
 
 
@@ -255,33 +267,33 @@ class TestLoadEmailConfigTypeCoercion:
 
     def test_non_dict_email_section_uses_defaults(self) -> None:
         """Non-dict email section falls back to defaults."""
-        config = load_email_config_from_dict({"email": "invalid"})
+        config = _load({"email": "invalid"})
         assert config.smtp_hosts == []
         assert config.from_address == "noreply@localhost"
 
     def test_invalid_timeout_uses_default(self) -> None:
         """String timeout falls back to default."""
-        config = load_email_config_from_dict({"email": {"timeout": "not_a_number"}})
+        config = _load({"email": {"timeout": "not_a_number"}})
         assert config.timeout == 30.0
 
     def test_non_list_smtp_hosts_uses_empty_list(self) -> None:
         """String smtp_hosts falls back to empty list."""
-        config = load_email_config_from_dict({"email": {"smtp_hosts": "should_be_list"}})
+        config = _load({"email": {"smtp_hosts": "should_be_list"}})
         assert config.smtp_hosts == []
 
     def test_string_boolean_uses_default(self) -> None:
         """String boolean value falls back to default."""
-        config = load_email_config_from_dict({"email": {"use_starttls": "yes"}})
+        config = _load({"email": {"use_starttls": "yes"}})
         assert config.use_starttls is True
 
     def test_empty_string_username_is_preserved(self) -> None:
         """Empty string username is preserved (current behavior)."""
-        config = load_email_config_from_dict({"email": {"smtp_username": ""}})
+        config = _load({"email": {"smtp_username": ""}})
         assert config.smtp_username == ""
 
     def test_mixed_valid_invalid_values(self) -> None:
         """Valid values are used; invalid ones fall back to defaults."""
-        config_dict = {
+        config_dict: dict[str, Any] = {
             "email": {
                 "smtp_hosts": ["smtp.test.com:587"],
                 "from_address": "test@example.com",
@@ -290,7 +302,7 @@ class TestLoadEmailConfigTypeCoercion:
             }
         }
 
-        config = load_email_config_from_dict(config_dict)
+        config = _load(config_dict)
 
         assert config.smtp_hosts == ["smtp.test.com:587"]
         assert config.from_address == "test@example.com"
@@ -413,7 +425,7 @@ class TestSendEmailSuccess:
             smtp_hosts=["smtp.test.com:587"],
             from_address="sender@test.com",
             smtp_username="testuser",
-            smtp_password="testpass",
+            smtp_password=SecretStr("testpass"),
         )
 
         result = send_email(
@@ -500,7 +512,7 @@ class TestSendEmailErrors:
             smtp_hosts=["smtp.test.com:587"],
             from_address="sender@test.com",
             smtp_username="user@test.com",
-            smtp_password="wrong_password",
+            smtp_password=SecretStr("wrong_password"),
         )
         transport = RecordingTransport(fail_with=SMTPAuthenticationError(535, b"Authentication failed"))
 
@@ -609,3 +621,46 @@ class TestRealSmtpIntegration:
             message="This is a test notification.\n\nAll tests passing!",
         )
         assert result is True
+
+
+# ============================================================================
+# load_email_config: Refusals of configured values
+# ============================================================================
+
+
+@pytest.mark.os_agnostic
+class TestLoadEmailConfigRefusals:
+    """An invalid configured value is refused with the same ValueError as a hand-built config."""
+
+    def test_negative_timeout_is_refused(self) -> None:
+        with pytest.raises(ValueError, match=r"^timeout must be positive, got -5\.0$"):
+            _load({"email": {"timeout": -5}})
+
+    def test_sender_without_at_is_refused(self) -> None:
+        with pytest.raises(ValueError, match=r"^from_address must contain @, got 'not-an-email'$"):
+            _load({"email": {"from_address": "not-an-email"}})
+
+    def test_out_of_range_port_is_refused(self) -> None:
+        with pytest.raises(ValueError, match=r"^Port must be 1-65535 in 'smtp\.test\.com:70000'$"):
+            _load({"email": {"smtp_hosts": ["smtp.test.com:70000"]}})
+
+    def test_non_string_sender_uses_default(self) -> None:
+        assert _load({"email": {"from_address": 42}}).from_address == "noreply@localhost"
+
+    def test_json_text_host_list_from_dotenv_is_parsed(self) -> None:
+        assert _load({"email": {"smtp_hosts": '["a.test:25", "b.test"]'}}).smtp_hosts == ["a.test:25", "b.test"]
+
+    def test_string_flags_fall_back_per_flag(self) -> None:
+        config = _load({"email": {"raise_on_missing_attachments": "no", "raise_on_invalid_recipient": False}})
+        assert (config.raise_on_missing_attachments, config.raise_on_invalid_recipient) == (True, False)
+
+    def test_configured_password_is_wrapped(self) -> None:
+        config = _load({"email": {"smtp_username": "u", "smtp_password": "s3cret"}})
+        assert isinstance(config.smtp_password, SecretStr)
+        assert "s3cret" not in repr(config)
+
+    def test_empty_password_sends_no_credentials(self, recording_transport: RecordingTransport) -> None:
+        """An empty password means "no authentication", as it did when it was plain text."""
+        config = _load({"email": {"smtp_hosts": ["smtp.test.com"], "from_address": "s@test.com", "smtp_username": "u", "smtp_password": ""}})
+        send_email(config=config, recipients="r@test.com", subject="S", body="B", transport=recording_transport)
+        assert recording_transport.deliveries[0]["credentials"] is None

@@ -24,17 +24,20 @@ from .html_templates import (
     HTML_DOCTYPE,
     HTML_TABLE_STYLE,
     HTML_TD_STYLE,
+    RESULT_STATUS_COLORS,
+    classify_result,
     format_address_row_html,
     get_html_footer,
-    get_result_status,
     get_severity_color,
-    get_status_color,
     html_row,
+    result_status_label,
 )
 
 if TYPE_CHECKING:
     from finanzonline_uid.domain.models import UidCheckResult
     from finanzonline_uid.domain.return_codes import ReturnCodeInfo
+
+__all__ = ["format_result_html"]
 
 
 def _format_company_section_html(result: UidCheckResult) -> str:
@@ -68,13 +71,14 @@ def _format_cache_notice_html(result: UidCheckResult) -> str:
 
 def _build_result_table_rows(result: UidCheckResult, info: ReturnCodeInfo) -> str:
     """Build HTML table rows for result display."""
-    status = get_result_status(result.return_code)
-    status_color = get_status_color(result.return_code)
+    result_status = classify_result(result.return_code)
+    status = result_status_label(result_status)
+    status_color = RESULT_STATUS_COLORS[result_status]
     severity_color = get_severity_color(info.severity)
     status_span = (
         f'<span style="background-color: {status_color}; color: white; padding: 4px 12px; border-radius: 4px; font-weight: bold;">{html.escape(status)}</span>'
     )
-    severity_span = f'<span style="color: {severity_color}; font-weight: bold;">{html.escape(info.severity.upper())}</span>'
+    severity_span = f'<span style="color: {severity_color}; font-weight: bold;">{html.escape(info.severity.value.upper())}</span>'
     rows = [
         html_row(_("UID:"), result.uid, " font-family: monospace; font-size: 1.1em;"),
         html_row(_("Query Level:"), _("Stufe 2 (with name/address verification)")),

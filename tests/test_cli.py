@@ -10,9 +10,11 @@ from typing import Any
 import lib_cli_exit_tools
 import pytest
 from click.testing import CliRunner, Result
+from lib_layered_config import Config
 
 from finanzonline_uid import __init__conf__
 from finanzonline_uid import cli as cli_mod
+from finanzonline_uid.enums import FileFormat
 
 
 @dataclass(slots=True)
@@ -747,7 +749,7 @@ def mock_fo_config(monkeypatch: pytest.MonkeyPatch) -> Any:
     mock_config.ratelimit_hours = 24.0
     mock_config.ratelimit_file = None
     mock_config.output_dir = None  # Disable file output in tests
-    mock_config.output_format = "html"  # Default file format
+    mock_config.output_format = FileFormat.HTML  # Default file format
     return mock_config
 
 
@@ -793,8 +795,7 @@ def test_when_check_succeeds_with_valid_uid_it_exits_zero(
     """Verify check command exits 0 for valid UID."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -827,8 +828,7 @@ def test_when_check_succeeds_with_invalid_uid_it_exits_one(
     """Verify check command exits 1 for invalid UID."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -861,8 +861,7 @@ def test_when_check_uses_json_format_it_outputs_json(
     import json
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -894,12 +893,11 @@ def test_when_check_has_config_error_it_exits_two(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify check command exits 2 for ConfigurationError."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 
     from finanzonline_uid.domain.errors import ConfigurationError
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -927,8 +925,7 @@ def test_when_check_has_auth_error_it_exits_three(
 
     from finanzonline_uid.domain.errors import AuthenticationError
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -962,8 +959,7 @@ def test_when_check_has_session_error_it_exits_four(
 
     from finanzonline_uid.domain.errors import SessionError
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -996,8 +992,7 @@ def test_when_check_has_query_error_it_exits_four(
 
     from finanzonline_uid.domain.errors import QueryError
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -1030,13 +1025,15 @@ def test_when_check_sends_email_on_success(
     """Verify check command sends email notification on success."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {
-        "email": {
-            "smtp_hosts": ["smtp.test.com:587"],
-            "from_address": "test@example.com",
-        }
-    }
+    mock_config_obj = Config(
+        {
+            "email": {
+                "smtp_hosts": ["smtp.test.com:587"],
+                "from_address": "test@example.com",
+            }
+        },
+        {},
+    )
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -1075,13 +1072,15 @@ def test_when_check_sends_error_email_on_failure(
 
     from finanzonline_uid.domain.errors import SessionError
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {
-        "email": {
-            "smtp_hosts": ["smtp.test.com:587"],
-            "from_address": "test@example.com",
-        }
-    }
+    mock_config_obj = Config(
+        {
+            "email": {
+                "smtp_hosts": ["smtp.test.com:587"],
+                "from_address": "test@example.com",
+            }
+        },
+        {},
+    )
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -1118,8 +1117,7 @@ def test_when_check_has_value_error_it_exits_two(
     """Verify check command exits 2 for ValueError."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -1151,13 +1149,15 @@ def test_when_check_specifies_recipients_it_uses_them(
     """Verify check command uses specified recipients."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {
-        "email": {
-            "smtp_hosts": ["smtp.test.com:587"],
-            "from_address": "test@example.com",
-        }
-    }
+    mock_config_obj = Config(
+        {
+            "email": {
+                "smtp_hosts": ["smtp.test.com:587"],
+                "from_address": "test@example.com",
+            }
+        },
+        {},
+    )
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -1213,8 +1213,7 @@ def test_when_check_with_interactive_prompts_for_uid(
     """Verify check command with --interactive prompts for UID."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -1248,8 +1247,7 @@ def test_when_check_with_interactive_short_flag_prompts_for_uid(
     """Verify check command with -i prompts for UID."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -1299,8 +1297,7 @@ def test_when_retryminutes_with_interactive_is_accepted(
     """Verify --retryminutes with --interactive succeeds on first attempt."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
         mock_get_config.return_value = mock_config_obj
@@ -1336,8 +1333,7 @@ def test_when_uid_has_spaces_it_is_sanitized(
     """Verify UID with spaces is sanitized before check."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
     captured_uid: list[str] = []
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
@@ -1375,8 +1371,7 @@ def test_when_uid_is_lowercase_it_is_uppercased(
     """Verify lowercase UID is uppercased before check."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
     captured_uid: list[str] = []
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
@@ -1414,8 +1409,7 @@ def test_when_interactive_uid_has_artifacts_it_is_sanitized(
     """Verify interactive UID input with copy-paste artifacts is sanitized."""
     from unittest.mock import MagicMock, patch
 
-    mock_config_obj = MagicMock()
-    mock_config_obj.as_dict.return_value = {}
+    mock_config_obj = Config({}, {})
     captured_uid: list[str] = []
 
     with patch("finanzonline_uid.cli.get_config") as mock_get_config:
@@ -1455,7 +1449,7 @@ def test_save_result_to_file_creates_txt_file(
 ) -> None:
     """Verify _save_result_to_file creates a txt file with the result."""
     output_dir = tmp_path / "output"
-    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "txt")  # pyright: ignore[reportPrivateUsage]
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.TXT)  # pyright: ignore[reportPrivateUsage]
 
     # Check file was created with correct extension
     expected_date = mock_uid_result_valid.timestamp.strftime("%Y-%m-%d")
@@ -1476,7 +1470,7 @@ def test_save_result_to_file_creates_json_file(
     import json
 
     output_dir = tmp_path / "output"
-    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "json")  # pyright: ignore[reportPrivateUsage]
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.JSON)  # pyright: ignore[reportPrivateUsage]
 
     # Check file was created with correct extension
     expected_date = mock_uid_result_valid.timestamp.strftime("%Y-%m-%d")
@@ -1496,7 +1490,7 @@ def test_save_result_to_file_creates_html_file(
 ) -> None:
     """Verify _save_result_to_file creates an html file with the result."""
     output_dir = tmp_path / "output"
-    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "html")  # pyright: ignore[reportPrivateUsage]
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML)  # pyright: ignore[reportPrivateUsage]
 
     # Check file was created with correct extension
     expected_date = mock_uid_result_valid.timestamp.strftime("%Y-%m-%d")
@@ -1518,7 +1512,7 @@ def test_save_result_to_file_creates_directory(
     output_dir = tmp_path / "nested" / "output" / "dir"
     assert not output_dir.exists()
 
-    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "html")  # pyright: ignore[reportPrivateUsage]
+    cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML)  # pyright: ignore[reportPrivateUsage]
 
     assert output_dir.exists()
 
@@ -1538,7 +1532,7 @@ def test_save_result_to_file_handles_permission_error(
     # Simulate permission error on mkdir
     with patch.object(Path, "mkdir", side_effect=PermissionError("Permission denied")):
         # Should not raise - just print warning
-        cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "html")  # pyright: ignore[reportPrivateUsage]
+        cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML)  # pyright: ignore[reportPrivateUsage]
 
     captured = capsys.readouterr()
     assert "Warning" in captured.err or "Could not save" in captured.err
@@ -1560,7 +1554,7 @@ def test_save_result_to_file_handles_write_error(
     # Simulate write error
     with patch.object(Path, "write_text", side_effect=OSError("Disk full")):
         # Should not raise - just print warning
-        cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, "html")  # pyright: ignore[reportPrivateUsage]
+        cli_mod._save_result_to_file(mock_uid_result_valid, output_dir, FileFormat.HTML)  # pyright: ignore[reportPrivateUsage]
 
     captured = capsys.readouterr()
     assert "Warning" in captured.err or "Could not save" in captured.err
@@ -1591,3 +1585,270 @@ def test_when_logging_shutdown_fails_main_still_returns_the_command_exit_code(mo
     err = capsys.readouterr().err
     assert "Queue worker failed to stop within the allotted timeout" in err
     assert "Traceback" not in err
+
+
+# ======================== Typed check outcome and error categories ========================
+
+
+def _run_check(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    fo_config: Any,
+    outcomes: list[object],
+    args: list[str],
+    *,
+    stdin: str | None = None,
+    config: Config | None = None,
+) -> Result:
+    """Run ``check`` with each FinanzOnline call returning (or raising) the next of ``outcomes``."""
+    from unittest.mock import MagicMock
+
+    loaded = config if config is not None else Config({}, {})
+
+    def fake_get_config(**_kwargs: object) -> Config:
+        return loaded
+
+    def fake_load_finanzonline_config(_config: Config) -> Any:
+        return fo_config
+
+    use_case = MagicMock()
+    use_case.execute.side_effect = outcomes
+    monkeypatch.setattr(cli_mod, "get_config", fake_get_config)
+    monkeypatch.setattr(cli_mod, "load_finanzonline_config", fake_load_finanzonline_config)
+    monkeypatch.setattr(cli_mod, "CheckUidUseCase", MagicMock(return_value=use_case))
+    return cli_runner.invoke(cli_mod.cli, ["check", *args], input=stdin)
+
+
+def _error_cases() -> list[tuple[Exception, str, int]]:
+    """Each exception the check can end with, its printed label and its exit code."""
+    from finanzonline_uid.domain.errors import (
+        AuthenticationError,
+        ConfigurationError,
+        QueryError,
+        ServiceMaintenanceError,
+        SessionError,
+        UidCheckError,
+    )
+
+    return [
+        (ConfigurationError("bad config"), "Configuration Error", 2),
+        (AuthenticationError("bad login", return_code=-4), "Authentication Error", 3),
+        (ServiceMaintenanceError("down for maintenance"), "Service Maintenance", 4),
+        (SessionError("session gone", return_code=-1), "Session Error", 4),
+        (QueryError("query failed", return_code=4), "Query Error", 4),
+        (UidCheckError("other check failure"), "UID Check Error", 4),
+        (ValueError("not a uid"), "Validation Error", 2),
+    ]
+
+
+@pytest.mark.os_agnostic
+@pytest.mark.parametrize(
+    ("error", "label", "exit_code"), _error_cases(), ids=lambda value: type(value).__name__ if isinstance(value, Exception) else str(value)
+)
+def test_check_error_prints_and_logs_the_category_label_not_the_enum_member(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+    caplog: pytest.LogCaptureFixture,
+    error: Exception,
+    label: str,
+    exit_code: int,
+) -> None:
+    """The error line and the error log record carry the label, never ``ErrorKind.X``."""
+    caplog.set_level("ERROR", logger="finanzonline_uid.cli")
+
+    result = _run_check(cli_runner, monkeypatch, mock_fo_config, [error], ["DE123456789", "--no-email"])
+
+    assert result.exit_code == exit_code
+    assert f"\n{label}: {error}" in result.stderr
+    assert "ErrorKind" not in result.output
+    assert label in [record.getMessage() for record in caplog.records]
+
+
+@pytest.mark.os_agnostic
+def test_check_error_line_shows_the_return_code_and_retry_hint(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+) -> None:
+    """A retryable error with a return code reports both, read straight off the exception."""
+    from finanzonline_uid.domain.errors import QueryError
+
+    error = QueryError("Rate limit exceeded", return_code=1513, retryable=True)
+
+    result = _run_check(cli_runner, monkeypatch, mock_fo_config, [error], ["DE123456789", "--no-email"])
+
+    assert result.exit_code == 4
+    assert "Return code: 1513" in result.stderr
+    assert "This error may be temporary. Try again later." in result.stderr
+
+
+@pytest.mark.os_agnostic
+def test_retry_mode_cancelled_before_any_attempt_finished_reports_cancelled(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+) -> None:
+    """Ctrl+C during the first attempt ends with the Cancelled error."""
+    result = _run_check(
+        cli_runner,
+        monkeypatch,
+        mock_fo_config,
+        [KeyboardInterrupt()],
+        ["--interactive", "--retryminutes", "0", "--no-email"],
+        stdin="DE123456789\n",
+    )
+
+    assert result.exit_code == 4
+    assert "\nCancelled: Check cancelled by user" in result.stderr
+
+
+@pytest.mark.os_agnostic
+def test_retry_mode_cancelled_after_a_retryable_error_reports_that_error(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+) -> None:
+    """Ctrl+C after a retryable error ends with that error, not with Cancelled."""
+    from finanzonline_uid.domain.errors import QueryError
+
+    retryable = QueryError("Rate limit exceeded", return_code=1513, retryable=True)
+    result = _run_check(
+        cli_runner,
+        monkeypatch,
+        mock_fo_config,
+        [retryable, KeyboardInterrupt()],
+        ["--interactive", "--retryminutes", "0", "--no-email"],
+        stdin="DE123456789\n",
+    )
+
+    assert result.exit_code == 4
+    assert "\nQuery Error: Rate limit exceeded" in result.stderr
+    assert "Cancelled:" not in result.stderr
+
+
+@pytest.mark.os_agnostic
+def test_retry_mode_cancelled_after_a_retryable_result_reports_that_result(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+) -> None:
+    """Ctrl+C after a result with a retryable return code ends with that result."""
+    from datetime import datetime, timezone
+
+    from finanzonline_uid.domain.models import UidCheckResult
+
+    retryable_result = UidCheckResult(
+        uid="DE123456789",
+        return_code=1513,
+        message="Rate limit",
+        timestamp=datetime(2025, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+    )
+    result = _run_check(
+        cli_runner,
+        monkeypatch,
+        mock_fo_config,
+        [retryable_result, KeyboardInterrupt()],
+        ["--interactive", "--retryminutes", "0", "--no-email"],
+        stdin="DE123456789\n",
+    )
+
+    assert result.exit_code == 1
+    assert "Cancelled:" not in result.stderr
+    assert "DE123456789" in result.stdout
+
+
+@pytest.mark.os_agnostic
+@pytest.mark.parametrize(("cli_value", "extension"), [("JSON", "json"), ("Txt", "txt"), ("html", "html"), (None, "html")])
+def test_outputformat_is_case_insensitive_and_names_the_file_by_its_value(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+    mock_uid_result_valid: Any,
+    tmp_path: Any,
+    cli_value: str | None,
+    extension: str,
+) -> None:
+    """Any case of --outputformat is accepted; without it the configured format applies."""
+    args = ["DE123456789", "--no-email", "--outputdir", str(tmp_path)]
+    if cli_value is not None:
+        args += ["--outputformat", cli_value]
+
+    result = _run_check(cli_runner, monkeypatch, mock_fo_config, [mock_uid_result_valid], args)
+
+    assert result.exit_code == 0
+    assert [path.name for path in tmp_path.iterdir()] == [f"DE123456789_2025-01-01.{extension}"]
+
+
+@pytest.mark.os_agnostic
+def test_format_option_is_case_insensitive(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+    mock_uid_result_valid: Any,
+) -> None:
+    """``--format JSON`` selects JSON output as ``--format json`` does."""
+    result = _run_check(cli_runner, monkeypatch, mock_fo_config, [mock_uid_result_valid], ["DE123456789", "--no-email", "--format", "JSON"])
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout)["uid"] == "DE123456789"
+
+
+@pytest.mark.os_agnostic
+@pytest.mark.parametrize(
+    ("outcome_is_error", "expected"),
+    [(False, "Email notification skipped: no SMTP hosts configured"), (True, "Error notification skipped: no SMTP hosts configured")],
+)
+def test_skipped_notification_is_logged_with_the_kind_label(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+    mock_uid_result_valid: Any,
+    caplog: pytest.LogCaptureFixture,
+    outcome_is_error: bool,
+    expected: str,
+) -> None:
+    """The notification kind reaches the log as its label, never ``NotificationKind.X``."""
+    from finanzonline_uid.domain.errors import SessionError
+
+    caplog.set_level("WARNING", logger="finanzonline_uid.cli")
+    outcome: object = SessionError("session gone") if outcome_is_error else mock_uid_result_valid
+
+    _run_check(cli_runner, monkeypatch, mock_fo_config, [outcome], ["DE123456789"])
+
+    assert expected in [record.getMessage() for record in caplog.records]
+
+
+@pytest.mark.os_agnostic
+def test_error_email_receives_the_check_error_info(
+    cli_runner: CliRunner,
+    monkeypatch: pytest.MonkeyPatch,
+    mock_fo_config: Any,
+) -> None:
+    """The error email is sent with the typed error record and the resolved recipients."""
+    from unittest.mock import MagicMock
+
+    from finanzonline_uid.domain.errors import CheckErrorInfo, ErrorKind, SessionError
+
+    adapter = MagicMock()
+    adapter.send_error.return_value = True
+    monkeypatch.setattr(cli_mod, "EmailNotificationAdapter", MagicMock(return_value=adapter))
+    config = Config({"email": {"smtp_hosts": ["smtp.test.com:587"], "from_address": "test@example.com", "default_recipients": ["ops@example.com"]}}, {})
+
+    _run_check(cli_runner, monkeypatch, mock_fo_config, [SessionError("session gone", return_code=-1)], ["DE123456789"], config=config)
+
+    info, uid, recipients = adapter.send_error.call_args.args
+    assert isinstance(info, CheckErrorInfo)
+    assert (info.error_type, info.message, info.return_code) == (ErrorKind.SESSION, "session gone", -1)
+    assert (uid, recipients) == ("DE123456789", ["ops@example.com"])
+
+
+@pytest.mark.os_agnostic
+def test_traceback_state_round_trips_by_field() -> None:
+    """The snapshot names its fields, and restoring it reapplies both flags."""
+    previous = cli_mod.snapshot_traceback_state()
+    try:
+        cli_mod.restore_traceback_state(cli_mod.TracebackState(enabled=True, force_color=False))
+        assert cli_mod.snapshot_traceback_state() == cli_mod.TracebackState(enabled=True, force_color=False)
+    finally:
+        cli_mod.restore_traceback_state(previous)

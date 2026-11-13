@@ -8,6 +8,8 @@ beyond basic property accessors.
 
 Contents
 --------
+* :class:`SoapOperation` - SOAP operation a diagnostics record belongs to
+* :class:`DiagnosticField` / :class:`DiagnosticEntry` - one displayed diagnostic value
 * :class:`Diagnostics` - Debug/diagnostic information for errors
 * :class:`FinanzOnlineCredentials` - Authentication credentials
 * :class:`SessionInfo` - Session state after login
@@ -36,8 +38,11 @@ Examples
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
+from typing import NamedTuple
 
 # Well-known FinanzOnline return codes (avoids circular import with return_codes.py)
 _RC_UID_VALID = 0
@@ -117,12 +122,61 @@ def sanitize_uid(uid: str) -> str:
         >>> sanitize_uid("")
         ''
     """
-    import unicodedata
-
     # Single pass: remove whitespace, invisible chars, and control chars
     result = "".join(c for c in uid if c not in _CHARS_TO_STRIP and unicodedata.category(c) != "Cc")
 
     return result.upper()
+
+
+class SoapOperation(str, Enum):
+    """FinanzOnline SOAP operation a :class:`Diagnostics` record was captured for.
+
+    The values are the operation names the service uses, so they read the same in
+    logs, JSON output and error emails.
+
+    Examples:
+        >>> SoapOperation.UID_QUERY.value
+        'uidAbfrage'
+    """
+
+    LOGIN = "login"
+    LOGOUT = "logout"
+    UID_QUERY = "uidAbfrage"
+
+
+class DiagnosticField(str, Enum):
+    """Name of one displayed :class:`Diagnostics` field.
+
+    The value is the key used in JSON output; :attr:`label` is the heading shown
+    in human-readable output and emails.
+
+    Examples:
+        >>> DiagnosticField.TARGET_UID.label
+        'Target Uid'
+    """
+
+    OPERATION = "operation"
+    TID = "tid"
+    BENID = "benid"
+    PIN = "pin"
+    UID_TN = "uid_tn"
+    TARGET_UID = "target_uid"
+    SESSION_ID = "session_id"
+    RETURN_CODE = "return_code"
+    RESPONSE_MESSAGE = "response_message"
+    ERROR_DETAIL = "error_detail"
+
+    @property
+    def label(self) -> str:
+        """Heading for human-readable output, derived from the JSON key."""
+        return self.value.replace("_", " ").title()
+
+
+class DiagnosticEntry(NamedTuple):
+    """One non-empty diagnostic value with the field it belongs to."""
+
+    field: DiagnosticField
+    value: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -133,25 +187,25 @@ class Diagnostics:
     All sensitive data (credentials) should be masked before storing.
 
     Attributes:
-        operation: The operation being performed (e.g., 'login', 'query').
+        operation: The SOAP operation being performed, if known.
         tid: Masked participant ID (if applicable).
         benid: Masked user ID (if applicable).
         pin: Masked PIN/password (if applicable).
         uid_tn: Own Austrian UID (if applicable).
         target_uid: Target UID being queried (if applicable).
         session_id: Session ID (if applicable).
-        return_code: Return code from response (if applicable).
+        return_code: Return code from response, as the text shown to the reader (if applicable).
         response_message: Response message from service (if applicable).
         error_detail: Additional error details (if applicable).
         raw_response: Raw XML response for failure investigation (if captured).
 
     Examples:
-        >>> diag = Diagnostics(operation="login", tid="123***789", benid="TEST***", pin="sec***pin")
-        >>> diag.as_dict()
-        {'operation': 'login', 'tid': '123***789', 'benid': 'TEST***', 'pin': 'sec***pin'}
+        >>> diag = Diagnostics(operation=SoapOperation.LOGIN, tid="123***789", pin="sec***pin")
+        >>> [(entry.field.value, entry.value) for entry in diag.entries()]
+        [('operation', 'login'), ('tid', '123***789'), ('pin', 'sec***pin')]
     """
 
-    operation: str = ""
+    operation: SoapOperation | None = None
     tid: str = ""
     benid: str = ""
     pin: str = ""
@@ -163,44 +217,33 @@ class Diagnostics:
     error_detail: str = ""
     raw_response: str = ""
 
-    def as_dict(self) -> dict[str, str]:
-        """Convert to dictionary, excluding empty values.
+    def entries(self) -> list[DiagnosticEntry]:
+        """List the non-empty displayed fields in display order.
+
+        ``raw_response`` is not a displayed field: callers that show it read it
+        directly, because it is multi-line XML.
 
         Returns:
-            Dictionary with only non-empty diagnostic values.
+            One :class:`DiagnosticEntry` per non-empty field.
         """
-        fields = [
-            ("operation", self.operation),
-            ("tid", self.tid),
-            ("benid", self.benid),
-            ("pin", self.pin),
-            ("uid_tn", self.uid_tn),
-            ("target_uid", self.target_uid),
-            ("session_id", self.session_id),
-            ("return_code", self.return_code),
-            ("response_message", self.response_message),
-            ("error_detail", self.error_detail),
-        ]
-        return {name: value for name, value in fields if value}
+        values = (
+            (DiagnosticField.OPERATION, self.operation.value if self.operation is not None else ""),
+            (DiagnosticField.TID, self.tid),
+            (DiagnosticField.BENID, self.benid),
+            (DiagnosticField.PIN, self.pin),
+            (DiagnosticField.UID_TN, self.uid_tn),
+            (DiagnosticField.TARGET_UID, self.target_uid),
+            (DiagnosticField.SESSION_ID, self.session_id),
+            (DiagnosticField.RETURN_CODE, self.return_code),
+            (DiagnosticField.RESPONSE_MESSAGE, self.response_message),
+            (DiagnosticField.ERROR_DETAIL, self.error_detail),
+        )
+        return [DiagnosticEntry(name, value) for name, value in values if value]
 
     @property
     def is_empty(self) -> bool:
         """Check if diagnostics contain no information."""
-        return not any(
-            [
-                self.operation,
-                self.tid,
-                self.benid,
-                self.pin,
-                self.uid_tn,
-                self.target_uid,
-                self.session_id,
-                self.return_code,
-                self.response_message,
-                self.error_detail,
-                self.raw_response,
-            ]
-        )
+        return not self.entries() and not self.raw_response
 
 
 @dataclass(frozen=True, slots=True)

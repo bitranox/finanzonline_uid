@@ -580,3 +580,190 @@ class TestPerUidRateLimiting:
         status = tracker.get_uid_status("DE111111111")
 
         assert status.is_uid_exceeded is False
+
+
+# ============================================================================
+# On-disk wire format (shared with already-installed versions)
+# ============================================================================
+
+# Bytes an installed version writes after two calls. Installed versions read
+# and rewrite this file too, so it must load unchanged and survive a rewrite
+# byte for byte.
+_INSTALLED_RATELIMIT_BYTES = (
+    b"{\n"
+    b'  "api_calls": [\n'
+    b"    {\n"
+    b'      "timestamp": "2025-01-15T10:30:00.123456Z",\n'
+    b'      "uid": "DE123456789"\n'
+    b"    },\n"
+    b"    {\n"
+    b'      "timestamp": "2025-01-16T08:00:00Z",\n'
+    b'      "uid": "ATU11111111"\n'
+    b"    }\n"
+    b"  ],\n"
+    b'  "metadata": {\n'
+    b'    "last_cleanup": "2025-01-16T08:00:00.000001Z"\n'
+    b"  }\n"
+    b"}"
+)
+
+_EXPECTED_AFTER_RECORD = (
+    b"{\n"
+    b'  "api_calls": [\n'
+    b"    {\n"
+    b'      "timestamp": "2025-01-15T10:30:00.123456Z",\n'
+    b'      "uid": "DE123456789"\n'
+    b"    },\n"
+    b"    {\n"
+    b'      "timestamp": "2025-01-16T08:00:00Z",\n'
+    b'      "uid": "ATU11111111"\n'
+    b"    },\n"
+    b"    {\n"
+    b'      "timestamp": "__NEW_TIMESTAMP__",\n'
+    b'      "uid": "ATU33333333"\n'
+    b"    }\n"
+    b"  ],\n"
+    b'  "metadata": {\n'
+    b'    "last_cleanup": "__LAST_CLEANUP__"\n'
+    b"  }\n"
+    b"}"
+)
+
+# Wide enough that the 2025 entries above stay inside the sliding window.
+_CENTURY_HOURS = 1_000_000.0
+
+
+def _century_tracker(ratelimit_file: Path) -> RateLimitTracker:
+    return RateLimitTracker(ratelimit_file=ratelimit_file, max_queries=50, window_hours=_CENTURY_HOURS)
+
+
+def _write_raw(ratelimit_file: Path, content: bytes) -> None:
+    ratelimit_file.parent.mkdir(parents=True, exist_ok=True)
+    ratelimit_file.write_bytes(content)
+
+
+def _stored_calls(ratelimit_file: Path) -> list[dict[str, str]]:
+    data: dict[str, Any] = orjson.loads(ratelimit_file.read_bytes())
+    calls: list[dict[str, str]] = data["api_calls"]
+    return calls
+
+
+class TestRateLimitWireFormat:
+    """The rate-limit file is a wire shared with installed versions."""
+
+    def test_installed_file_is_counted(self, ratelimit_file: Path) -> None:
+        """Both calls in an installed file are inside the window."""
+        _write_raw(ratelimit_file, _INSTALLED_RATELIMIT_BYTES)
+        tracker = _century_tracker(ratelimit_file)
+
+        assert tracker.get_status().current_count == 2
+        assert tracker.get_uid_status("de123456789").uid_count == 1
+
+    def test_record_call_rewrites_installed_file_byte_for_byte(self, ratelimit_file: Path) -> None:
+        """record_call keeps installed entries' bytes and appends in the same form."""
+        _write_raw(ratelimit_file, _INSTALLED_RATELIMIT_BYTES)
+        tracker = _century_tracker(ratelimit_file)
+
+        status = tracker.record_call("atu33333333")
+
+        data: dict[str, Any] = orjson.loads(ratelimit_file.read_bytes())
+        new_timestamp: str = data["api_calls"][2]["timestamp"]
+        last_cleanup: str = data["metadata"]["last_cleanup"]
+        assert new_timestamp.endswith("Z")
+        assert last_cleanup.endswith("Z")
+        expected = _EXPECTED_AFTER_RECORD.replace(b"__NEW_TIMESTAMP__", new_timestamp.encode()).replace(b"__LAST_CLEANUP__", last_cleanup.encode())
+        assert ratelimit_file.read_bytes() == expected
+        assert status.current_count == 3
+
+
+class TestRateLimitMalformedContent:
+    """Malformed files reset and malformed entries are skipped, as installed versions do."""
+
+    @pytest.mark.parametrize("content", [b"[1, 2]", b'"text"', b"42", b"null", b'{"metadata": {}}', b'{"api_calls": "x"}'])
+    def test_unusable_file_counts_zero_and_is_reset(self, ratelimit_file: Path, content: bytes) -> None:
+        """A file without a usable api_calls list counts nothing and is rewritten with the new call only."""
+        _write_raw(ratelimit_file, content)
+        tracker = _century_tracker(ratelimit_file)
+
+        assert tracker.get_status().current_count == 0
+        tracker.record_call("ATU33333333")
+
+        assert [c["uid"] for c in _stored_calls(ratelimit_file)] == ["ATU33333333"]
+
+    @pytest.mark.parametrize(
+        "bad_call",
+        [
+            {"uid": "NOTIME"},
+            {"timestamp": "not-a-date", "uid": "BADTIME"},
+            {"timestamp": "", "uid": "EMPTYTIME"},
+            {"timestamp": 1736985600, "uid": "NUMTIME"},
+        ],
+    )
+    def test_malformed_call_is_skipped(self, ratelimit_file: Path, bad_call: dict[str, object]) -> None:
+        """A call without a parsable timestamp is not counted and is dropped on write."""
+        good_call = {"timestamp": "2025-01-16T08:00:00Z", "uid": "GOOD"}
+        _write_raw(ratelimit_file, orjson.dumps({"api_calls": [bad_call, good_call], "metadata": {}}))
+        tracker = _century_tracker(ratelimit_file)
+
+        assert tracker.get_status().current_count == 1
+        tracker.record_call("ATU33333333")
+
+        assert [c["uid"] for c in _stored_calls(ratelimit_file)] == ["GOOD", "ATU33333333"]
+
+    def test_call_without_uid_is_counted_with_empty_uid(self, ratelimit_file: Path) -> None:
+        """uid is optional; a call without it still counts and is written back with an empty uid."""
+        _write_raw(ratelimit_file, orjson.dumps({"api_calls": [{"timestamp": "2025-01-16T08:00:00Z"}]}))
+        tracker = _century_tracker(ratelimit_file)
+
+        assert tracker.get_status().current_count == 1
+        tracker.record_call("ATU33333333")
+
+        calls = _stored_calls(ratelimit_file)
+        assert calls[0] == {"timestamp": "2025-01-16T08:00:00Z", "uid": ""}
+
+    def test_missing_metadata_is_written(self, ratelimit_file: Path) -> None:
+        """A file without metadata gains metadata.last_cleanup on write."""
+        _write_raw(ratelimit_file, b'{"api_calls": []}')
+
+        _century_tracker(ratelimit_file).record_call("ATU33333333")
+
+        data: dict[str, Any] = orjson.loads(ratelimit_file.read_bytes())
+        assert list(data) == ["api_calls", "metadata"]
+        assert list(data["metadata"]) == ["last_cleanup"]
+
+    @pytest.mark.parametrize("bad_call", ["garbage", 7, None, ["2025-01-16T08:00:00Z"]])
+    def test_non_object_call_is_skipped(self, ratelimit_file: Path, bad_call: object) -> None:
+        """A call that is not a JSON object is not counted and is dropped on write."""
+        good_call = {"timestamp": "2025-01-16T08:00:00Z", "uid": "GOOD"}
+        _write_raw(ratelimit_file, orjson.dumps({"api_calls": [bad_call, good_call]}))
+        tracker = _century_tracker(ratelimit_file)
+
+        assert tracker.get_status().current_count == 1
+        tracker.record_call("ATU33333333")
+
+        assert [c["uid"] for c in _stored_calls(ratelimit_file)] == ["GOOD", "ATU33333333"]
+
+    def test_unusable_metadata_is_replaced(self, ratelimit_file: Path) -> None:
+        """metadata that is not an object is replaced by a fresh one on write."""
+        _write_raw(ratelimit_file, b'{"api_calls": [], "metadata": [1]}')
+
+        _century_tracker(ratelimit_file).record_call("ATU33333333")
+
+        data: dict[str, Any] = orjson.loads(ratelimit_file.read_bytes())
+        assert list(data["metadata"]) == ["last_cleanup"]
+
+    def test_naive_timestamp_is_read_as_utc(self, ratelimit_file: Path) -> None:
+        """A timestamp without an offset is read as UTC, the convention format_iso_datetime writes."""
+        _write_raw(ratelimit_file, orjson.dumps({"api_calls": [{"timestamp": "2025-01-16T08:00:00", "uid": "NAIVE"}]}))
+        tracker = _century_tracker(ratelimit_file)
+
+        assert tracker.get_status().current_count == 1
+
+    def test_corrupt_json_on_record_raises(self, ratelimit_file: Path) -> None:
+        """An unparsable file is not silently overwritten by record_call."""
+        _write_raw(ratelimit_file, b"{ invalid json }")
+
+        with pytest.raises(orjson.JSONDecodeError):
+            _century_tracker(ratelimit_file).record_call("ATU33333333")
+
+        assert ratelimit_file.read_bytes() == b"{ invalid json }"

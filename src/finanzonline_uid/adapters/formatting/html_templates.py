@@ -3,7 +3,8 @@
 Purpose
 -------
 Provide shared HTML templates, styles, and colors used across
-formatters and email notifications.
+formatters and email notifications, plus the one classification of a
+return code into a :class:`ResultStatus` that every formatter uses.
 
 System Role
 -----------
@@ -13,14 +14,39 @@ Adapters layer - shared constants for HTML formatting.
 from __future__ import annotations
 
 import html
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from enum import Enum
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Final
 
-from finanzonline_uid.domain.return_codes import ReturnCode
+from finanzonline_uid.domain.return_codes import ReturnCode, Severity
 from finanzonline_uid.i18n import N_, _
 
 if TYPE_CHECKING:
     from finanzonline_uid.domain.models import Address
 
+__all__ = [
+    "COLOR_GRAY",
+    "COLOR_GREEN",
+    "COLOR_RED",
+    "COLOR_YELLOW",
+    "HTML_BODY_STYLE",
+    "HTML_DOCTYPE",
+    "HTML_TABLE_STYLE",
+    "HTML_TD_STYLE",
+    "RATE_LIMITED_CODES",
+    "RESULT_STATUS_COLORS",
+    "RESULT_STATUS_LABELS",
+    "SERVICE_UNAVAILABLE_CODES",
+    "SEVERITY_COLORS",
+    "ResultStatus",
+    "classify_result",
+    "format_address_row_html",
+    "get_html_footer",
+    "get_severity_color",
+    "html_row",
+    "result_status_label",
+]
 
 # HTML document template fragments
 HTML_DOCTYPE = '<!DOCTYPE html>\n<html>\n<head>\n    <meta charset="utf-8">\n    <title>{title}</title>\n</head>'
@@ -52,65 +78,110 @@ RATE_LIMITED_CODES: frozenset[int] = frozenset(
     }
 )
 
-# Status labels with translation markers
-_STATUS_VALID = N_("VALID")
-_STATUS_INVALID = N_("INVALID")
-_STATUS_UNAVAILABLE = N_("UNAVAILABLE")
-_STATUS_RATE_LIMITED = N_("RATE LIMITED")
-_STATUS_ERROR = N_("ERROR")
+
+class ResultStatus(str, Enum):
+    """Outcome category of a UID check, derived from its FinanzOnline return code.
+
+    The value is an identifier only; the text shown to a reader comes from
+    :data:`RESULT_STATUS_LABELS` (translated) or from a caller's own wording.
+
+    Examples:
+        >>> ResultStatus.RATE_LIMITED.value
+        'rate_limited'
+    """
+
+    VALID = "valid"
+    INVALID = "invalid"
+    UNAVAILABLE = "unavailable"
+    RATE_LIMITED = "rate_limited"
+    ERROR = "error"
 
 
-def get_result_status(return_code: int) -> str:
-    """Determine the appropriate status label based on return code.
+# N_ only marks the labels for extraction; result_status_label() translates them at
+# render time, because the active language is known only then.
+RESULT_STATUS_LABELS: Final[Mapping[ResultStatus, str]] = MappingProxyType(
+    {
+        ResultStatus.VALID: N_("VALID"),
+        ResultStatus.INVALID: N_("INVALID"),
+        ResultStatus.UNAVAILABLE: N_("UNAVAILABLE"),
+        ResultStatus.RATE_LIMITED: N_("RATE LIMITED"),
+        ResultStatus.ERROR: N_("ERROR"),
+    }
+)
+
+# Badge colour per status in HTML output
+RESULT_STATUS_COLORS: Final[Mapping[ResultStatus, str]] = MappingProxyType(
+    {
+        ResultStatus.VALID: COLOR_GREEN,
+        ResultStatus.INVALID: COLOR_RED,
+        ResultStatus.UNAVAILABLE: COLOR_GRAY,
+        ResultStatus.RATE_LIMITED: COLOR_YELLOW,
+        ResultStatus.ERROR: COLOR_RED,
+    }
+)
+
+# Text colour per severity in HTML output
+SEVERITY_COLORS: Final[Mapping[Severity, str]] = MappingProxyType(
+    {
+        Severity.SUCCESS: COLOR_GREEN,
+        Severity.WARNING: COLOR_YELLOW,
+        Severity.ERROR: COLOR_RED,
+        Severity.CRITICAL: COLOR_RED,
+    }
+)
+
+
+def classify_result(return_code: int) -> ResultStatus:
+    """Classify a FinanzOnline return code into a result status.
 
     Args:
         return_code: FinanzOnline return code.
 
     Returns:
-        Translated status label appropriate for the return code.
+        The status category. Every code that is not valid, invalid,
+        unavailable or rate limited is an error.
+
+    Examples:
+        >>> [classify_result(code).value for code in (0, 1, -2, 1514, -4)]
+        ['valid', 'invalid', 'unavailable', 'rate_limited', 'error']
     """
     if return_code == ReturnCode.UID_VALID:
-        return _(_STATUS_VALID)
+        return ResultStatus.VALID
     if return_code == ReturnCode.UID_INVALID:
-        return _(_STATUS_INVALID)
+        return ResultStatus.INVALID
     if return_code in SERVICE_UNAVAILABLE_CODES:
-        return _(_STATUS_UNAVAILABLE)
+        return ResultStatus.UNAVAILABLE
     if return_code in RATE_LIMITED_CODES:
-        return _(_STATUS_RATE_LIMITED)
-    return _(_STATUS_ERROR)
+        return ResultStatus.RATE_LIMITED
+    return ResultStatus.ERROR
 
 
-def get_status_color(return_code: int) -> str:
-    """Get the appropriate color for a status badge based on return code.
+def result_status_label(status: ResultStatus) -> str:
+    """Return the translated display label of a result status.
 
     Args:
-        return_code: FinanzOnline return code.
+        status: Result status to label.
 
     Returns:
-        Hex color code for the status badge.
+        Translated label, e.g. ``VALID`` in English.
     """
-    if return_code == ReturnCode.UID_VALID:
-        return COLOR_GREEN
-    if return_code == ReturnCode.UID_INVALID:
-        return COLOR_RED
-    if return_code in SERVICE_UNAVAILABLE_CODES:
-        return COLOR_GRAY
-    if return_code in RATE_LIMITED_CODES:
-        return COLOR_YELLOW
-    return COLOR_RED
+    return _(RESULT_STATUS_LABELS[status])
 
 
-def get_severity_color(severity_value: str) -> str:
+def get_severity_color(severity: Severity) -> str:
     """Get HTML color for severity level.
 
     Args:
-        severity_value: Severity string (success, warning, error, critical).
+        severity: Severity of the return code.
 
     Returns:
         Hex color code for the severity.
+
+    Examples:
+        >>> get_severity_color(Severity.WARNING)
+        '#ffc107'
     """
-    colors = {"success": COLOR_GREEN, "warning": COLOR_YELLOW, "error": COLOR_RED, "critical": COLOR_RED}
-    return colors.get(severity_value, COLOR_GRAY)
+    return SEVERITY_COLORS[severity]
 
 
 def get_html_footer() -> str:
@@ -144,10 +215,7 @@ def format_address_row_html(address: Address | None) -> str:
     Returns:
         HTML table row string with address, or empty string.
     """
-    # Import here to avoid circular imports with domain models
-    from finanzonline_uid.domain.models import Address as AddressType
-
-    if not isinstance(address, AddressType):
+    if address is None:
         return ""
     address_lines = address.as_lines()
     if not address_lines:

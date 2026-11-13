@@ -5,12 +5,18 @@ concurrent access on network drives. Uses sliding window algorithm.
 
 Contents:
     * :class:`RateLimitStatus` - Current rate limit status
+    * :class:`PerUidRateLimitStatus` - Per-UID rate limit status
     * :class:`RateLimitTracker` - Thread-safe rate limit tracker
+    * :class:`RateLimitEntry` / :class:`RateLimitMetadata` / :class:`RateLimitFile` -
+      the rate-limit file, validated on read and dumped on write
 
 System Role:
     Acts as a rate limiting adapter that tracks API calls to FinanzOnline,
     warning users when configured limits are exceeded while ensuring
     data integrity through file locking.
+
+    Installed versions of this tool read and rewrite the same file, so its
+    shape (keys, key order, timestamp form) is a fixed wire format.
 """
 
 from __future__ import annotations
@@ -19,16 +25,28 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import orjson
 from filelock import FileLock, Timeout
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
 
-from finanzonline_uid._datetime_utils import format_iso_datetime, parse_iso_datetime
+from finanzonline_uid._datetime_utils import WireDatetime
+
+__all__ = [
+    "PerUidRateLimitStatus",
+    "RateLimitEntry",
+    "RateLimitFile",
+    "RateLimitMetadata",
+    "RateLimitStatus",
+    "RateLimitTracker",
+]
 
 logger = logging.getLogger(__name__)
 
 _LOCK_TIMEOUT_SECONDS = 10.0
+_DEFAULT_MAX_RATELIMIT_ENTRIES = 10000
+_DEFAULT_PER_UID_LIMIT = 2  # BMF service limit: 2 queries per UID per day
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,39 +86,117 @@ class PerUidRateLimitStatus:
     is_uid_exceeded: bool
 
 
-@dataclass(frozen=True, slots=True)
-class RateLimitEntry:
+class RateLimitEntry(BaseModel):
     """A single rate limit tracking entry.
+
+    Field order is the on-disk key order. uid defaults to "" because
+    installed versions read a missing uid that way.
 
     Attributes:
         timestamp: When the API call was made (UTC).
         uid: The UID that was queried.
     """
 
-    timestamp: datetime
-    uid: str
+    model_config = ConfigDict(frozen=True, extra="ignore")
 
-    def to_dict(self) -> dict[str, str]:
-        """Serialize entry to dictionary for JSON storage."""
-        return {
-            "timestamp": format_iso_datetime(self.timestamp),
-            "uid": self.uid,
-        }
+    timestamp: WireDatetime
+    uid: str = ""
 
+
+class RateLimitMetadata(BaseModel):
+    """Bookkeeping stored next to the call list.
+
+    Attributes:
+        last_cleanup: When the file was last rewritten, None before the first write.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    last_cleanup: WireDatetime | None = None
+
+
+def _valid_entry(raw: object) -> RateLimitEntry | None:
+    """Validate one stored call, None when it is malformed."""
+    try:
+        return RateLimitEntry.model_validate(raw)
+    except ValidationError:
+        return None
+
+
+class RateLimitFile(BaseModel):
+    """The whole rate-limit file.
+
+    Validation is tolerant where installed versions were: a call list that
+    is not a list reads as empty, a malformed call is skipped, and unusable
+    metadata is replaced by a fresh one (every write replaces it anyway).
+
+    Attributes:
+        api_calls: Recorded calls in file order.
+        metadata: File bookkeeping.
+
+    Examples:
+        >>> RateLimitFile.model_validate({"api_calls": "x"}).api_calls
+        ()
+        >>> calls = [{"uid": "A"}, {"timestamp": "2025-01-01T00:00:00Z"}]
+        >>> len(RateLimitFile.model_validate({"api_calls": calls}).api_calls)
+        1
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    api_calls: tuple[RateLimitEntry, ...] = ()
+    metadata: RateLimitMetadata = RateLimitMetadata()
+
+    @field_validator("api_calls", mode="before")
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> RateLimitEntry:
-        """Deserialize entry from dictionary.
+    def _skip_malformed_calls(cls, value: object) -> tuple[RateLimitEntry, ...]:
+        """Keep only the calls that validate; a non-list holds no calls."""
+        if not isinstance(value, (list, tuple)):
+            return ()
+        candidates = (_valid_entry(raw) for raw in cast("list[object]", value))
+        return tuple(entry for entry in candidates if entry is not None)
 
-        Args:
-            data: Dictionary with 'timestamp' and 'uid' keys.
+    @field_validator("metadata", mode="before")
+    @classmethod
+    def _reset_unusable_metadata(cls, value: object) -> RateLimitMetadata:
+        """Read metadata that does not validate as fresh metadata."""
+        try:
+            return RateLimitMetadata.model_validate(value)
+        except ValidationError:
+            return RateLimitMetadata()
 
-        Returns:
-            RateLimitEntry instance.
-        """
-        return cls(
-            timestamp=parse_iso_datetime(data["timestamp"]),
-            uid=str(data.get("uid", "")),
-        )
+
+def _parse_file_content(content: bytes) -> RateLimitFile:
+    """Validate the rate-limit file content.
+
+    Empty content and a top-level value that is not an object read as an
+    empty file, as installed versions do. Invalid JSON raises so that a write
+    never overwrites a file it could not read.
+
+    Args:
+        content: Raw file bytes.
+
+    Returns:
+        The validated file.
+
+    Raises:
+        orjson.JSONDecodeError: The content is not valid JSON.
+
+    Examples:
+        >>> _parse_file_content(b"[1]").api_calls
+        ()
+    """
+    if not content:
+        return RateLimitFile()
+    loaded: object = orjson.loads(content)
+    if not isinstance(loaded, dict):
+        return RateLimitFile()
+    return RateLimitFile.model_validate(loaded)
+
+
+def _serialize_file(data: RateLimitFile) -> bytes:
+    """Dump the file with the serializer call installed versions use."""
+    return orjson.dumps(data.model_dump(mode="json"), option=orjson.OPT_INDENT_2 | orjson.OPT_UTC_Z)
 
 
 def _is_entry_within_window(entry: RateLimitEntry, window_start: datetime) -> bool:
@@ -108,76 +204,28 @@ def _is_entry_within_window(entry: RateLimitEntry, window_start: datetime) -> bo
     return entry.timestamp >= window_start
 
 
-def _cleanup_old_entries(entries: list[RateLimitEntry], window_start: datetime) -> tuple[list[RateLimitEntry], int]:
-    """Remove entries older than the window start.
+def _entries_within_window(entries: tuple[RateLimitEntry, ...], window_start: datetime) -> list[RateLimitEntry]:
+    """Return the entries inside the sliding window, keeping their order."""
+    return [e for e in entries if _is_entry_within_window(e, window_start)]
+
+
+def _trim_oldest_ratelimit_entries(entries: list[RateLimitEntry], max_entries: int) -> list[RateLimitEntry]:
+    """Keep only the newest max_entries entries.
+
+    Below the limit the list is returned unchanged, so file order is kept;
+    above it the result is ordered oldest first, as installed versions write it.
+
+    Args:
+        entries: Recorded calls.
+        max_entries: Maximum number of entries to keep.
 
     Returns:
-        Tuple of (cleaned entries, number of entries removed).
-    """
-    original_count = len(entries)
-    cleaned = [e for e in entries if _is_entry_within_window(e, window_start)]
-    removed_count = original_count - len(cleaned)
-    return cleaned, removed_count
-
-
-_DEFAULT_MAX_RATELIMIT_ENTRIES = 10000
-_DEFAULT_PER_UID_LIMIT = 2  # BMF service limit: 2 queries per UID per day
-
-
-def _trim_oldest_ratelimit_entries(
-    entries: list[RateLimitEntry],
-    max_entries: int,
-) -> tuple[list[RateLimitEntry], int]:
-    """Trim oldest entries to stay within max_entries limit.
-
-    Entries are already sorted by timestamp (oldest first in the list).
-    Keeps only the newest max_entries.
-
-    Returns:
-        Tuple of (trimmed entries, number of entries removed).
+        The kept entries.
     """
     if len(entries) <= max_entries:
-        return entries, 0
-
-    # Sort by timestamp (oldest first) and keep newest entries
-    sorted_entries = sorted(entries, key=lambda e: e.timestamp)
-    entries_to_remove = len(entries) - max_entries
-    trimmed = sorted_entries[entries_to_remove:]
-    return trimmed, entries_to_remove
-
-
-def _empty_data() -> dict[str, Any]:
-    """Return an empty rate limit data structure."""
-    return {"api_calls": [], "metadata": {}}
-
-
-def _parse_file_content(content: bytes) -> dict[str, Any]:
-    """Parse file content into a valid rate limit data structure."""
-    if not content:
-        return _empty_data()
-    loaded = orjson.loads(content)
-    if not isinstance(loaded, dict):
-        return _empty_data()
-    data = cast(dict[str, Any], loaded)
-    if "api_calls" not in data:
-        data["api_calls"] = []
-    if "metadata" not in data:
-        data["metadata"] = {}
-    return data
-
-
-def _extract_entries_list(data: dict[str, Any]) -> list[RateLimitEntry]:
-    """Extract api_calls list from data as typed RateLimitEntry objects."""
-    raw_entries = data.get("api_calls", [])
-    if not isinstance(raw_entries, list):
-        return []
-    entries: list[RateLimitEntry] = []
-    for raw in cast(list[dict[str, Any]], raw_entries):
-        try:
-            entries.append(RateLimitEntry.from_dict(raw))
-        except (KeyError, ValueError):
-            continue  # Skip malformed entries
-    return entries
+        return entries
+    by_age = sorted(entries, key=lambda e: e.timestamp)
+    return by_age[len(entries) - max_entries :]
 
 
 class RateLimitTracker:
@@ -265,6 +313,15 @@ class RateLimitTracker:
         """Return the maximum queries per individual UID."""
         return self._per_uid_limit
 
+    def _idle_status(self) -> RateLimitStatus:
+        """Status reported when nothing is counted (disabled or unreadable)."""
+        return RateLimitStatus(
+            current_count=0,
+            max_queries=self._max_queries,
+            window_hours=self._window_hours,
+            is_exceeded=False,
+        )
+
     def get_status(self) -> RateLimitStatus:
         """Get current rate limit status without recording a call.
 
@@ -272,35 +329,22 @@ class RateLimitTracker:
             Current rate limit status with count of queries in window.
         """
         if not self.is_enabled:
-            return RateLimitStatus(
-                current_count=0,
-                max_queries=self._max_queries,
-                window_hours=self._window_hours,
-                is_exceeded=False,
-            )
+            return self._idle_status()
 
         try:
             data = self._read_data()
-            entries = _extract_entries_list(data)
-            window_start = datetime.now(timezone.utc) - timedelta(hours=self._window_hours)
-            valid_entries = [e for e in entries if _is_entry_within_window(e, window_start)]
-            current_count = len(valid_entries)
+        except (OSError, orjson.JSONDecodeError) as e:
+            logger.warning("Failed to read rate limit data: %s", e)
+            return self._idle_status()
 
-            return RateLimitStatus(
-                current_count=current_count,
-                max_queries=self._max_queries,
-                window_hours=self._window_hours,
-                is_exceeded=current_count > self._max_queries,
-            )
-
-        except (OSError, orjson.JSONDecodeError, KeyError, ValueError) as e:  # type: ignore[attr-defined]
-            logger.warning("Failed to read rate limit data: %s", e)  # type: ignore[arg-type]
-            return RateLimitStatus(
-                current_count=0,
-                max_queries=self._max_queries,
-                window_hours=self._window_hours,
-                is_exceeded=False,
-            )
+        window_start = datetime.now(timezone.utc) - timedelta(hours=self._window_hours)
+        current_count = len(_entries_within_window(data.api_calls, window_start))
+        return RateLimitStatus(
+            current_count=current_count,
+            max_queries=self._max_queries,
+            window_hours=self._window_hours,
+            is_exceeded=current_count > self._max_queries,
+        )
 
     def get_uid_status(self, uid: str) -> PerUidRateLimitStatus:
         """Get rate limit status for a specific UID.
@@ -315,38 +359,30 @@ class RateLimitTracker:
             Per-UID rate limit status with query count for this UID.
         """
         normalized_uid = uid.upper().strip()
+        idle = PerUidRateLimitStatus(
+            uid=normalized_uid,
+            uid_count=0,
+            per_uid_limit=self._per_uid_limit,
+            is_uid_exceeded=False,
+        )
 
         if not self.is_enabled or self._per_uid_limit <= 0:
-            return PerUidRateLimitStatus(
-                uid=normalized_uid,
-                uid_count=0,
-                per_uid_limit=self._per_uid_limit,
-                is_uid_exceeded=False,
-            )
+            return idle
 
         try:
             data = self._read_data()
-            entries = _extract_entries_list(data)
-            window_start = datetime.now(timezone.utc) - timedelta(hours=self._window_hours)
+        except (OSError, orjson.JSONDecodeError) as e:
+            logger.warning("Failed to read rate limit data for UID %s: %s", normalized_uid, e)
+            return idle
 
-            # Count queries for this specific UID within the window
-            uid_count = sum(1 for e in entries if _is_entry_within_window(e, window_start) and e.uid == normalized_uid)
-
-            return PerUidRateLimitStatus(
-                uid=normalized_uid,
-                uid_count=uid_count,
-                per_uid_limit=self._per_uid_limit,
-                is_uid_exceeded=uid_count >= self._per_uid_limit,
-            )
-
-        except (OSError, orjson.JSONDecodeError, KeyError, ValueError) as e:  # type: ignore[attr-defined]
-            logger.warning("Failed to read rate limit data for UID %s: %s", normalized_uid, e)  # type: ignore[arg-type]
-            return PerUidRateLimitStatus(
-                uid=normalized_uid,
-                uid_count=0,
-                per_uid_limit=self._per_uid_limit,
-                is_uid_exceeded=False,
-            )
+        window_start = datetime.now(timezone.utc) - timedelta(hours=self._window_hours)
+        uid_count = sum(1 for e in _entries_within_window(data.api_calls, window_start) if e.uid == normalized_uid)
+        return PerUidRateLimitStatus(
+            uid=normalized_uid,
+            uid_count=uid_count,
+            per_uid_limit=self._per_uid_limit,
+            is_uid_exceeded=uid_count >= self._per_uid_limit,
+        )
 
     def record_call(self, uid: str) -> RateLimitStatus:
         """Record an API call and return updated status.
@@ -363,12 +399,7 @@ class RateLimitTracker:
             Updated rate limit status after recording the call.
         """
         if not self.is_enabled:
-            return RateLimitStatus(
-                current_count=0,
-                max_queries=self._max_queries,
-                window_hours=self._window_hours,
-                is_exceeded=False,
-            )
+            return self._idle_status()
 
         normalized_uid = uid.upper().strip()
         now = datetime.now(timezone.utc)
@@ -378,79 +409,73 @@ class RateLimitTracker:
 
         try:
             current_count = self._write_entry(entry, window_start)
-            is_exceeded = current_count > self._max_queries
-
-            if is_exceeded:
-                logger.warning(
-                    "Rate limit exceeded: %d/%d queries in %.1fh window for UID %s",
-                    current_count,
-                    self._max_queries,
-                    self._window_hours,
-                    normalized_uid,
-                )
-            else:
-                logger.debug(
-                    "Rate limit status: %d/%d queries in %.1fh window",
-                    current_count,
-                    self._max_queries,
-                    self._window_hours,
-                )
-
-            return RateLimitStatus(
-                current_count=current_count,
-                max_queries=self._max_queries,
-                window_hours=self._window_hours,
-                is_exceeded=is_exceeded,
-            )
-
         except (OSError, Timeout) as e:
             logger.warning("Failed to record rate limit call: %s", e)
-            return RateLimitStatus(
-                current_count=0,
-                max_queries=self._max_queries,
-                window_hours=self._window_hours,
-                is_exceeded=False,
+            return self._idle_status()
+
+        is_exceeded = current_count > self._max_queries
+        if is_exceeded:
+            logger.warning(
+                "Rate limit exceeded: %d/%d queries in %.1fh window for UID %s",
+                current_count,
+                self._max_queries,
+                self._window_hours,
+                normalized_uid,
             )
+        else:
+            logger.debug(
+                "Rate limit status: %d/%d queries in %.1fh window",
+                current_count,
+                self._max_queries,
+                self._window_hours,
+            )
+
+        return RateLimitStatus(
+            current_count=current_count,
+            max_queries=self._max_queries,
+            window_hours=self._window_hours,
+            is_exceeded=is_exceeded,
+        )
 
     def _ensure_dir(self) -> None:
         """Create rate limit file directory if it doesn't exist."""
         self._ratelimit_file.parent.mkdir(parents=True, exist_ok=True)
 
-    def _read_data(self) -> dict[str, Any]:
-        """Read and parse rate limit file with locking."""
+    def _read_data(self) -> RateLimitFile:
+        """Read and validate the rate limit file with locking."""
         if not self._ratelimit_file.exists():
-            return _empty_data()
+            return RateLimitFile()
 
         lock = FileLock(self._lock_file, timeout=_LOCK_TIMEOUT_SECONDS)
         with lock:
-            content = self._ratelimit_file.read_bytes()
-            return _parse_file_content(content)
+            return _parse_file_content(self._ratelimit_file.read_bytes())
 
-    def _read_locked_data(self) -> dict[str, Any]:
-        """Read data from file within an already-acquired lock."""
+    def _read_locked_data(self) -> RateLimitFile:
+        """Read and validate the rate limit file within an already-acquired lock."""
         if not self._ratelimit_file.exists():
-            return _empty_data()
-        content = self._ratelimit_file.read_bytes()
-        return _parse_file_content(content)
+            return RateLimitFile()
+        return _parse_file_content(self._ratelimit_file.read_bytes())
 
-    def _cleanup_and_append(self, data: dict[str, Any], entry: RateLimitEntry, window_start: datetime) -> list[RateLimitEntry]:
-        """Cleanup old entries, enforce size limit, and append new entry."""
-        entries = _extract_entries_list(data)
-
-        # First, remove entries outside the sliding window
-        entries, window_removed = _cleanup_old_entries(entries, window_start)
+    def _cleanup_and_append(
+        self,
+        stored: tuple[RateLimitEntry, ...],
+        entry: RateLimitEntry,
+        window_start: datetime,
+    ) -> list[RateLimitEntry]:
+        """Drop entries outside the window, append the new entry, enforce the size limit."""
+        entries = _entries_within_window(stored, window_start)
+        window_removed = len(stored) - len(entries)
         if window_removed > 0:
             logger.debug("Cleaned up %d old rate limit entries", window_removed)
 
-        # Add new entry
         entries.append(entry)
 
-        # Trim oldest entries if over limit
-        entries, trimmed = _trim_oldest_ratelimit_entries(entries, self._max_entries)
+        kept = _trim_oldest_ratelimit_entries(entries, self._max_entries)
+        trimmed = len(entries) - len(kept)
         if trimmed > 0:
             logger.debug("Trimmed %d oldest rate limit entries (max_entries=%d)", trimmed, self._max_entries)
 
-        return entries
+        return kept
 
     def _write_entry(self, entry: RateLimitEntry, window_start: datetime) -> int:
         """Write entry to rate limit file with locking and cleanup.
@@ -466,17 +491,13 @@ class RateLimitTracker:
 
         lock = FileLock(self._lock_file, timeout=_LOCK_TIMEOUT_SECONDS)
         with lock:
-            data = self._read_locked_data()
-            entries = self._cleanup_and_append(data, entry, window_start)
-            # Serialize entries to dicts for JSON storage
-            data["api_calls"] = [e.to_dict() for e in entries]
-
-            # Update metadata
-            data["metadata"]["last_cleanup"] = format_iso_datetime(datetime.now(timezone.utc))
-
-            # Write back
-            self._ratelimit_file.write_bytes(orjson.dumps(data, option=orjson.OPT_INDENT_2 | orjson.OPT_UTC_Z))
-
+            stored = self._read_locked_data()
+            entries = self._cleanup_and_append(stored.api_calls, entry, window_start)
+            updated = RateLimitFile(
+                api_calls=tuple(entries),
+                metadata=RateLimitMetadata(last_cleanup=datetime.now(timezone.utc)),
+            )
+            self._ratelimit_file.write_bytes(_serialize_file(updated))
             return len(entries)
 
     def clear(self) -> None:

@@ -10,6 +10,7 @@ from __future__ import annotations
 import io
 import sys
 from pathlib import Path
+from typing import TextIO
 
 import pytest
 from rich.console import Console
@@ -112,6 +113,42 @@ class TestSafeStreamProtectsRich:
         written = _read_back(stream)
         assert "[OK]" in written
         assert ">= 90%" in written
+
+
+class TestSafeStreamIsAWriteOnlyTextIO:
+    """safe_stream returns a real TextIO, so rich's IO[str] parameter takes it without a cast."""
+
+    def test_it_is_a_text_io(self) -> None:
+        assert isinstance(safe_console.safe_stream(_cp1252_stream()), TextIO)
+
+    def test_fileno_refuses_so_rich_never_writes_around_the_fallback(self) -> None:
+        """A real descriptor would send rich's legacy Windows renderer straight to the console."""
+        with pytest.raises(io.UnsupportedOperation):
+            safe_console.safe_stream(sys.__stdout__).fileno()
+
+    def test_writelines_degrades_each_line(self) -> None:
+        stream = _cp1252_stream()
+        safe_console.safe_stream(stream).writelines(["\u2713 a\n", "\u2265 b\n"])
+        assert _read_back(stream) == "[OK] a\n>= b\n"
+
+    def test_reading_is_refused(self) -> None:
+        writer = safe_console.safe_stream(_cp1252_stream())
+        assert (writer.readable(), writer.writable(), writer.seekable()) == (False, True, False)
+        with pytest.raises(io.UnsupportedOperation):
+            writer.read()
+
+    def test_closing_the_writer_leaves_the_target_open(self) -> None:
+        stream = _cp1252_stream()
+        with safe_console.safe_stream(stream) as writer:
+            writer.write("x")
+        writer.close()
+        assert not stream.closed
+        assert _read_back(stream) == "x"
+
+    def test_encoding_follows_the_target_and_defaults_to_utf8(self) -> None:
+        assert safe_console.safe_stream(_cp1252_stream()).encoding == "cp1252"
+        # io.StringIO reports encoding None at run time: the writer then answers what rich assumes.
+        assert safe_console.safe_stream(io.StringIO()).encoding == "utf-8"
 
 
 class TestNoModuleBypassesTheAdapter:

@@ -6,14 +6,16 @@ Uses MockConfig from conftest.py for testing without filesystem access.
 
 from __future__ import annotations
 
+import logging
+from pathlib import Path
 from typing import Any
 
 import pytest
 
 from conftest import MockConfig
-from finanzonline_uid.config import FinanzOnlineConfig, load_finanzonline_config
+from finanzonline_uid.config import FinanzOnlineConfig, load_app_config, load_finanzonline_config
 from finanzonline_uid.domain.errors import ConfigurationError
-from finanzonline_uid.enums import EmailFormat
+from finanzonline_uid.enums import EmailFormat, FileFormat, Language
 
 # ============================================================================
 # Successful Loading
@@ -470,3 +472,174 @@ class TestEmailFormatParsing:
         result = load_finanzonline_config(config)
 
         assert result.email_format == EmailFormat.HTML
+
+
+# ============================================================================
+# Refusal order and exact text
+# ============================================================================
+
+
+def _fo(**settings: object) -> MockConfig:
+    """A configuration whose finanzonline section is the valid minimum plus `settings`."""
+    section: dict[str, object] = {
+        "tid": "123456789",
+        "benid": "TESTUSER",
+        "pin": "secretpin",
+        "uid_tn": "ATU12345678",
+        "herstellerid": "ATU12345678",
+    }
+    section.update(settings)
+    return MockConfig({"finanzonline": section})
+
+
+@pytest.mark.os_agnostic
+class TestRefusals:
+    """Each refusal keeps its exception type, its text and its precedence."""
+
+    def test_missing_message_lists_fields_in_order(self) -> None:
+        with pytest.raises(ConfigurationError) as exc_info:
+            load_finanzonline_config(MockConfig({"finanzonline": {"pin": "secretpin"}}))
+
+        assert str(exc_info.value) == (
+            "Missing required FinanzOnline configuration: finanzonline.tid, finanzonline.benid, finanzonline.uid_tn, "
+            "finanzonline.herstellerid. Configure via config file or environment variables."
+        )
+
+    def test_missing_fields_win_over_a_wrong_uid_prefix(self) -> None:
+        with pytest.raises(ConfigurationError, match="^Missing required"):
+            load_finanzonline_config(_fo(tid="", uid_tn="DE123456789"))
+
+    def test_invalid_credentials_win_over_a_wrong_uid_prefix(self) -> None:
+        with pytest.raises(ConfigurationError, match="^Invalid credentials: "):
+            load_finanzonline_config(_fo(tid="1", uid_tn="DE123456789"))
+
+    def test_wrong_uid_prefix_text(self) -> None:
+        with pytest.raises(ConfigurationError) as exc_info:
+            load_finanzonline_config(_fo(uid_tn="DE123456789"))
+
+        assert str(exc_info.value) == "finanzonline.uid_tn must start with 'ATU', got: DE123456789"
+
+    def test_false_credential_counts_as_missing(self) -> None:
+        with pytest.raises(ConfigurationError, match=r"finanzonline\.pin"):
+            load_finanzonline_config(_fo(pin=False))
+
+
+# ============================================================================
+# Output file format
+# ============================================================================
+
+
+@pytest.mark.os_agnostic
+class TestOutputFormat:
+    """output_format becomes a FileFormat; anything unknown falls back to HTML."""
+
+    def test_default_is_html(self) -> None:
+        assert load_finanzonline_config(_fo()).output_format is FileFormat.HTML
+
+    @pytest.mark.parametrize(("raw", "expected"), [("json", FileFormat.JSON), ("TXT", FileFormat.TXT), ("Html", FileFormat.HTML)])
+    def test_known_value_is_parsed_case_insensitively(self, raw: str, expected: FileFormat) -> None:
+        assert load_finanzonline_config(_fo(output_format=raw)).output_format is expected
+
+    @pytest.mark.parametrize("raw", ["pdf", " json", 7, ""])
+    def test_unknown_value_falls_back_to_html(self, raw: object) -> None:
+        assert load_finanzonline_config(_fo(output_format=raw)).output_format is FileFormat.HTML
+
+
+# ============================================================================
+# Numbers and paths
+# ============================================================================
+
+
+@pytest.mark.os_agnostic
+class TestNumbersAndPaths:
+    """Numeric settings coerce or fall back; path settings normalise or fall back."""
+
+    def test_rate_limit_settings(self) -> None:
+        result = load_finanzonline_config(_fo(ratelimit_queries=12.9, ratelimit_hours=6, cache_results_hours="x"))
+
+        assert (result.ratelimit_queries, result.ratelimit_hours, result.cache_results_hours) == (12, 6.0, 48.0)
+
+    def test_rate_limit_defaults(self) -> None:
+        result = load_finanzonline_config(_fo(ratelimit_queries="many"))
+
+        assert (result.ratelimit_queries, result.ratelimit_hours) == (50, 24.0)
+
+    def test_configured_state_files_are_used(self, tmp_path: Path) -> None:
+        result = load_finanzonline_config(_fo(cache_file=str(tmp_path / "c.json"), ratelimit_file=str(tmp_path / "r.json")))
+
+        assert (result.cache_file, result.ratelimit_file) == (tmp_path / "c.json", tmp_path / "r.json")
+
+    @pytest.mark.parametrize("raw", ["", "   ", None, True])
+    def test_blank_or_mistyped_state_file_uses_the_platform_default(self, raw: object) -> None:
+        result = load_finanzonline_config(_fo(cache_file=raw, ratelimit_file=raw))
+
+        assert result.cache_file is not None and result.cache_file.name == "uid_cache.json"
+        assert result.ratelimit_file is not None and result.ratelimit_file.name == "rate_limits.json"
+
+    def test_output_dir_is_none_when_unset(self) -> None:
+        assert load_finanzonline_config(_fo(output_dir="")).output_dir is None
+
+    def test_output_dir_is_none_when_absent(self) -> None:
+        assert load_finanzonline_config(_fo()).output_dir is None
+
+    def test_output_dir_expands_the_home_directory(self) -> None:
+        result = load_finanzonline_config(_fo(output_dir="~/uid-results"))
+
+        assert result.output_dir == Path.home() / "uid-results"
+
+    @pytest.mark.parametrize("raw", [False, 0, 0.0, [], {}])
+    def test_an_empty_or_false_output_dir_turns_result_files_off(self, raw: object) -> None:
+        # The release read every falsy value as "off"; 0 must not become a directory named "0".
+        assert load_finanzonline_config(_fo(output_dir=raw)).output_dir is None
+
+    def test_a_digit_only_output_dir_keeps_its_digits(self) -> None:
+        assert load_finanzonline_config(_fo(output_dir=4711)).output_dir == Path("4711")
+
+    @pytest.mark.parametrize(
+        ("raw", "type_name"),
+        [(True, "bool"), (["x"], "list"), (1.5, "float"), ({"a": 1}, "dict")],
+    )
+    def test_mistyped_output_dir_is_refused_as_a_configuration_error(self, raw: object, type_name: str) -> None:
+        # The release crashed with AttributeError on these; falling back to None would
+        # switch result files off without a word.
+        expected = f"Invalid FinanzOnline configuration: finanzonline.output_dir: must be a directory path given as text, got {type_name}"
+
+        with pytest.raises(ConfigurationError) as excinfo:
+            load_finanzonline_config(_fo(output_dir=raw))
+
+        assert excinfo.value.message == expected
+        assert "pydantic" not in excinfo.value.message
+
+    def test_json_text_recipients_from_dotenv_are_parsed(self) -> None:
+        result = load_finanzonline_config(_fo(default_recipients='["a@test.com", "b@test.com"]'))
+
+        assert result.default_recipients == ["a@test.com", "b@test.com"]
+
+
+# ============================================================================
+# Application settings: language
+# ============================================================================
+
+
+@pytest.mark.os_agnostic
+class TestAppConfigLanguage:
+    """The [app] language is normalised at the boundary; an unsupported one falls back silently."""
+
+    def test_missing_section_uses_english(self) -> None:
+        assert load_app_config(MockConfig({})).language is Language.EN
+
+    def test_non_table_section_uses_english(self) -> None:
+        assert load_app_config(MockConfig({"app": "de"})).language is Language.EN
+
+    @pytest.mark.parametrize(("raw", "expected"), [("de", Language.DE), (" FR ", Language.FR), ("ru", Language.RU), ("", Language.EN)])
+    def test_supported_language_is_normalised(self, raw: str, expected: Language) -> None:
+        assert load_app_config(MockConfig({"app": {"language": raw}})).language is expected
+
+    def test_unsupported_language_falls_back_without_a_log_record(self, caplog: pytest.LogCaptureFixture) -> None:
+        # The CLI reads [app] before logging is initialised; any record emitted here would reach
+        # stderr unformatted through logging.lastResort.
+        with caplog.at_level(logging.DEBUG):
+            result = load_app_config(MockConfig({"app": {"language": "xx"}}))
+
+        assert result.language is Language.EN
+        assert caplog.records == []

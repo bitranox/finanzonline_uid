@@ -18,11 +18,18 @@ Infrastructure module providing i18n capabilities. Called early in
 application initialization to configure translations before any
 user-facing output is generated.
 
+The language arrives as a :class:`~finanzonline_uid.enums.Language` member:
+reading and validating the configured text happens at the configuration
+boundary, :func:`finanzonline_uid.config.load_app_config`. An unsupported
+language falls back to English there without a warning, because the CLI reads
+``[app]`` before logging is initialised.
+
 Examples
 --------
->>> setup_locale("de")
->>> _("UID is valid")
-'UID ist gültig'
+>>> setup_locale(Language.DE)
+>>> _("UID is valid") == "UID ist g\u00fcltig"
+True
+>>> setup_locale()
 """
 
 from __future__ import annotations
@@ -30,16 +37,18 @@ from __future__ import annotations
 import gettext
 import logging
 from pathlib import Path
+from typing import Final
+
+from .enums import Language
 
 logger = logging.getLogger(__name__)
 
-# Supported languages
-SUPPORTED_LANGUAGES = ("en", "de", "es", "fr", "ru")
-DEFAULT_LANGUAGE = "en"
+SUPPORTED_LANGUAGES: Final[tuple[Language, ...]] = tuple(Language)
+DEFAULT_LANGUAGE: Final = Language.EN
 
 # Module-level state for current translation
 _current_translation: gettext.GNUTranslations | gettext.NullTranslations | None = None
-_current_language: str = DEFAULT_LANGUAGE
+_current_language: Language = DEFAULT_LANGUAGE
 
 
 def _get_locale_dir() -> Path:
@@ -47,13 +56,12 @@ def _get_locale_dir() -> Path:
     return Path(__file__).parent / "locales"
 
 
-def setup_locale(language: str = DEFAULT_LANGUAGE) -> None:
+def setup_locale(language: Language = DEFAULT_LANGUAGE) -> None:
     """Initialize gettext with the specified language.
 
     Args:
-        language: Language code (en, de, es, fr, ru). Defaults to English.
-                  If the language is not supported or translation files
-                  are missing, falls back to English.
+        language: Interface language. Defaults to English. If its
+            translation files are missing, falls back to English.
 
     Side Effects:
         Sets the module-level translation object used by _() function.
@@ -61,20 +69,10 @@ def setup_locale(language: str = DEFAULT_LANGUAGE) -> None:
     """
     global _current_translation, _current_language
 
-    # Normalize and validate language
-    lang = language.lower().strip()
-    if lang not in SUPPORTED_LANGUAGES:
-        logger.warning(
-            "Unsupported language '%s', falling back to '%s'",
-            language,
-            DEFAULT_LANGUAGE,
-        )
-        lang = DEFAULT_LANGUAGE
-
-    _current_language = lang
+    _current_language = language
 
     # English is the source language, no translation needed
-    if lang == "en":
+    if language == Language.EN:
         _current_translation = gettext.NullTranslations()
         logger.debug("Locale initialized: en (source language)")
         return
@@ -85,14 +83,14 @@ def setup_locale(language: str = DEFAULT_LANGUAGE) -> None:
         _current_translation = gettext.translation(
             "messages",
             localedir=str(locale_dir),
-            languages=[lang],
+            languages=[language.value],
         )
-        logger.debug("Locale initialized: %s", lang)
+        logger.debug("Locale initialized: %s", language.value)
     except FileNotFoundError:
         logger.warning(
             "Translation files not found for '%s', falling back to '%s'",
-            lang,
-            DEFAULT_LANGUAGE,
+            language.value,
+            DEFAULT_LANGUAGE.value,
         )
         _current_translation = gettext.NullTranslations()
         _current_language = DEFAULT_LANGUAGE
@@ -109,7 +107,7 @@ def _(message: str) -> str:
 
     Examples:
         >>> from finanzonline_uid.i18n import setup_locale, _
-        >>> setup_locale("en")
+        >>> setup_locale(Language.EN)
         >>> _("UID is valid")
         'UID is valid'
     """
@@ -137,11 +135,11 @@ def N_(message: str) -> str:
     return message
 
 
-def get_current_language() -> str:
-    """Return the currently active language code.
+def get_current_language() -> Language:
+    """Return the currently active language.
 
     Returns:
-        The language code (en, de, es, fr, or ru).
+        The active language; English after a fallback.
     """
     return _current_language
 

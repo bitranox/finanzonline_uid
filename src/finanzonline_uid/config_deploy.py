@@ -5,7 +5,7 @@ host, or user configuration locations. Uses lib_layered_config's deploy_config
 function to copy the bundled defaultconfig.toml to requested target layers.
 
 Contents:
-    * :func:`deploy_configuration` – deploys configuration to specified targets
+    * :func:`deploy_configuration` - deploys configuration to specified targets
 
 System Role:
     Lives in the behaviors layer. The CLI command delegates to this module for
@@ -118,8 +118,9 @@ def deploy_configuration(
     """
     source = get_default_config_path()
 
-    # DeployTarget inherits from str, so enum members are already strings
-    target_strings = list(targets)
+    # Hand over the plain values: lib_layered_config interpolates each target into its
+    # messages, where a str-mixin member renders as "DeployTarget.USER" on Python 3.11+.
+    target_strings = [target.value for target in targets]
 
     results = deploy_config(
         source=source,

@@ -36,8 +36,11 @@ True
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum, IntEnum
+from types import MappingProxyType
+from typing import Final
 
 from finanzonline_uid.i18n import N_, _
 
@@ -134,40 +137,49 @@ class ReturnCodeInfo:
     retryable: bool = False
 
 
-# Return code mappings from BMF documentation
+def _entry(code: ReturnCode, meaning: str, severity: Severity, *, retryable: bool = False) -> tuple[ReturnCode, ReturnCodeInfo]:
+    """Build one table row, so each code is named once and its info carries the plain int."""
+    return code, ReturnCodeInfo(code=code.value, meaning=meaning, severity=severity, retryable=retryable)
+
+
+# Return code mappings from BMF documentation; tests pin that every ReturnCode has a row.
 # Strings are marked with N_() for extraction and translated at runtime in get_return_code_info()
-_RETURN_CODE_INFO: dict[int, ReturnCodeInfo] = {
-    # Success
-    0: ReturnCodeInfo(code=0, meaning=N_("UID is valid"), severity=Severity.SUCCESS),
-    # UID Status
-    1: ReturnCodeInfo(code=1, meaning=N_("UID is invalid"), severity=Severity.WARNING),
-    # Session/Auth errors
-    -1: ReturnCodeInfo(code=-1, meaning=N_("Session invalid or expired"), severity=Severity.ERROR),
-    -2: ReturnCodeInfo(code=-2, meaning=N_("System maintenance"), severity=Severity.WARNING, retryable=True),
-    -3: ReturnCodeInfo(code=-3, meaning=N_("Technical error"), severity=Severity.ERROR, retryable=True),
-    -4: ReturnCodeInfo(code=-4, meaning=N_("The access codes are not valid"), severity=Severity.CRITICAL),
-    -5: ReturnCodeInfo(code=-5, meaning=N_("User locked due to incorrect login attempts"), severity=Severity.CRITICAL),
-    -6: ReturnCodeInfo(code=-6, meaning=N_("User is locked"), severity=Severity.CRITICAL),
-    -7: ReturnCodeInfo(code=-7, meaning=N_("User is not a web service user"), severity=Severity.CRITICAL),
-    -8: ReturnCodeInfo(code=-8, meaning=N_("Participant locked or not authorized for web service"), severity=Severity.CRITICAL),
-    # Query parameter errors
-    4: ReturnCodeInfo(code=4, meaning=N_("Wrong UID format"), severity=Severity.ERROR),
-    5: ReturnCodeInfo(code=5, meaning=N_("Invalid requester UID"), severity=Severity.ERROR),
-    # Query restrictions
-    10: ReturnCodeInfo(code=10, meaning=N_("Member state forbids query"), severity=Severity.WARNING),
-    11: ReturnCodeInfo(code=11, meaning=N_("Not authorized for requester UID"), severity=Severity.ERROR),
-    12: ReturnCodeInfo(code=12, meaning=N_("UID not yet queryable"), severity=Severity.WARNING, retryable=True),
-    # Special cases
-    101: ReturnCodeInfo(code=101, meaning=N_("UID doesn't start with ATU"), severity=Severity.ERROR),
-    103: ReturnCodeInfo(code=103, meaning=N_("VAT group (CZ) - special handling required"), severity=Severity.WARNING),
-    104: ReturnCodeInfo(code=104, meaning=N_("VAT group (SK) - special handling required"), severity=Severity.WARNING),
-    105: ReturnCodeInfo(code=105, meaning=N_("Must query via FinanzOnline portal directly"), severity=Severity.ERROR),
-    # Service errors
-    1511: ReturnCodeInfo(code=1511, meaning=N_("Service unavailable"), severity=Severity.CRITICAL, retryable=True),
-    1512: ReturnCodeInfo(code=1512, meaning=N_("Too many queries (server load)"), severity=Severity.WARNING, retryable=True),
-    1513: ReturnCodeInfo(code=1513, meaning=N_("Rate limit: 2 queries per UID per day exceeded"), severity=Severity.WARNING, retryable=True),
-    1514: ReturnCodeInfo(code=1514, meaning=N_("Rate limit: requester limit exceeded"), severity=Severity.WARNING, retryable=True),
-}
+_RETURN_CODE_INFO: Final[Mapping[ReturnCode, ReturnCodeInfo]] = MappingProxyType(
+    dict(
+        [
+            # Success
+            _entry(ReturnCode.UID_VALID, N_("UID is valid"), Severity.SUCCESS),
+            # UID Status
+            _entry(ReturnCode.UID_INVALID, N_("UID is invalid"), Severity.WARNING),
+            # Session/Auth errors
+            _entry(ReturnCode.SESSION_INVALID, N_("Session invalid or expired"), Severity.ERROR),
+            _entry(ReturnCode.SYSTEM_MAINTENANCE, N_("System maintenance"), Severity.WARNING, retryable=True),
+            _entry(ReturnCode.TECHNICAL_ERROR, N_("Technical error"), Severity.ERROR, retryable=True),
+            _entry(ReturnCode.NOT_AUTHORIZED, N_("The access codes are not valid"), Severity.CRITICAL),
+            _entry(ReturnCode.USER_LOCKED_LOGIN_ATTEMPTS, N_("User locked due to incorrect login attempts"), Severity.CRITICAL),
+            _entry(ReturnCode.USER_LOCKED, N_("User is locked"), Severity.CRITICAL),
+            _entry(ReturnCode.NOT_WEBSERVICE_USER, N_("User is not a web service user"), Severity.CRITICAL),
+            _entry(ReturnCode.PARTICIPANT_LOCKED, N_("Participant locked or not authorized for web service"), Severity.CRITICAL),
+            # Query parameter errors
+            _entry(ReturnCode.WRONG_UID_FORMAT, N_("Wrong UID format"), Severity.ERROR),
+            _entry(ReturnCode.INVALID_REQUESTER_UID, N_("Invalid requester UID"), Severity.ERROR),
+            # Query restrictions
+            _entry(ReturnCode.MEMBER_STATE_FORBIDS, N_("Member state forbids query"), Severity.WARNING),
+            _entry(ReturnCode.NOT_AUTHORIZED_FOR_REQUESTER, N_("Not authorized for requester UID"), Severity.ERROR),
+            _entry(ReturnCode.UID_NOT_YET_QUERYABLE, N_("UID not yet queryable"), Severity.WARNING, retryable=True),
+            # Special cases
+            _entry(ReturnCode.UID_NOT_STARTS_ATU, N_("UID doesn't start with ATU"), Severity.ERROR),
+            _entry(ReturnCode.VAT_GROUP_CZ, N_("VAT group (CZ) - special handling required"), Severity.WARNING),
+            _entry(ReturnCode.VAT_GROUP_SK, N_("VAT group (SK) - special handling required"), Severity.WARNING),
+            _entry(ReturnCode.MUST_QUERY_VIA_PORTAL, N_("Must query via FinanzOnline portal directly"), Severity.ERROR),
+            # Service errors
+            _entry(ReturnCode.SERVICE_UNAVAILABLE, N_("Service unavailable"), Severity.CRITICAL, retryable=True),
+            _entry(ReturnCode.TOO_MANY_QUERIES_SERVER, N_("Too many queries (server load)"), Severity.WARNING, retryable=True),
+            _entry(ReturnCode.RATE_LIMIT_UID_EXCEEDED, N_("Rate limit: 2 queries per UID per day exceeded"), Severity.WARNING, retryable=True),
+            _entry(ReturnCode.RATE_LIMIT_REQUESTER_EXCEEDED, N_("Rate limit: requester limit exceeded"), Severity.WARNING, retryable=True),
+        ]
+    )
+)
 
 
 def get_return_code_info(code: int) -> ReturnCodeInfo:
@@ -196,8 +208,11 @@ def get_return_code_info(code: int) -> ReturnCodeInfo:
         >>> _("Unknown return code") in info.meaning  # doctest: +SKIP
         True
     """
-    if code in _RETURN_CODE_INFO:
-        info = _RETURN_CODE_INFO[code]
+    try:
+        info = _RETURN_CODE_INFO.get(ReturnCode(code))
+    except ValueError:
+        info = None
+    if info is not None:
         # Translate meaning at runtime
         return ReturnCodeInfo(
             code=info.code,
@@ -250,3 +265,14 @@ def is_retryable(code: int) -> bool:
         False
     """
     return get_return_code_info(code).retryable
+
+
+__all__ = [
+    "CliExitCode",
+    "ReturnCode",
+    "ReturnCodeInfo",
+    "Severity",
+    "get_return_code_info",
+    "is_retryable",
+    "is_success",
+]

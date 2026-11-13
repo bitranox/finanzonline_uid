@@ -17,16 +17,19 @@ Adapters layer - plain text email body formatting.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from finanzonline_uid._datetime_utils import format_local_time
-from finanzonline_uid.adapters.formatting.html_templates import get_result_status
+from finanzonline_uid.adapters.formatting.html_templates import classify_result, result_status_label
 from finanzonline_uid.domain.return_codes import get_return_code_info
 from finanzonline_uid.i18n import _
 
 if TYPE_CHECKING:
+    from finanzonline_uid.domain.errors import CheckErrorInfo
     from finanzonline_uid.domain.models import Address, Diagnostics, UidCheckResult
+
+__all__ = ["format_error_plain", "format_result_plain"]
 
 
 def _format_address_plain(address: Address) -> list[str]:
@@ -79,7 +82,7 @@ def format_result_plain(result: UidCheckResult) -> str:
         Plain text representation of the result.
     """
     info = get_return_code_info(result.return_code)
-    status = get_result_status(result.return_code)
+    status = result_status_label(classify_result(result.return_code))
 
     lines = [
         _("UID Verification Result (Stufe 2)"),
@@ -90,7 +93,7 @@ def format_result_plain(result: UidCheckResult) -> str:
         f"{_('Status:')}      {status}",
         f"{_('Return Code:')} {result.return_code}",
         f"{_('Message:')}     {result.message}",
-        f"{_('Severity:')}    {info.severity}",
+        f"{_('Severity:')}    {info.severity.value}",
         f"{_('Retryable:')}   {_('Yes') if info.retryable else _('No')}",
         f"{_('Timestamp:')}   {format_local_time(result.timestamp)}",
     ]
@@ -105,59 +108,46 @@ def format_result_plain(result: UidCheckResult) -> str:
 def _format_return_code_section_plain(return_code: int) -> list[str]:
     """Format return code section for plain text error output."""
     info = get_return_code_info(return_code)
-    return [f"{_('Return Code:')} {return_code}", f"{_('Meaning:')}     {info.meaning}", f"{_('Severity:')}    {info.severity}"]
+    return [f"{_('Return Code:')} {return_code}", f"{_('Meaning:')}     {info.meaning}", f"{_('Severity:')}    {info.severity.value}"]
 
 
 def _format_diagnostics_section_plain(diagnostics: Diagnostics) -> list[str]:
     """Format diagnostics section for plain text error output."""
     lines = ["", _("Diagnostic Information"), "-" * 30]
-    for key, value in diagnostics.as_dict().items():
-        lines.append(f"{key.replace('_', ' ').title()}: {value}")
+    lines.extend(f"{entry.field.label}: {entry.value}" for entry in diagnostics.entries())
     if diagnostics.raw_response:
         lines.extend(["", _("Raw SOAP Response"), "-" * 30, diagnostics.raw_response])
     return lines
 
 
-def format_error_plain(
-    error_type: str,
-    error_message: str,
-    uid: str,
-    return_code: int | None = None,
-    retryable: bool = False,
-    diagnostics: Diagnostics | None = None,
-) -> str:
+def format_error_plain(info: CheckErrorInfo, uid: str) -> str:
     """Format error notification as plain text.
 
     Args:
-        error_type: Type of error (e.g., "Authentication Error").
-        error_message: Error message details.
+        info: The failure to report: kind, message, return code,
+            retryability and diagnostics.
         uid: The UID that was being checked.
-        return_code: Optional return code from BMF.
-        retryable: Whether the error is retryable.
-        diagnostics: Optional Diagnostics object for debugging.
 
     Returns:
         Plain text error notification.
     """
-    from datetime import timezone
-
     lines = [
         _("UID Check ERROR Notification"),
         "=" * 50,
         "",
         f"{_('UID:')}         {uid}",
         f"{_('Status:')}      {_('ERROR')}",
-        f"{_('Error Type:')}  {error_type}",
-        f"{_('Message:')}     {error_message}",
+        f"{_('Error Type:')}  {info.error_type.value}",
+        f"{_('Message:')}     {info.message}",
     ]
 
-    if return_code is not None:
-        lines.extend(_format_return_code_section_plain(return_code))
+    if info.return_code is not None:
+        lines.extend(_format_return_code_section_plain(info.return_code))
 
-    lines.extend([f"{_('Retryable:')}   {_('Yes') if retryable else _('No')}", f"{_('Timestamp:')}   {format_local_time(datetime.now(timezone.utc))}"])
+    lines.extend([f"{_('Retryable:')}   {_('Yes') if info.retryable else _('No')}", f"{_('Timestamp:')}   {format_local_time(datetime.now(timezone.utc))}"])
 
-    if diagnostics and not diagnostics.is_empty:
-        lines.extend(_format_diagnostics_section_plain(diagnostics))
+    if info.diagnostics and not info.diagnostics.is_empty:
+        lines.extend(_format_diagnostics_section_plain(info.diagnostics))
 
     lines.extend(["", "-" * 50, _("This is an automated error notification from finanzonline-uid.")])
     return "\n".join(lines)
