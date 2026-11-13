@@ -374,7 +374,6 @@ def test_when_config_is_invoked_with_nonexistent_section_it_fails(cli_runner: Cl
 def test_when_config_is_invoked_with_mocked_data_it_displays_sections(
     cli_runner: CliRunner,
     mock_config_factory: Any,
-    clear_config_cache: None,
 ) -> None:
     """Verify config displays sections from mocked configuration."""
     test_data = {
@@ -400,7 +399,6 @@ def test_when_config_is_invoked_with_mocked_data_it_displays_sections(
 def test_when_config_is_invoked_with_json_format_and_section_it_shows_section(
     cli_runner: CliRunner,
     mock_config_factory: Any,
-    clear_config_cache: None,
 ) -> None:
     """Verify JSON format displays specific section content."""
     test_data = {
@@ -424,7 +422,6 @@ def test_when_config_is_invoked_with_json_format_and_section_it_shows_section(
 def test_when_config_is_invoked_with_json_format_and_nonexistent_section_it_fails(
     cli_runner: CliRunner,
     mock_config_factory: Any,
-    clear_config_cache: None,
 ) -> None:
     """Verify JSON format with nonexistent section returns error."""
     test_data = {
@@ -447,7 +444,6 @@ def test_when_config_is_invoked_with_json_format_and_nonexistent_section_it_fail
 def test_when_config_is_invoked_with_section_showing_complex_values(
     cli_runner: CliRunner,
     mock_config_factory: Any,
-    clear_config_cache: None,
 ) -> None:
     """Verify human format with section containing lists and dicts."""
     test_data = {
@@ -478,7 +474,6 @@ def test_when_config_is_invoked_with_section_showing_complex_values(
 def test_when_config_shows_all_sections_with_complex_values(
     cli_runner: CliRunner,
     mock_config_factory: Any,
-    clear_config_cache: None,
 ) -> None:
     """Verify human format showing all sections with lists and dicts."""
     test_data = {
@@ -629,7 +624,6 @@ def test_when_config_deploy_is_invoked_with_profile_it_passes_profile(
 def test_when_config_is_invoked_with_profile_it_passes_profile_to_get_config(
     cli_runner: CliRunner,
     mock_config_factory: Any,
-    clear_config_cache: None,
 ) -> None:
     """Verify config command passes --profile to get_config."""
     captured_profiles: list[str | None] = []
@@ -650,7 +644,6 @@ def test_when_config_is_invoked_with_profile_it_passes_profile_to_get_config(
 def test_when_config_is_invoked_without_profile_it_passes_none(
     cli_runner: CliRunner,
     mock_config_factory: Any,
-    clear_config_cache: None,
 ) -> None:
     """Verify config command passes None when no --profile specified."""
     captured_profiles: list[str | None] = []

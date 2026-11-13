@@ -248,19 +248,6 @@ def email_test_config() -> dict[str, Any]:
     }
 
 
-@pytest.fixture
-def clear_config_cache() -> Iterator[None]:
-    """Clear the get_config lru_cache before each test.
-
-    Note: Only clears before, not after, to avoid errors when the function
-    has been monkeypatched during the test (losing cache_clear method).
-    """
-    from finanzonline_uid import config as config_mod
-
-    config_mod.get_config.cache_clear()
-    yield
-
-
 # ============================================================================
 # Domain model fixtures
 # ============================================================================

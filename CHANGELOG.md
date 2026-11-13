@@ -18,6 +18,10 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 - `check` on the console shows the status `RATE LIMITED` for return codes 1513 and 1514 and
   `UNAVAILABLE` for 1511, 1512 and -2, as the HTML and email output already did; it showed `ERROR`.
 - The SOAP client modules are now type-checked; they were excluded because zeep has no type stubs.
+- Library API: `get_config()` no longer caches its result. Each call reads every layer again, so a
+  changed environment variable, current directory or configuration file is seen by the next call;
+  before, a repeated call with the same `profile` and `start_dir` returned the first result. The CLI
+  loads its configuration once per run either way. `get_config.cache_clear` is gone.
 - Library API: `load_email_config(config)` replaces `load_email_config_from_dict` and
   `EmailConfig.from_dict`; `EmailConfig.smtp_password` is a `SecretStr`; the error formatters and
   `EmailNotificationAdapter.send_error` take a `CheckErrorInfo`; `Diagnostics.entries()` replaces

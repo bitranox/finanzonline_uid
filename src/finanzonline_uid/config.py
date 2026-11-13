@@ -264,20 +264,16 @@ def get_default_config_path() -> Path:
     return Path(__file__).parent / "defaultconfig.toml"
 
 
-# Cache configuration to avoid redundant file I/O and parsing.
-# Trade-offs:
-#   + Future-proof if config is read from multiple places
-#   + Near-zero overhead (single cache entry)
-#   - Prevents dynamic config reloading (if ever needed)
-#   - start_dir/profile parameter variations would bypass cache
-@lru_cache(maxsize=4)
+# Not cached: the result also depends on the environment variables and, through
+# .env discovery, on the current directory, neither of which a cache key on
+# ``profile``/``start_dir`` sees. A CLI run loads the configuration once, so a
+# cache would only return stale results to library callers and save nothing.
 def get_config(*, profile: str | None = None, start_dir: str | None = None) -> Config:
     """Load layered configuration with application defaults.
 
     Centralizes configuration loading so all entry points use the same
     precedence rules and default values without duplicating the discovery
-    logic. Uses lru_cache to avoid redundant file reads when called from
-    multiple modules.
+    logic.
 
     Loads configuration from multiple sources in precedence order:
     defaults -> app -> host -> user -> dotenv -> env
@@ -302,9 +298,8 @@ def get_config(*, profile: str | None = None, start_dir: str | None = None) -> C
         Immutable configuration object with provenance tracking.
 
     Note:
-        This function is cached (maxsize=4). The first call loads and parses all
-        configuration files; subsequent calls with the same parameters return the
-        cached Config instance immediately.
+        Every call reads all layers again, so a changed environment variable,
+        current directory or configuration file is seen by the next call.
 
     Example:
         >>> config = get_config()

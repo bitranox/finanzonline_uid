@@ -15,17 +15,12 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 from lib_layered_config import deploy_config_paths
 
 from finanzonline_uid import __init__conf__
 from finanzonline_uid.config import get_config, get_default_config_path
-
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -50,14 +45,6 @@ def pytest_collection_modifyitems(items):
 """
 
 
-@pytest.fixture
-def fresh_config_cache() -> Iterator[None]:
-    """Clear ``get_config``'s cache before and after, so the probe value cannot reach another test."""
-    get_config.cache_clear()
-    yield
-    get_config.cache_clear()
-
-
 @pytest.mark.os_agnostic
 @pytest.mark.parametrize("target", ["app", "host", "user"])
 def test_every_config_layer_resolves_inside_the_test_s_own_directory(target: str, tmp_path: Path) -> None:
@@ -74,7 +61,7 @@ def test_every_config_layer_resolves_inside_the_test_s_own_directory(target: str
 
 
 @pytest.mark.os_agnostic
-def test_a_file_in_the_redirected_app_layer_is_what_the_loader_reads(app_layer_config_file: Path, fresh_config_cache: None) -> None:
+def test_a_file_in_the_redirected_app_layer_is_what_the_loader_reads(app_layer_config_file: Path) -> None:
     app_layer_config_file.write_text('[layer_isolation_probe]\nread_from = "redirected app layer"\n', encoding="utf-8")
 
     config = get_config()
@@ -83,7 +70,7 @@ def test_a_file_in_the_redirected_app_layer_is_what_the_loader_reads(app_layer_c
 
 
 @pytest.mark.os_agnostic
-def test_a_file_in_the_redirected_user_layer_is_what_the_loader_reads(user_layer_config_file: Path, fresh_config_cache: None) -> None:
+def test_a_file_in_the_redirected_user_layer_is_what_the_loader_reads(user_layer_config_file: Path) -> None:
     user_layer_config_file.write_text('[layer_isolation_probe]\nread_from = "redirected user layer"\n', encoding="utf-8")
 
     config = get_config()
