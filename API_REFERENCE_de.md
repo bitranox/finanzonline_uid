@@ -8,7 +8,7 @@ Dieses Dokument beschreibt die Python-API für `finanzonline_uid`.
 import finanzonline_uid
 
 # Paket-Metadaten
-finanzonline_uid.__version__  # "0.0.1"
+finanzonline_uid.__version__  # die installierte Version, z. B. "3.0.0"
 finanzonline_uid.__title__  # "Python library and CLI..."
 finanzonline_uid.__author__  # "bitranox"
 finanzonline_uid.__url__  # "https://github.com/bitranox/finanzonline_uid"
@@ -70,6 +70,8 @@ fo_config = load_finanzonline_config(config)
 | `ratelimit_queries`   | `int`                     | `50`         | Max. Abfragen im Zeitfenster                       |
 | `ratelimit_hours`     | `float`                   | `24.0`       | Gleitendes Zeitfenster in Stunden                  |
 | `ratelimit_file`      | `Path \| None`            | `None`       | Pfad zur Ratenlimit-Tracking-Datei                 |
+| `output_dir`          | `Path \| None`            | `None`       | Verzeichnis für Ergebnisdateien (aus bei None)     |
+| `output_format`       | `FileFormat`              | `HTML`       | Format der Ergebnisdateien                         |
 
 ---
 
@@ -238,13 +240,15 @@ print(f"Firma: {result.name}")
 E-Mail-Konfigurationscontainer.
 
 ```python
+from pydantic import SecretStr
+
 from finanzonline_uid.mail import EmailConfig
 
 config = EmailConfig(
     smtp_hosts=["smtp.beispiel.at:587"],
     from_address="alerts@beispiel.at",
     smtp_username="benutzer@beispiel.at",  # Optional
-    smtp_password="passwort",  # Optional
+    smtp_password=SecretStr("passwort"),  # Optional
     use_starttls=True,
     timeout=30.0,
     raise_on_missing_attachments=True,
@@ -255,17 +259,17 @@ config = EmailConfig(
 
 **Attribute:**
 
-| Attribut                       | Typ           | Standard              | Beschreibung                        |
-|--------------------------------|---------------|-----------------------|-------------------------------------|
-| `smtp_hosts`                   | `list[str]`   | `[]`                  | SMTP-Server im 'host:port'-Format   |
-| `from_address`                 | `str`         | `"noreply@localhost"` | Standard-Absenderadresse            |
-| `smtp_username`                | `str \| None` | `None`                | SMTP-Authentifizierungsbenutzername |
-| `smtp_password`                | `str \| None` | `None`                | SMTP-Authentifizierungspasswort     |
-| `use_starttls`                 | `bool`        | `True`                | STARTTLS aktivieren                 |
-| `timeout`                      | `float`       | `30.0`                | Socket-Timeout (Sekunden)           |
-| `raise_on_missing_attachments` | `bool`        | `True`                | Exception bei fehlenden Dateien     |
-| `raise_on_invalid_recipient`   | `bool`        | `True`                | Exception bei ungültigen Adressen   |
-| `default_recipients`           | `list[str]`   | `[]`                  | Standard-Empfänger                  |
+| Attribut                       | Typ                 | Standard              | Beschreibung                        |
+|--------------------------------|---------------------|-----------------------|-------------------------------------|
+| `smtp_hosts`                   | `list[str]`         | `[]`                  | SMTP-Server im 'host:port'-Format   |
+| `from_address`                 | `str`               | `"noreply@localhost"` | Standard-Absenderadresse            |
+| `smtp_username`                | `str \| None`       | `None`                | SMTP-Authentifizierungsbenutzername |
+| `smtp_password`                | `SecretStr \| None` | `None`                | SMTP-Authentifizierungspasswort     |
+| `use_starttls`                 | `bool`              | `True`                | STARTTLS aktivieren                 |
+| `timeout`                      | `float`             | `30.0`                | Socket-Timeout (Sekunden)           |
+| `raise_on_missing_attachments` | `bool`              | `True`                | Exception bei fehlenden Dateien     |
+| `raise_on_invalid_recipient`   | `bool`              | `True`                | Exception bei ungültigen Adressen   |
+| `default_recipients`           | `list[str]`         | `[]`                  | Standard-Empfänger                  |
 
 ---
 
@@ -290,17 +294,18 @@ send_email(
 )
 ```
 
-**Parameter:**
+**Parameter** (nur als Schlüsselwort):
 
-| Parameter      | Typ                      | Standard     | Beschreibung           |
-|----------------|--------------------------|--------------|------------------------|
-| `config`       | `EmailConfig`            | Erforderlich | E-Mail-Konfiguration   |
-| `recipients`   | `str \| Sequence[str]`   | Erforderlich | Empfängeradresse(n)    |
-| `subject`      | `str`                    | Erforderlich | E-Mail-Betreff         |
-| `body`         | `str`                    | `""`         | Klartext-Body          |
-| `body_html`    | `str`                    | `""`         | HTML-Body              |
-| `from_address` | `str \| None`            | `None`       | Absender überschreiben |
-| `attachments`  | `Sequence[Path] \| None` | `None`       | Dateipfade für Anhänge |
+| Parameter      | Typ                      | Standard     | Beschreibung                                                   |
+|----------------|--------------------------|--------------|----------------------------------------------------------------|
+| `config`       | `EmailConfig`            | Erforderlich | E-Mail-Konfiguration                                           |
+| `recipients`   | `str \| Sequence[str]`   | Erforderlich | Empfängeradresse(n)                                            |
+| `subject`      | `str`                    | Erforderlich | E-Mail-Betreff                                                 |
+| `body`         | `str`                    | `""`         | Klartext-Body                                                  |
+| `body_html`    | `str`                    | `""`         | HTML-Body                                                      |
+| `from_address` | `str \| None`            | `None`       | Absender überschreiben                                         |
+| `attachments`  | `Sequence[Path] \| None` | `None`       | Dateipfade für Anhänge                                         |
+| `transport`    | `Transport \| None`      | `None`       | Zustell-Schnittstelle von btx_lib_mail; `None` sendet per SMTP |
 
 **Rückgabe:** `bool` - True bei Erfolg
 
@@ -323,30 +328,41 @@ config = EmailConfig(smtp_hosts=["smtp.beispiel.at:587"], from_address="alerts@b
 send_notification(config=config, recipients="admin@beispiel.at", subject="Systemwarnung", message="Backup erfolgreich abgeschlossen")
 ```
 
-**Parameter:**
+**Parameter** (nur als Schlüsselwort):
 
-| Parameter    | Typ                    | Standard     | Beschreibung          |
-|--------------|------------------------|--------------|-----------------------|
-| `config`     | `EmailConfig`          | Erforderlich | E-Mail-Konfiguration  |
-| `recipients` | `str \| Sequence[str]` | Erforderlich | Empfängeradresse(n)   |
-| `subject`    | `str`                  | Erforderlich | Betreffzeile          |
-| `message`    | `str`                  | Erforderlich | Benachrichtigungstext |
+| Parameter    | Typ                    | Standard     | Beschreibung                                            |
+|--------------|------------------------|--------------|---------------------------------------------------------|
+| `config`     | `EmailConfig`          | Erforderlich | E-Mail-Konfiguration                                    |
+| `recipients` | `str \| Sequence[str]` | Erforderlich | Empfängeradresse(n)                                     |
+| `subject`    | `str`                  | Erforderlich | Betreffzeile                                            |
+| `message`    | `str`                  | Erforderlich | Benachrichtigungstext                                   |
+| `transport`  | `Transport \| None`    | `None`       | Zustell-Schnittstelle, an `send_email()` weitergereicht |
 
 **Rückgabe:** `bool` - True bei Erfolg
 
 ---
 
-### `load_email_config_from_dict()`
+### `load_email_config()`
 
-Lädt EmailConfig aus einem Konfigurations-Dictionary.
+Lädt `EmailConfig` aus dem Abschnitt `[email]` der geschichteten Konfiguration.
 
 ```python
-from finanzonline_uid.mail import load_email_config_from_dict
 from finanzonline_uid.config import get_config
+from finanzonline_uid.mail import load_email_config
 
-config = get_config()
-email_config = load_email_config_from_dict(config.as_dict())
+email_config = load_email_config(get_config())
 ```
+
+**Parameter:**
+
+| Parameter | Typ      | Standard     | Beschreibung                                         |
+|-----------|----------|--------------|------------------------------------------------------|
+| `config`  | `Config` | Erforderlich | Geladene geschichtete Konfiguration (`get_config()`) |
+
+**Rückgabe:** `EmailConfig` - fehlende oder falsch typisierte Werte fallen auf die Standardwerte zurück
+
+**Wirft:**
+- `ValueError` - Ein konfigurierter Wert ist ungültig
 
 ---
 

@@ -55,6 +55,18 @@ finanzonline-uid check [OPTIONEN] [UID]
 | 3    | Authentifizierungsfehler |
 | 4    | Abfragefehler            |
 
+**JSON-Fehlerdatensatz (`--format json`):**
+
+Jeder Fehlschlag - Konfigurations-, Authentifizierungs-, Sitzungs-, Abfrage-, Validierungs- und
+unerwartete Fehler, ein abgelehntes Argument sowie Strg+C - schreibt zusätzlich ein JSON-Objekt auf
+stdout, sodass ein Aufrufer, der stdout auswertet, ihn erhält. Seine Schlüssel sind `uid`,
+`is_valid` (`false`), `error` (`true`), `error_type` (zum Beispiel `"Configuration Error"`,
+`"Query Error"`, `"Cancelled"`), `message`, `retryable` und `timestamp`; hat FinanzOnline mit einem
+Rückgabecode geantwortet, kommen `return_code`, `meaning` und `severity` hinzu, und `diagnostics`,
+wenn der Austausch aufgezeichnet wurde. Der Text auf stderr und der Exit-Code sind dieselben wie im
+menschenlesbaren Format. Bei einem abgelehnten Argument enthält `message` nur den Grund, ohne das
+übersetzte "Fehler:" am Anfang der stderr-Zeile.
+
 **Beispiele:**
 
 ```bash
@@ -151,6 +163,11 @@ finanzonline-uid config --section email
 # Produktionsprofil anzeigen
 finanzonline-uid config --profile production
 ```
+
+Nennt `--section` einen Abschnitt, der fehlt oder leer ist, endet `config` mit Exit-Code 1. Mit
+`--format json` schreibt es zusätzlich einen JSON-Fehlerdatensatz auf stdout, mit den Schlüsseln
+`error` (`true`), `error_type`, `message` und `timestamp`, benannt und typisiert wie im Datensatz
+von `check`.
 
 ---
 

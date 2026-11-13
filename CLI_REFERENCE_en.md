@@ -55,6 +55,17 @@ finanzonline-uid check [OPTIONS] [UID]
 | 3    | Authentication error |
 | 4    | Query error          |
 
+**JSON error record (`--format json`):**
+
+Every failure - configuration, authentication, session, query, validation and unexpected errors, a
+refused argument, and Ctrl+C - also writes one JSON object to stdout, so a caller parsing stdout
+gets it. Its keys are `uid`, `is_valid` (`false`), `error` (`true`), `error_type` (for example
+`"Configuration Error"`, `"Query Error"`, `"Cancelled"`), `message`, `retryable` and `timestamp`;
+when FinanzOnline answered with a return code they are joined by `return_code`, `meaning` and
+`severity`, and by `diagnostics` when the exchange was recorded. The stderr text and the exit code
+are the same as in the human format. A refused argument's `message` holds the bare reason, without
+the translated "Error:" lead-in of its stderr line.
+
 **Examples:**
 
 ```bash
@@ -151,6 +162,10 @@ finanzonline-uid config --section email
 # Show production profile
 finanzonline-uid config --profile production
 ```
+
+When `--section` names a section that is missing or empty, `config` exits 1. With `--format json`
+it also writes a JSON error record to stdout with the keys `error` (`true`), `error_type`,
+`message` and `timestamp`, named and typed as in the `check` record.
 
 ---
 
