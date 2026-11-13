@@ -31,7 +31,6 @@ import os
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, cast
 
@@ -239,7 +238,6 @@ def read_config_section(config: Config, section: ConfigSection) -> Mapping[str, 
     return {}
 
 
-@lru_cache(maxsize=1)
 def get_default_config_path() -> Path:
     """Return the path to the bundled default configuration file.
 
@@ -250,9 +248,6 @@ def get_default_config_path() -> Path:
 
     Returns:
         Absolute path to defaultconfig.toml.
-
-    Note:
-        This function is cached since the path never changes during runtime.
 
     Example:
         >>> path = get_default_config_path()

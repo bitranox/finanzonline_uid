@@ -21,7 +21,8 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 - Library API: `get_config()` no longer caches its result. Each call reads every layer again, so a
   changed environment variable, current directory or configuration file is seen by the next call;
   before, a repeated call with the same `profile` and `start_dir` returned the first result. The CLI
-  loads its configuration once per run either way. `get_config.cache_clear` is gone.
+  loads its configuration once per run either way. `get_config.cache_clear` is gone, and so is
+  `get_default_config_path.cache_clear`: that function no longer caches the path it builds.
 - Library API: `load_email_config(config)` replaces `load_email_config_from_dict` and
   `EmailConfig.from_dict`; `EmailConfig.smtp_password` is a `SecretStr`; the error formatters and
   `EmailNotificationAdapter.send_error` take a `CheckErrorInfo`; `Diagnostics.entries()` replaces
