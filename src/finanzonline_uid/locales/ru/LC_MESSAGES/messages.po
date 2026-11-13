@@ -339,6 +339,9 @@ msgstr "Введите ID НДС ЕС для проверки"
 msgid "Error: UID argument is required (or use --interactive)"
 msgstr "Ошибка: Требуется аргумент UID (или используйте --interactive)"
 
+msgid "UID argument is required (or use --interactive)"
+msgstr "Требуется аргумент UID (или используйте --interactive)"
+
 msgid "Return code:"
 msgstr "Код возврата:"
 
@@ -366,6 +369,9 @@ msgstr "Интервал повтора в минутах до успешной 
 
 msgid "Error: --retryminutes requires --interactive mode"
 msgstr "Ошибка: --retryminutes требует режим --interactive"
+
+msgid "--retryminutes requires --interactive mode"
+msgstr "--retryminutes требует режим --interactive"
 
 msgid "Checking"
 msgstr "Проверка"

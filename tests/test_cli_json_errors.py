@@ -11,6 +11,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import re
+from collections.abc import Iterator
 from typing import Any
 
 import pytest
@@ -21,6 +22,8 @@ from finanzonline_uid import cli as cli_mod
 from finanzonline_uid.config import FinanzOnlineConfig
 from finanzonline_uid.domain.errors import AuthenticationError, ConfigurationError, QueryError
 from finanzonline_uid.domain.models import FinanzOnlineCredentials, UidCheckResult
+from finanzonline_uid.enums import Language
+from finanzonline_uid.i18n import setup_locale
 
 
 class _ScriptedChecker:
@@ -46,11 +49,14 @@ def _dependencies(
     outcomes: list[UidCheckResult | BaseException],
     *,
     fo_config_error: ConfigurationError | None = None,
+    language: str | None = None,
 ) -> cli_mod.CliDependencies:
-    """Collaborators with an empty configuration and a scripted use case."""
+    """Collaborators with an empty configuration (or only ``[app] language``) and a scripted use case."""
 
     def load_config(*, profile: str | None = None) -> Config:
-        return Config({}, {})
+        if language is None:
+            return Config({}, {})
+        return Config({"app": {"language": language}}, {})
 
     def load_fo_config(_config: Config) -> FinanzOnlineConfig:
         if fo_config_error is not None:
@@ -75,9 +81,10 @@ def _check(
     outcomes: list[UidCheckResult | BaseException] | None = None,
     fo_config_error: ConfigurationError | None = None,
     stdin: str | None = None,
+    language: str | None = None,
 ) -> Result:
     """Run ``check <args> --no-email --format <output_format>`` in-process."""
-    deps = _dependencies(outcomes or [], fo_config_error=fo_config_error)
+    deps = _dependencies(outcomes or [], fo_config_error=fo_config_error, language=language)
     return CliRunner().invoke(cli_mod.cli, ["check", *args, "--no-email", "--format", output_format], obj=deps, input=stdin)
 
 
@@ -172,6 +179,81 @@ def test_json_retryminutes_refusal_is_a_record_naming_the_given_uid() -> None:
     assert _stderr_without_log_lines(result) == "Error: --retryminutes requires --interactive mode\n"
     record = _record(result)
     assert (record["uid"], record["error_type"], record["message"]) == ("DE123456789", "Validation Error", "--retryminutes requires --interactive mode")
+
+
+@pytest.fixture
+def english_afterwards() -> Iterator[None]:
+    """Put the process back on English: a localized run leaves the module-level locale switched."""
+    yield
+    setup_locale(Language.EN)
+
+
+_E_ACUTE = "\N{LATIN SMALL LETTER E WITH ACUTE}"
+
+#: Each refusal per locale, as (language, check args, uid in the record, stderr line, record message).
+#: French puts a space before the colon of its "Erreur :" lead-in, so a record message cut out of
+#: the stderr line by prefix kept the lead-in there; the other locales pin that nothing moved.
+_LOCALIZED_REFUSALS: list[tuple[str, list[str], str, str, str]] = [
+    ("en", [], "", "Error: UID argument is required (or use --interactive)", "UID argument is required (or use --interactive)"),
+    ("de", [], "", "Fehler: UID-Argument erforderlich (oder --interactive verwenden)", "UID-Argument erforderlich (oder --interactive verwenden)"),
+    ("es", [], "", "Error: El argumento UID es requerido (o use --interactive)", "El argumento UID es requerido (o use --interactive)"),
+    ("fr", [], "", "Erreur : L'argument UID est requis (ou utilisez --interactive)", "L'argument UID est requis (ou utilisez --interactive)"),
+    (
+        "en",
+        ["DE123456789", "--retryminutes", "1"],
+        "DE123456789",
+        "Error: --retryminutes requires --interactive mode",
+        "--retryminutes requires --interactive mode",
+    ),
+    (
+        "de",
+        ["DE123456789", "--retryminutes", "1"],
+        "DE123456789",
+        "Fehler: --retryminutes erfordert --interactive Modus",
+        "--retryminutes erfordert --interactive Modus",
+    ),
+    (
+        "es",
+        ["DE123456789", "--retryminutes", "1"],
+        "DE123456789",
+        "Error: --retryminutes requiere modo --interactive",
+        "--retryminutes requiere modo --interactive",
+    ),
+    (
+        "fr",
+        ["DE123456789", "--retryminutes", "1"],
+        "DE123456789",
+        f"Erreur : --retryminutes n{_E_ACUTE}cessite le mode --interactive",
+        f"--retryminutes n{_E_ACUTE}cessite le mode --interactive",
+    ),
+]
+
+
+@pytest.mark.os_agnostic
+@pytest.mark.usefixtures("english_afterwards")
+@pytest.mark.parametrize(
+    ("language", "args", "uid", "stderr_line", "record_message"),
+    _LOCALIZED_REFUSALS,
+    ids=[f"{case[0]}-{'retryminutes' if case[1] else 'missing-uid'}" for case in _LOCALIZED_REFUSALS],
+)
+def test_json_refusal_record_carries_the_bare_reason_in_every_locale(language: str, args: list[str], uid: str, stderr_line: str, record_message: str) -> None:
+    result = _check(args, "json", language=language)
+
+    assert result.exit_code == 2
+    assert _stderr_without_log_lines(result) == stderr_line + "\n"
+    record = _record(result)
+    assert (record["uid"], record["error_type"], record["message"]) == (uid, "Validation Error", record_message)
+
+
+@pytest.mark.os_agnostic
+@pytest.mark.usefixtures("english_afterwards")
+@pytest.mark.parametrize("language", list(Language))
+def test_every_refusal_has_a_distinct_record_message_in_every_locale(language: Language) -> None:
+    setup_locale(language)
+
+    for refusal in cli_mod.CheckRefusal:
+        assert refusal.record_message() not in ("", refusal.stderr_line())
+        assert refusal.stderr_line().endswith(refusal.record_message())
 
 
 @pytest.mark.os_agnostic

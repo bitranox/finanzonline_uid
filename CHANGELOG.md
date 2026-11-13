@@ -25,7 +25,8 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   `domain.soap_utils.extract_string_attr` are removed.
 - `check --format json` now writes a JSON error record to stdout for every failure (configuration,
   authentication, session, query, validation and unexpected errors, argument refusals,
-  cancellation); stderr messages and exit codes are unchanged.
+  cancellation); stderr messages and exit codes are unchanged. An argument refusal's record carries
+  the bare reason as `message`, without the translated "Error:" lead-in of the stderr line.
 - The CLI's collaborators (configuration loading, the FinanzOnline use case, the email sender, the
   configuration deployer) can be replaced by passing a `finanzonline_uid.cli.CliDependencies` as
   Click's `obj`; any other `obj` is refused with `TypeError`.

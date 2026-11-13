@@ -31,6 +31,7 @@ import time
 from collections.abc import Callable, Generator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from types import MappingProxyType
 from typing import Final, NamedTuple, NoReturn, Protocol
@@ -71,7 +72,7 @@ from .domain.errors import (
 from .domain.models import FinanzOnlineCredentials, UidCheckResult, sanitize_uid
 from .domain.return_codes import CliExitCode, get_return_code_info, is_retryable
 from .enums import DeployTarget, EmailFormat, FileFormat, NotificationKind, OutputFormat
-from .i18n import _, setup_locale
+from .i18n import N_, _, setup_locale
 from .logging_setup import init_logging
 from .mail import EmailConfig, load_email_config
 from .typed_click import argument, option, version_option
@@ -654,23 +655,82 @@ def _emit_json_error(output_format: OutputFormat, info: CheckErrorInfo, uid: str
         safe_console.echo(format_error_json(info, uid))
 
 
-def _refuse_check(message: str, *, output_format: OutputFormat, uid: str) -> NoReturn:
+class CheckRefusal(str, Enum):
+    """Why ``check`` refuses an invocation before anything is queried.
+
+    Each member carries two translated texts: the stderr line with its
+    "Error:" lead-in, and the bare reason for the JSON record, whose
+    ``error_type`` already says it is an error.
+
+    Attributes:
+        MISSING_UID: No UID argument and no ``--interactive``.
+        RETRY_WITHOUT_INTERACTIVE: ``--retryminutes`` without ``--interactive``.
+
+    Examples:
+        >>> CheckRefusal.MISSING_UID.record_message()
+        'UID argument is required (or use --interactive)'
+        >>> CheckRefusal.RETRY_WITHOUT_INTERACTIVE.stderr_line()
+        'Error: --retryminutes requires --interactive mode'
+
+        Every member has its texts:
+
+        >>> set(_CHECK_REFUSAL_TEXTS) == set(CheckRefusal)
+        True
+    """
+
+    MISSING_UID = "missing_uid"
+    RETRY_WITHOUT_INTERACTIVE = "retry_without_interactive"
+
+    def stderr_line(self) -> str:
+        """Return the translated refusal line printed to stderr."""
+        return _(_CHECK_REFUSAL_TEXTS[self].stderr_line)
+
+    def record_message(self) -> str:
+        """Return the translated bare reason for the JSON error record."""
+        return _(_CHECK_REFUSAL_TEXTS[self].record_message)
+
+
+class _RefusalTexts(NamedTuple):
+    """The two untranslated msgids of one :class:`CheckRefusal`."""
+
+    stderr_line: str
+    record_message: str
+
+
+# Two msgids per reason rather than one line cut apart at run time: a locale's
+# lead-in is not always "<Error>: " (French writes "Erreur : "), so cutting the
+# prefix off the translated line left it in the record. N_ only marks the texts
+# for extraction; CheckRefusal translates them when the language is known.
+_CHECK_REFUSAL_TEXTS: Final[Mapping[CheckRefusal, _RefusalTexts]] = MappingProxyType(
+    {
+        CheckRefusal.MISSING_UID: _RefusalTexts(
+            stderr_line=N_("Error: UID argument is required (or use --interactive)"),
+            record_message=N_("UID argument is required (or use --interactive)"),
+        ),
+        CheckRefusal.RETRY_WITHOUT_INTERACTIVE: _RefusalTexts(
+            stderr_line=N_("Error: --retryminutes requires --interactive mode"),
+            record_message=N_("--retryminutes requires --interactive mode"),
+        ),
+    }
+)
+
+
+def _refuse_check(refusal: CheckRefusal, *, output_format: OutputFormat, uid: str) -> NoReturn:
     """Refuse an invalid ``check`` invocation before anything is queried.
 
+    The stderr line goes out in every output format; with JSON output the
+    record carrying the bare reason goes to stdout as well.
+
     Args:
-        message: The translated refusal line printed to stderr.
+        refusal: Why the invocation is refused.
         output_format: Console output format of this run.
         uid: The (sanitized) UID given, or ``""`` when none was given.
 
     Raises:
         SystemExit: Always, with the configuration error exit code.
     """
-    safe_console.echo(message, err=True)
-    # The record's message drops the "Error: " lead-in the stderr line carries,
-    # because error_type already says it is an error; reusing the existing
-    # translated line keeps every locale's wording without a new msgid.
-    record_message = message.removeprefix(f"{_('Error')}: ")
-    info = CheckErrorInfo(error_type=ErrorKind.VALIDATION, message=record_message, exit_code=CliExitCode.CONFIG_ERROR)
+    safe_console.echo(refusal.stderr_line(), err=True)
+    info = CheckErrorInfo(error_type=ErrorKind.VALIDATION, message=refusal.record_message(), exit_code=CliExitCode.CONFIG_ERROR)
     _emit_json_error(output_format, info, uid)
     raise SystemExit(info.exit_code)
 
@@ -714,7 +774,7 @@ def _resolve_uid_input(uid: str | None, interactive: bool, *, output_format: Out
     if interactive:
         raw_uid = click.prompt(_("Enter EU VAT ID to verify"), type=str, err=_notes_to_stderr(output_format))
     elif uid is None:
-        _refuse_check(_("Error: UID argument is required (or use --interactive)"), output_format=output_format, uid="")
+        _refuse_check(CheckRefusal.MISSING_UID, output_format=output_format, uid="")
     else:
         raw_uid = uid
 
@@ -1170,7 +1230,7 @@ def cli_check(
     with _json_record_for_unreported_errors(output_format, subject):
         if retryminutes is not None and not interactive:
             subject.uid = sanitize_uid(uid) if uid is not None else ""
-            _refuse_check(_("Error: --retryminutes requires --interactive mode"), output_format=output_format, uid=subject.uid)
+            _refuse_check(CheckRefusal.RETRY_WITHOUT_INTERACTIVE, output_format=output_format, uid=subject.uid)
 
         subject.uid = _resolve_uid_input(uid, interactive, output_format=output_format)
         extra = {"command": "check", "uid": subject.uid, "no_email": no_email, "format": output_format.value, "retryminutes": retryminutes}
@@ -1549,6 +1609,7 @@ __all__ = [
     "TRACEBACK_VERBOSE_LIMIT",
     "CheckInvocation",
     "CheckOutcome",
+    "CheckRefusal",
     "CliContext",
     "CliDependencies",
     "ConfigDeployer",

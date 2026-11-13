@@ -339,6 +339,9 @@ msgstr "EU-Umsatzsteuer-ID zur Prüfung eingeben"
 msgid "Error: UID argument is required (or use --interactive)"
 msgstr "Fehler: UID-Argument erforderlich (oder --interactive verwenden)"
 
+msgid "UID argument is required (or use --interactive)"
+msgstr "UID-Argument erforderlich (oder --interactive verwenden)"
+
 msgid "Return code:"
 msgstr "Rückgabecode:"
 
@@ -366,6 +369,9 @@ msgstr "Wiederholungsintervall in Minuten bis Prüfung erfolgreich oder abgebroc
 
 msgid "Error: --retryminutes requires --interactive mode"
 msgstr "Fehler: --retryminutes erfordert --interactive Modus"
+
+msgid "--retryminutes requires --interactive mode"
+msgstr "--retryminutes erfordert --interactive Modus"
 
 msgid "Checking"
 msgstr "Prüfe"

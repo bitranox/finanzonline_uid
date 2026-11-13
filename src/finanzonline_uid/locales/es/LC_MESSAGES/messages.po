@@ -339,6 +339,9 @@ msgstr "Ingrese ID de IVA de la UE para verificar"
 msgid "Error: UID argument is required (or use --interactive)"
 msgstr "Error: El argumento UID es requerido (o use --interactive)"
 
+msgid "UID argument is required (or use --interactive)"
+msgstr "El argumento UID es requerido (o use --interactive)"
+
 msgid "Return code:"
 msgstr "Código de retorno:"
 
@@ -366,6 +369,9 @@ msgstr "Intervalo de reintento en minutos hasta que la verificación tenga éxit
 
 msgid "Error: --retryminutes requires --interactive mode"
 msgstr "Error: --retryminutes requiere modo --interactive"
+
+msgid "--retryminutes requires --interactive mode"
+msgstr "--retryminutes requiere modo --interactive"
 
 msgid "Checking"
 msgstr "Verificando"

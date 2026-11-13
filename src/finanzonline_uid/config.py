@@ -33,10 +33,10 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import cast
+from typing import Annotated, cast
 
 from lib_layered_config import Config, read_config
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, ValidationError, field_validator
 from pydantic_core import PydanticCustomError, PydanticUseDefault
 
 from . import __init__conf__
@@ -421,14 +421,16 @@ def path_setting(raw: object) -> Path | None:
 _DEFAULT_EMAIL_FORMAT = EmailFormat.HTML
 
 
-def _email_format_setting(raw: object) -> EmailFormat | None:
-    """Return the email format a setting names, or None when it names none.
+def _email_format_or_default(raw: object) -> EmailFormat:
+    """Return the email format a setting names, else make the field use its default.
 
-    Case and surrounding whitespace are ignored.
+    Case and surrounding whitespace are ignored. Anything else (an unknown
+    name, a number, a list) raises :class:`pydantic_core.PydanticUseDefault`,
+    so the field falls back to HTML instead of refusing the whole section.
 
     Examples:
-        >>> _email_format_setting(" Plain "), _email_format_setting("pdf"), _email_format_setting(1)
-        (<EmailFormat.PLAIN: 'plain'>, None, None)
+        >>> _email_format_or_default(" Plain ")
+        <EmailFormat.PLAIN: 'plain'>
     """
     if isinstance(raw, EmailFormat):
         return raw
@@ -436,8 +438,29 @@ def _email_format_setting(raw: object) -> EmailFormat | None:
         try:
             return EmailFormat(raw.lower().strip())
         except ValueError:
-            return None
-    return None
+            raise PydanticUseDefault from None
+    raise PydanticUseDefault
+
+
+#: The ``email_format`` setting as every section model reads it. One annotated
+#: type, so the full section and the error-mail fallback cannot parse it apart.
+_EmailFormatSetting = Annotated[EmailFormat, BeforeValidator(_email_format_or_default)]
+
+
+class _EmailFormatSection(BaseModel):
+    """The one ``[finanzonline]`` key the error email needs, read on its own.
+
+    Every other key is ignored, so a section that :class:`FinanzOnlineSection`
+    refuses (or whose credentials are missing) still yields its email format.
+
+    Examples:
+        >>> _EmailFormatSection.model_validate({"email_format": "pdf", "output_dir": True}).email_format
+        <EmailFormat.HTML: 'html'>
+    """
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
+    email_format: _EmailFormatSetting = _DEFAULT_EMAIL_FORMAT
 
 
 def load_email_format(config: Config) -> EmailFormat:
@@ -447,7 +470,8 @@ def load_email_format(config: Config) -> EmailFormat:
     loaded (missing credentials, say) has no :class:`FinanzOnlineConfig` to
     take the format from; reading the one key here keeps that email in the
     format the user configured. It never raises: an unusable value means the
-    default, as it does for :class:`FinanzOnlineSection`.
+    default, as it does for :class:`FinanzOnlineSection`, because both read the
+    key through the same annotated type.
 
     Args:
         config: Loaded layered configuration.
@@ -458,11 +482,13 @@ def load_email_format(config: Config) -> EmailFormat:
     Examples:
         >>> load_email_format(Config({"finanzonline": {"email_format": "BOTH"}}, {}))
         <EmailFormat.BOTH: 'both'>
+        >>> load_email_format(Config({"finanzonline": {"email_format": 1}}, {}))
+        <EmailFormat.HTML: 'html'>
         >>> load_email_format(Config({}, {}))
         <EmailFormat.HTML: 'html'>
     """
-    configured = _email_format_setting(read_config_section(config, ConfigSection.FINANZONLINE).get("email_format"))
-    return configured if configured is not None else _DEFAULT_EMAIL_FORMAT
+    section = _EmailFormatSection.model_validate(dict(read_config_section(config, ConfigSection.FINANZONLINE)))
+    return section.email_format
 
 
 class FinanzOnlineSection(BaseModel):
@@ -495,7 +521,7 @@ class FinanzOnlineSection(BaseModel):
     session_timeout: float = 30.0
     query_timeout: float = 30.0
     default_recipients: list[str] = Field(default_factory=empty_text_list)
-    email_format: EmailFormat = _DEFAULT_EMAIL_FORMAT
+    email_format: _EmailFormatSetting = _DEFAULT_EMAIL_FORMAT
     cache_results_hours: float = 48.0
     cache_file: Path = Field(default_factory=_get_default_cache_path)
     ratelimit_queries: int = 50
@@ -523,14 +549,6 @@ class FinanzOnlineSection(BaseModel):
     @classmethod
     def _recipients(cls, raw: object) -> list[str]:
         return parse_string_list(raw)
-
-    @field_validator("email_format", mode="before")
-    @classmethod
-    def _email_format(cls, raw: object) -> EmailFormat:
-        configured = _email_format_setting(raw)
-        if configured is None:
-            raise PydanticUseDefault
-        return configured
 
     @field_validator("cache_file", "ratelimit_file", mode="before")
     @classmethod
