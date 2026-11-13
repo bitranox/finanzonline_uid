@@ -9,21 +9,18 @@ from __future__ import annotations
 
 import dataclasses
 import json
-import re
 from datetime import datetime
 from typing import Any
 
 import pytest
 from click.testing import CliRunner, Result
 from lib_layered_config import Config
+from log_lines import LOG_LINE
 
 from finanzonline_uid import cli as cli_mod
 from finanzonline_uid.adapters.output import format_error_json
 from finanzonline_uid.domain.errors import CheckErrorInfo, ErrorKind
 from finanzonline_uid.domain.return_codes import CliExitCode
-
-#: Console log lines the logging runtime may add to stderr; not part of what config writes.
-_LOG_LINE = re.compile(r"^\[\d{2}:\d{2}:\d{2}\]\[[A-Z]+\]: .*\n", re.MULTILINE)
 
 _CONFIG_DATA: dict[str, Any] = {"email": {"smtp_hosts": ["smtp.example.com"]}, "empty": {}}
 
@@ -39,7 +36,7 @@ def _config(args: list[str]) -> Result:
 
 
 def _stderr(result: Result) -> str:
-    return _LOG_LINE.sub("", result.stderr)
+    return LOG_LINE.sub("", result.stderr)
 
 
 @pytest.mark.os_agnostic

@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 from click.testing import CliRunner, Result
 from lib_layered_config import Config
+from log_lines import LOG_LINE
 
 from finanzonline_uid import cli as cli_mod
 from finanzonline_uid.config import FinanzOnlineConfig
@@ -91,9 +92,6 @@ def _check(
 #: The --interactive prompt with the typed input CliRunner echoes after it: on stdout with
 #: --format human, on stderr with --format json (stdout then carries only the JSON document).
 _PROMPT_ECHO = re.compile(r"\AEnter EU VAT ID to verify: [^\n]*\n")
-#: The console log handler writes to the stderr of the first run in this process only, so log
-#: lines say nothing about one run against another and are left out of the comparison.
-_LOG_LINE = re.compile(r"^\[\d{2}:\d{2}:\d{2}\]\[[A-Z]+\]: .*\n", re.MULTILINE)
 
 
 def _stdout_after_prompt(result: Result) -> str:
@@ -102,8 +100,12 @@ def _stdout_after_prompt(result: Result) -> str:
 
 
 def _stderr_without_log_lines(result: Result) -> str:
-    """Stderr as the command wrote it, without console log lines."""
-    return _LOG_LINE.sub("", result.stderr)
+    """Stderr as the command wrote it, without console log lines.
+
+    The console log handler writes to the stderr of the first run in this process only, so log
+    lines say nothing about one run against another and are left out of the comparison.
+    """
+    return LOG_LINE.sub("", result.stderr)
 
 
 def _record(result: Result) -> dict[str, Any]:
