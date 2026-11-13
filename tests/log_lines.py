@@ -4,9 +4,9 @@ Tests that compare a command's stderr across runs drop these lines first: lib_lo
 from a queue worker, so where they land among the command's own lines, and their timestamp, differ
 from run to run. ``LOG_LINE`` matches the ``short_loc`` console layout. That layout is the default
 everywhere except Windows, whose default ``short_loc_icon`` puts an icon where the bracketed level
-is, so a child process whose stderr is filtered with ``LOG_LINE`` gets ``PINNED_CONSOLE_LAYOUT`` in
-its environment. Imported by bare name, like ``layer_roots``: ``pythonpath`` puts ``tests/`` on
-``sys.path``.
+is, so the rootdir conftest sets ``PINNED_CONSOLE_LAYOUT`` for every test, and a test that builds a
+child process's environment from scratch adds it again. Imported by bare name, like
+``layer_roots``: ``pythonpath`` puts ``tests/`` on ``sys.path``.
 """
 
 from __future__ import annotations

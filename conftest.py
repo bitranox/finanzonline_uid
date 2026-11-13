@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from layer_roots import SYSTEM_LAYER_ROOT_VARIABLES, USER_LAYER_ROOT_VARIABLES
+from log_lines import PINNED_CONSOLE_LAYOUT
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -53,3 +54,16 @@ def user_layer_in_tmp_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> P
     for name in USER_LAYER_ROOT_VARIABLES:
         monkeypatch.setenv(name, str(root))
     return root
+
+
+@pytest.fixture(autouse=True)
+def console_log_layout_pinned(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Give lib_log_rich's console lines the one layout ``log_lines.LOG_LINE`` recognises, on every OS.
+
+    The console handler writes from a queue worker to whatever ``sys.stderr`` is when the line is
+    rendered, so a line from one in-process CLI run can land in the captured stderr of the next run.
+    Tests that compare stderr filter those lines out, which works only if they have the expected
+    shape - and Windows' default layout puts an icon where the bracketed level is.
+    """
+    for name, value in PINNED_CONSOLE_LAYOUT.items():
+        monkeypatch.setenv(name, value)
