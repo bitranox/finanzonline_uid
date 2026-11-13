@@ -339,7 +339,7 @@ def _handle_deploy_error(exc: Exception) -> None:
 )
 @click.pass_context
 def cli_config_deploy(ctx: click.Context, targets: tuple[str, ...], force: bool, profile: str | None) -> None:
-    r"""Deploy default configuration to system or user directories.
+    """Deploy default configuration to system or user directories.
 
     Creates configuration files in platform-specific locations:
 

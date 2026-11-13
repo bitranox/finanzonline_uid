@@ -7,6 +7,11 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+### Fixed
+
+- `config-deploy --help` no longer prints a literal `\b` above the target list; the list keeps its
+  line breaks.
+
 ## [2.7.15] - 2026-11-12
 
 ### Changed

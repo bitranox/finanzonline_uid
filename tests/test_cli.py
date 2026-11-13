@@ -251,6 +251,16 @@ def test_when_hello_is_invoked_the_cli_smiles(cli_runner: CliRunner) -> None:
 
 
 @pytest.mark.os_agnostic
+@pytest.mark.parametrize("command", sorted(cli_mod.cli.commands))
+def test_no_command_help_prints_a_literal_no_rewrap_marker(cli_runner: CliRunner, command: str) -> None:
+    """A ``\\b`` inside a raw docstring reaches --help as two characters instead of click's marker."""
+    result: Result = cli_runner.invoke(cli_mod.cli, [command, "--help"])
+
+    assert result.exit_code == 0
+    assert "\\b" not in result.output
+
+
+@pytest.mark.os_agnostic
 def test_when_fail_is_invoked_the_cli_raises(cli_runner: CliRunner) -> None:
     """Verify fail command raises RuntimeError."""
     result: Result = cli_runner.invoke(cli_mod.cli, ["fail"])
