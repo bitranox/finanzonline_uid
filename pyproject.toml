@@ -67,7 +67,7 @@ dev = [
   # Re-enable once codecov-cli relaxes its click<8.3.0 pin.
   # "codecov-cli>=11.2.8",
   # Transitive CVE pins
-  "click>=8.5.0",                # CVE-2026-7246
+  "click>=8.5.1",                # CVE-2026-7246
   "certifi>=2026.10.23",         # PYSEC-2026-4320
   "pip-audit>=2.10.1",
   "textual>=8.2.8",
