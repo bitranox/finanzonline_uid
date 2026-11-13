@@ -7,6 +7,8 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-11-13
+
 ### Changed
 
 - Data read from outside is now parsed once into typed, validated models: SOAP replies, the cache
@@ -44,7 +46,6 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   started, and a warning names both paths.
 - A whitespace-only `finanzonline.output_dir` now switches result files off, like an empty one,
   instead of writing them into the current directory.
-
 - `config-deploy --help` no longer prints a literal `\b` above the target list; the list keeps its
   line breaks.
 - The plain-text result and error emails printed `Severity: Severity.SUCCESS` (and so on) on
@@ -55,8 +56,9 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
   `ValueError` (or `TypeError` for an empty code); it is now reported as a session or query error
   ("Malformed ... response"). The same error now refuses a fractional return code, which was cut to
   a whole number, an empty reply or one without a return code, both of which read as a successful
-  login or a valid UID, and a reply whose text fields are not text. When the error diagnostics found a recorded SOAP exchange without
-  an envelope, the original error was replaced by a `KeyError`; it is kept now.
+  login or a valid UID, and a reply whose text fields are not text. When the error diagnostics found
+  a recorded SOAP exchange without an envelope, the original error was replaced by a `KeyError`; it
+  is kept now.
 - An `output_dir` that is not text (`true`, a non-empty list or table, a number with a fraction)
   crashed `check` with `AttributeError`; it now stops `check` with exit code 2 and "Invalid
   FinanzOnline configuration: finanzonline.output_dir: ...". An empty value, `false` or `0` still

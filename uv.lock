@@ -764,7 +764,7 @@ wheels = [
 
 [[package]]
 name = "finanzonline-uid"
-version = "2.7.15"
+version = "3.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "btx-lib-mail" },
