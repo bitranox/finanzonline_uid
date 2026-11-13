@@ -228,12 +228,6 @@ exclude-rules = [
   "PSAvoidUsingCmdletAliases",
 ]
 
-[tool.pip-audit]
-# Known vulnerabilities to ignore (unfixable or accepted risk)
-# PYSEC-2022-42969: py library ReDoS (no fix available, low risk)
-# CVE-2026-3219: pip 26.0.1 concatenated tar/ZIP confusion (no fix available yet, CI-only)
-ignore-vulns = ["PYSEC-2022-42969", "CVE-2026-3219"]
-
 [tool.uv]
 exclude-newer = "7 days"
 exclude-newer-package = {btx-lib-mail = false, lib-cli-exit-tools = false, lib-layered-config = false, lib-log-rich = false}
