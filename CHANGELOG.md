@@ -7,6 +7,8 @@ the [Keep a Changelog](https://keepachangelog.com/) format.
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-11-18
+
 ### Changed
 
 - `lib_layered_config>=8.1.0`: `DeployAction` (and `DeployResult`) are imported from the package

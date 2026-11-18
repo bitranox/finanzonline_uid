@@ -1,6 +1,6 @@
 [project]
 name = "finanzonline_uid"
-version = "3.0.0"
+version = "3.0.1"
 description = "Python library and CLI for querying Level 2 UID checks via FinanzOnline Austria"
 readme = "README.md"
 requires-python = ">=3.10"
