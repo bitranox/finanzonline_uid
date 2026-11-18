@@ -18,8 +18,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from pathlib import Path
 
-from lib_layered_config import deploy_config
-from lib_layered_config.examples.deploy import DeployAction, DeployResult
+from lib_layered_config import DeployAction, DeployResult, deploy_config
 
 from . import __init__conf__
 from .config import get_default_config_path
