@@ -59,20 +59,6 @@ finanzonline_uid/
 └── README.md                  # Project overview
 ```
 
-## Versioning & Releases
-
-- **Single Source of Truth**: Package version is in `pyproject.toml` (`[project].version`)
-- **Version Bumps**: `make bump` (patch / minor / major) is the supported path - it updates `pyproject.toml`, renames the `CHANGELOG.md` `[Unreleased]` heading to the new version and opens a fresh one, then regenerates the package `__init__conf__.py` from `pyproject.toml`  
-    - Automation rewrites `src/finanzonline_uid/__init__conf__.py` from `pyproject.toml`, so runtime code imports generated constants instead of querying `importlib.metadata`.
-    - bmk regenerates that metadata module itself - it runs as a stage of `make bump`, and again before every `make commit` / `make push`. `make test` does not regenerate it, and the generated constants are never hand-edited.
-- **Release Tags**: Format is `vX.Y.Z` (push tags for CI to build and publish)
-
-## Make targets specific to this repo
-
-- `make run` - Run module entry (`python -m ... --help`)
-
-Everything else is the generated bmk list: run `make help`.
-
 ## Architecture Overview
 
 use skill `bitranox:coding-python-clean-architecture` when designing and implementing features.
@@ -86,26 +72,26 @@ use skill `bitranox:coding-python-clean-architecture` when designing and impleme
 
 ## CLI Commands
 
-| Command         | Description                                      |
-|-----------------|--------------------------------------------------|
-| `check`         | Verify a VAT ID via FinanzOnline Level 2 query   |
-| `config`        | Display current configuration                    |
-| `config-deploy` | Deploy configuration files to user/app/host      |
-| `info`          | Display package information                      |
-| `hello`         | Test success path                                |
-| `fail`          | Test error handling                              |
+| Command         | Description                                    |
+|-----------------|------------------------------------------------|
+| `check`         | Verify a VAT ID via FinanzOnline Level 2 query |
+| `config`        | Display current configuration                  |
+| `config-deploy` | Deploy configuration files to user/app/host    |
+| `info`          | Display package information                    |
+| `hello`         | Test success path                              |
+| `fail`          | Test error handling                            |
 
 ### Check Command Options
 
-| Option           | Description                                                |
-|------------------|------------------------------------------------------------|
-| `--interactive`  | Prompt for UID input interactively                         |
-| `--retryminutes` | Retry interval in minutes (requires `--interactive`)       |
-| `--no-email`     | Disable email notification                                 |
-| `--format`       | Output format: `human` or `json`                           |
-| `--recipient`    | Email recipient(s) - can specify multiple times            |
-| `--outputdir`    | Directory to save valid results as files (`-o`)            |
-| `--outputformat` | Output file format: `json`, `txt`, or `html`               |
+| Option           | Description                                          |
+|------------------|------------------------------------------------------|
+| `--interactive`  | Prompt for UID input interactively                   |
+| `--retryminutes` | Retry interval in minutes (requires `--interactive`) |
+| `--no-email`     | Disable email notification                           |
+| `--format`       | Output format: `human` or `json`                     |
+| `--recipient`    | Email recipient(s) - can specify multiple times      |
+| `--outputdir`    | Directory to save valid results as files (`-o`)      |
+| `--outputformat` | Output file format: `json`, `txt`, or `html`         |
 
 **UID Sanitization:** All UID inputs are automatically cleaned from copy-paste artifacts (whitespace, invisible characters) and normalized to uppercase.
 
@@ -119,9 +105,3 @@ use skill `bitranox:coding-python-clean-architecture` when designing and impleme
 - `rich-click` - CLI framework with rich output
 - `zeep` - SOAP client for FinanzOnline web services
 - `filelock` - File locking for cache and rate limit files
-
-## Commit & Push Policy
-
-### Pre-Push Requirements
-- **Always run `make test` before pushing** to avoid lint/test breakage
-- Ensure all tests pass and code is properly formatted
