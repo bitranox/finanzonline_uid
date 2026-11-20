@@ -8,7 +8,7 @@ dependencies = [
     "rich-click>=1.9.9",
     "lib_cli_exit_tools>=2.5.0",
     "lib_log_rich>=8.2.2",
-    "lib_layered_config>=8.1.0",
+    "lib_layered_config>=9.0.2",
     # 1.5.0 exposes the `transport` delivery seam that send_email forwards.
     "btx_lib_mail>=4.6.4",
     "pydantic>=2.14.3",
@@ -53,7 +53,7 @@ dev = [
   "pytest>=9.2.0",
   "pytest-cov>=7.1.0",
   "pytest-xdist>=3.8.0",
-  "ruff>=0.17.4",
+  "ruff>=0.17.5",
   "pyright[nodejs]>=1.1.414",
   "bandit>=1.9.4",
   "build>=1.6.1",
@@ -230,4 +230,4 @@ exclude-rules = [
 
 [tool.uv]
 exclude-newer = "7 days"
-exclude-newer-package = {btx-lib-mail = false, lib-cli-exit-tools = false, lib-layered-config = false, lib-log-rich = false}
+exclude-newer-package = {btx-lib-mail = false, lib-cli-exit-tools = false, lib-layered-config = false, lib-log-rich = false, finanzonline-uid = false}
